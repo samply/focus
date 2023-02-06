@@ -1,0 +1,103 @@
+{
+		"group": [
+			{
+				"code": {
+					"text": "patients"
+				},
+				"population": [
+					{
+						"code": {
+							"coding": [
+								{
+									"code": "initial-population",
+									"system": "http://terminology.hl7.org/CodeSystem/measure-population"
+								}
+							]
+						},
+						"criteria": {
+							"expression": "InInitialPopulation",
+							"language": "text/cql-identifier"
+						}
+					}
+				],
+				"stratifier": [
+					{
+						"code": {
+							"text": "Gender"
+						},
+						"criteria": {
+							"expression": "Gender",
+							"language": "text/cql"
+						}
+					},
+					{
+						"code": {
+							"text": "Age"
+						},
+						"criteria": {
+							"expression": "AgeClass",
+							"language": "text/cql"
+						}
+					}
+				]
+			},
+			{
+				"code": {
+					"text": "specimen"
+				},
+				"extension": [
+					{
+						"url": "http://hl7.org/fhir/us/cqfmeasures/StructureDefinition/cqfm-populationBasis",
+						"valueCode": "Specimen"
+					}
+				],
+				"population": [
+					{
+						"code": {
+							"coding": [
+								{
+									"code": "initial-population",
+									"system": "http://terminology.hl7.org/CodeSystem/measure-population"
+								}
+							]
+						},
+						"criteria": {
+							"expression": "Specimen",
+							"language": "text/cql-identifier"
+						}
+					}
+				],
+				"stratifier": [
+					{
+						"code": {
+							"text": "sample_kind"
+						},
+						"criteria": {
+							"expression": "SampleType",
+							"language": "text/cql"
+						}
+					}
+				]
+			}
+		],
+		"library": "urn:uuid:bb71212a-38ee-4657-bf88-4f0bde9d7bfd",
+		"resourceType": "Measure",
+		"scoring": {
+			"coding": [
+				{
+					"code": "cohort",
+					"system": "http://terminology.hl7.org/CodeSystem/measure-scoring"
+				}
+			]
+		},
+		"status": "active",
+		"subjectCodeableConcept": {
+			"coding": [
+				{
+					"code": "Patient",
+					"system": "http://hl7.org/fhir/resource-types"
+				}
+			]
+		},
+		"url": "urn:uuid:75b67d2a-81d1-4bac-a6f3-18571db8b0c6"
+	}
