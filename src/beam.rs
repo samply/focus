@@ -1,10 +1,10 @@
-use std::fmt::Display;
+use std::{fmt::Display, str::FromStr};
 
 use anyhow::Result;
 use http::{HeaderValue, StatusCode};
 use reqwest::header::{HeaderMap, AUTHORIZATION};
 use reqwest::Client;
-use serde::{Deserialize, Serialize};
+use serde::{de, Deserializer, Deserialize, Serialize, Serializer};
 use tokio::time::sleep;
 use tokio::time::Duration;
 use tracing::{debug, warn};
@@ -20,7 +20,7 @@ pub struct ProxyId {
     broker: BrokerId,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct AppId {
     app: String,
     rest: ProxyId,
@@ -74,6 +74,22 @@ impl Display for AppId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}.{}", self.app, self.rest)
     }
+}
+
+impl<'de> serde::Deserialize<'de> for AppId {
+    fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        let s = String::deserialize(d)?;
+        AppId::new(s).map_err(de::Error::custom)
+    }
+}
+
+impl Serialize for AppId {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where S: Serializer,
+              {
+                  let mut state = String::serialize(&self.to_string(), serializer)?;
+                  Ok(state)
+              }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -159,7 +175,7 @@ pub async fn check_availability() {
 
     loop {
         let resp = match CONFIG.client
-            .get(format!("{}/v1/health", CONFIG.beam_proxy_url))
+            .get(format!("{}v1/health", CONFIG.beam_proxy_url))
             .send()
             .await
         {
@@ -219,6 +235,7 @@ pub async fn retrieve_tasks() -> Result<Vec<BeamTask>, SpotError> {
 
     let status_code = resp.status();
     let status_text = status_code.as_str();
+    debug!("{status_text}");
 
     match status_code {
         StatusCode::OK | StatusCode::PARTIAL_CONTENT => {
@@ -240,7 +257,7 @@ pub async fn answer_task(task: BeamTask, result: BeamResult) -> Result<(), SpotE
     debug!("Answer task with id: {task_id}");
     let result_task = result.task;
     let url = format!(
-        "{}/v1/tasks/{}/results/{}",
+        "{}v1/tasks/{}/results/{}",
         CONFIG.beam_proxy_url, &result_task, CONFIG.beam_app_id
     );
 
@@ -266,6 +283,7 @@ pub async fn answer_task(task: BeamTask, result: BeamResult) -> Result<(), SpotE
 
     let status_code = resp.status();
     let status_text = status_code.as_str();
+    debug!("{status_text}");
 
     match status_code {
         StatusCode::CREATED | StatusCode::NO_CONTENT => Ok(()),

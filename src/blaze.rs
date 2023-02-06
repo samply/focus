@@ -26,7 +26,7 @@ pub async fn check_availability() {
 
     loop {
         let resp = match CONFIG.client
-            .get(format!("{}/metadata", CONFIG.blaze_url))
+            .get(format!("{}metadata", CONFIG.blaze_url))
             .send()
             .await
         {
@@ -55,7 +55,7 @@ pub async fn post_library(library: String) -> Result<(), SpotError> {
     debug!("Creating a Library...");
 
     let resp = CONFIG.client
-        .post(format!("{}/Library", CONFIG.blaze_url))
+        .post(format!("{}Library", CONFIG.blaze_url))
         .header("Content-Type", "application/json")
         .body(library)
         .send()
@@ -75,7 +75,7 @@ pub async fn post_library(library: String) -> Result<(), SpotError> {
 pub async fn post_measure(measure: String) -> Result<(), SpotError> {
     debug!("Creating a Measure...");
     let resp = CONFIG.client
-        .post(format!("{}/Measure", CONFIG.blaze_url))
+        .post(format!("{}Measure", CONFIG.blaze_url))
         .header("Content-Type", "application/json")
         .body(measure)
         .send()
@@ -97,7 +97,7 @@ pub async fn evaluate_measure(url: String) -> Result<String, SpotError> {
     let mut text: String = String::new();
     let resp = CONFIG.client
         .get(format!(
-        "{}/Measure/$evaluate-measure?measure={}&periodStart=2000&periodEnd=2030",
+        "{}Measure/$evaluate-measure?measure={}&periodStart=2000&periodEnd=2030",
         CONFIG.blaze_url,
         url
         ))

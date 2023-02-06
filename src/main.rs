@@ -60,13 +60,14 @@ fn parse_inquery(task: &BeamTask) -> Result<blaze::Inquery, SpotError> {
 }
 
 async fn run_inquery(task: &BeamTask, inquery: &Inquery) -> Result<BeamResult, SpotError> {
+    debug!("Run");
     if inquery.lang == "cql" {
         // TODO: Change inquery.lang to an enum
         return Ok(run_cql_query(task, inquery).await);
     } else {
         return Ok(beam::BeamResult::perm_failed(
             CONFIG.beam_app_id.clone(),
-            vec![task.from.closne()],
+            vec![task.from.clone()],
             task.id,
             format!("Can't run inqueries with language {}", inquery.lang),
         ));
