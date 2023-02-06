@@ -1,62 +1,108 @@
+use std::fmt::Display;
+
 use anyhow::Result;
-use http::{StatusCode, HeaderValue};
+use http::{HeaderValue, StatusCode};
 use reqwest::header::{HeaderMap, AUTHORIZATION};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use tokio::time::sleep;
 use tokio::time::Duration;
+use tracing::{debug, warn};
 use uuid::Uuid;
-use std::collections::HashMap;
 
-use crate::errors::SpotError;
+use crate::{config::CONFIG, errors::SpotError};
 
-const MAX_HEALTH_CHECK_ATTEMPTS: i32 = 5;
-const BEAM_BASE_URL: &str = "http://localhost:8081";
-pub(crate) const PROXY_ID: &str = "proxy1.broker";
-const API_KEY: &str = "App1Secret";
-pub const APP_ID: &str = "app1";
+type BrokerId = String;
 
-
-
-#[derive(Serialize, Deserialize, Debug, Default, Clone)]
-#[serde(rename_all = "lowercase")]
-pub struct Inquery {
-    pub lang: String,
-    pub lib: Value,
-    pub measure: Value
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProxyId {
+    proxy: String,
+    broker: BrokerId,
 }
 
-#[derive(Serialize, Deserialize, Debug, Default, Clone)]
-#[serde(rename_all = "lowercase")]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct AppId {
+    app: String,
+    rest: ProxyId,
+}
+
+impl ProxyId {
+    pub fn get_proxy_id(&self) -> String {
+        format!("{}.{}", &self.proxy, &self.broker)
+    }
+    pub fn get_broker_id(&self) -> String {
+        self.broker.clone()
+    }
+    pub fn new(full: String) -> Result<Self, SpotError> {
+        let mut components: Vec<String> = full.split(".").map(|x| x.to_string()).collect();
+        let rest = components.split_off(1).join(".");
+        Ok(ProxyId {
+            proxy: components
+                .first()
+                .cloned()
+                .ok_or_else(|| SpotError::InvalidBeamId(format!("Invalid ProxyId: {}", full)))?,
+            broker: rest,
+        })
+    }
+}
+
+impl AppId {
+    pub fn get_app_id(&self) -> String {
+        format!("{}.{}", &self.app, &self.rest.get_proxy_id())
+    }
+    pub fn get_proxy_id(&self) -> String {
+        self.rest.get_proxy_id()
+    }
+    pub fn new(full: String) -> Result<Self, SpotError> {
+        let mut components: Vec<String> = full.split(".").map(|x| x.to_string()).collect();
+        let rest = components.split_off(1).join(".");
+        Ok(AppId {
+            app: components
+                .first()
+                .cloned()
+                .ok_or_else(|| SpotError::InvalidBeamId(format!("Invalid ProxyId: {}", full)))?,
+            rest: ProxyId::new(rest)?,
+        })
+    }
+}
+impl Display for ProxyId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}.{}", self.proxy, self.broker)
+    }
+}
+impl Display for AppId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}.{}", self.app, self.rest)
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct BeamTask {
     pub id: Uuid,
-    pub from: String,
-    pub to: Vec<String>,
+    pub from: AppId,
+    pub to: Vec<AppId>,
     pub metadata: String,
     pub body: String,
     pub ttl: usize,
     pub failure_strategy: FailureStrategy,
 }
 
-#[derive(Serialize, Deserialize, Debug, Default, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "lowercase")]
-pub struct FailureStrategy {
-    pub retry: Retry,
+pub enum FailureStrategy {
+    Retry(Retry),
 }
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
-#[serde(rename_all = "lowercase")]
 pub struct Retry {
-    pub backoff_millisecs: i32,
-    pub max_tries: i32,
+    pub backoff_millisecs: usize,
+    pub max_tries: usize,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde(rename_all = "lowercase")]
 pub struct BeamResult {
-    pub from: String,
-    pub to: Vec<String>,
+    pub from: AppId,
+    pub to: Vec<AppId>,
     pub task: Uuid,
     pub status: Status,
     pub metadata: String,
@@ -73,83 +119,71 @@ pub enum Status {
 }
 
 impl BeamResult {
-    pub fn claimed(from: String, to: Vec<String>, task: Uuid) -> Self {
+    pub fn claimed(from: AppId, to: Vec<AppId>, task: Uuid) -> Self {
         Self {
             from,
             to,
             task,
             status: Status::Claimed,
-            metadata: "foo".to_owned(),
-            body: "".to_owned(),
+            metadata: "unused".to_owned(),
+            body: "unused".to_owned(),
         }
     }
-
-    pub fn succeeded(
-        from: String,
-        to: Vec<String>,
-        task: Uuid,
-        body: String,
-        app_id: String,
-    ) -> Self {
+    pub fn succeeded(from: AppId, to: Vec<AppId>, task: Uuid, body: String) -> Self {
         Self {
             from,
             to,
             task,
             status: Status::Succeeded,
-            metadata: app_id,
+            metadata: "unused".to_owned(),
             body,
         }
     }
 
-    pub fn perm_failed(
-        from: String,
-        to: Vec<String>,
-        task: Uuid,
-        body: String,
-        app_id: String,
-    ) -> Self {
+    pub fn perm_failed(from: AppId, to: Vec<AppId>, task: Uuid, body: String) -> Self {
         Self {
             from,
             to,
             task,
             status: Status::PermFailed,
-            metadata: app_id,
+            metadata: "unused".to_owned(),
             body,
         }
     }
 }
 
 pub async fn check_availability() {
-    let client = Client::new();
-    let mut attempt = 0;
+    let mut attempt: usize = 0;
 
-    println!("Check Beam availability...");
+    debug!("Check Beam availability...");
 
     loop {
-        let resp = match client
-            .get(BEAM_BASE_URL.to_owned() + "/v1/health")
+        let resp = match CONFIG.client
+            .get(format!("{}/v1/health", CONFIG.beam_proxy_url))
             .send()
             .await
         {
             Ok(response) => response,
             Err(e) => {
-                println!("Error making request: {:?}", e);
+                warn!("Error making request: {:?}", e);
                 continue;
             }
         };
 
         let status_code = resp.status();
         let status_text = status_code.as_str();
-        println!("status:  {status_text}");
 
         if resp.status().is_success() {
-            println!("Beam is available now.");
+            debug!("Beam is available now.");
             break;
-        } else if attempt == MAX_HEALTH_CHECK_ATTEMPTS {
-            println!("Beam still not available after {MAX_HEALTH_CHECK_ATTEMPTS} attempts.");
+        } else if attempt == CONFIG.retry_count {
+            warn!(
+                "Beam still not available after {} attempts.",
+                CONFIG.retry_count
+            );
             break;
         } else {
-            println!("Beam still not available, retrying in 3 seconds...");
+            warn!("Beam still not available, retrying in 3 seconds...");
             sleep(Duration::from_secs(3)).await;
             attempt += 1;
         }
@@ -157,16 +191,26 @@ pub async fn check_availability() {
 }
 
 pub async fn retrieve_tasks() -> Result<Vec<BeamTask>, SpotError> {
-    println!("Retrieve tasks...");
+    debug!("Retrieve tasks...");
 
-    let client = reqwest::Client::new();
     let mut tasks: Vec<BeamTask> = Vec::new();
     let mut headers = HeaderMap::new();
-    headers.insert(AUTHORIZATION, HeaderValue::from_str(&format!("ApiKey {}.{} {}", APP_ID, PROXY_ID, API_KEY)).map_err(|e| SpotError::ConfigurationError(format!("Cannot assemble authorization header: {}", e)))?);
+    headers.insert(
+        AUTHORIZATION,
+        HeaderValue::from_str(&format!("ApiKey {} {}", CONFIG.beam_app_id, CONFIG.api_key))
+            .map_err(|e| {
+                SpotError::ConfigurationError(format!(
+                    "Cannot assemble authorization header: {}",
+                    e
+                ))
+            })?,
+    );
 
-    let url = BEAM_BASE_URL.to_owned() + "/v1/tasks?filter=todo&wait_count=1&wait_time=10000";
-    println!("Header: ApiKey {}.{} {}", APP_ID, PROXY_ID, API_KEY);
-    let resp = client
+    let url = format!(
+        "{}v1/tasks?filter=todo&wait_count=1&wait_time=10000",
+        CONFIG.beam_proxy_url
+    );
+    let resp = CONFIG.client
         .get(&url)
         .headers(headers)
         .send()
@@ -175,7 +219,6 @@ pub async fn retrieve_tasks() -> Result<Vec<BeamTask>, SpotError> {
 
     let status_code = resp.status();
     let status_text = status_code.as_str();
-    println!("status:  {status_text}");
 
     match status_code {
         StatusCode::OK | StatusCode::PARTIAL_CONTENT => {
@@ -185,26 +228,35 @@ pub async fn retrieve_tasks() -> Result<Vec<BeamTask>, SpotError> {
                 .map_err(|e| SpotError::UnableToParseTasks(e))?;
         }
         _ => {
-            println!("Unable to retrieve tasks: {}", status_code);
+            warn!("Unable to retrieve tasks: {}", status_code);
             //return error
         }
     }
-    println!("{:?}", tasks);
     Ok(tasks)
 }
 
 pub async fn answer_task(task: BeamTask, result: BeamResult) -> Result<(), SpotError> {
     let task_id = task.id.to_string();
-    println!("Answer task with id: {task_id}");
+    debug!("Answer task with id: {task_id}");
     let result_task = result.task;
-    let url = format!("{}/v1/tasks/{}/results/{}.{}",BEAM_BASE_URL, &result_task, APP_ID, PROXY_ID);
-
-    let client = reqwest::Client::new();
+    let url = format!(
+        "{}/v1/tasks/{}/results/{}",
+        CONFIG.beam_proxy_url, &result_task, CONFIG.beam_app_id
+    );
 
     let mut headers = HeaderMap::new();
-    headers.insert(AUTHORIZATION, HeaderValue::from_str(&format!("ApiKey {}.{} {}", APP_ID, PROXY_ID, API_KEY)).map_err(|e| SpotError::ConfigurationError(format!("Cannot assemble authorization header: {}", e)))?);
+    headers.insert(
+        AUTHORIZATION,
+        HeaderValue::from_str(&format!("ApiKey {} {}", CONFIG.beam_app_id, CONFIG.api_key))
+            .map_err(|e| {
+                SpotError::ConfigurationError(format!(
+                    "Cannot assemble authorization header: {}",
+                    e
+                ))
+            })?,
+    );
 
-    let resp = client
+    let resp = CONFIG.client
         .put(&url)
         .headers(headers)
         .json(&result)
@@ -214,7 +266,6 @@ pub async fn answer_task(task: BeamTask, result: BeamResult) -> Result<(), SpotE
 
     let status_code = resp.status();
     let status_text = status_code.as_str();
-    println!("status:  {status_text}");
 
     match status_code {
         StatusCode::CREATED | StatusCode::NO_CONTENT => Ok(()),
@@ -223,14 +274,11 @@ pub async fn answer_task(task: BeamTask, result: BeamResult) -> Result<(), SpotE
                 .text()
                 .await
                 .map_err(|e| SpotError::UnableToAnswerTask(e))?;
-            println!("Error while answering the task with id: {msg}");
+            warn!("Error while answering the task with id: {msg}");
             Ok(()) // return error
-            
-
         }
         _ => {
-            let msg = format!("Unexpected status code: {}", resp.status());
-            println!("{}", msg);
+            warn!("Unexpected status code: {}", resp.status());
             Ok(()) //return error
         }
     }
