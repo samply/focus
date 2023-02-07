@@ -16,8 +16,14 @@ pub enum SpotError {
     UnableToParseTasks(reqwest::Error),
     #[error("Unable to answer task")]
     UnableToAnswerTask(reqwest::Error),
+    #[error("Unable to set proxy settings")]
+    InvalidProxyConfig(reqwest::Error),
     #[error("Decode error")]
     DecodeError(base64::DecodeError),
     #[error("Configuration error")]
-    ConfigurationError(String)
+    ConfigurationError(String),
+    #[error("Invalid BeamID")]
+    InvalidBeamId(String),
+    #[error("Parsing error")]
+    ParsingError(String),
 }

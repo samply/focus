@@ -1,0 +1,3 @@
+# Local-Spot -- 2023-02-07
+
+This is the initial release of the local spot component, designed ...
