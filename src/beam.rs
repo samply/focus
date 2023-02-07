@@ -223,7 +223,7 @@ pub async fn retrieve_tasks() -> Result<Vec<BeamTask>, SpotError> {
     );
 
     let url = format!(
-        "{}v1/tasks?filter=todo&wait_count=1&wait_time=10000",
+        "{}v1/tasks?filter=todo&wait_count=1&wait_time=100",
         CONFIG.beam_proxy_url
     );
     let resp = CONFIG.client
@@ -293,6 +293,56 @@ pub async fn answer_task(task: BeamTask, result: BeamResult) -> Result<(), SpotE
                 .await
                 .map_err(|e| SpotError::UnableToAnswerTask(e))?;
             warn!("Error while answering the task with id: {msg}");
+            Ok(()) // return error
+        }
+        _ => {
+            warn!("Unexpected status code: {}", resp.status());
+            Ok(()) //return error
+        }
+    }
+}
+
+pub async fn fail_task(task: BeamTask, body: String) -> Result<(), SpotError> {
+    warn!("Failing task with id {}: {}", task.id, body);
+    let result_task = task.from.to_string(); 
+    let result = BeamResult::perm_failed(CONFIG.beam_app_id.clone(), vec![task.from], task.id, body);
+    let url = format!(
+        "{}v1/tasks/{}/results/{}",
+        CONFIG.beam_proxy_url, &result_task, CONFIG.beam_app_id
+    );
+
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        AUTHORIZATION,
+        HeaderValue::from_str(&format!("ApiKey {} {}", CONFIG.beam_app_id, CONFIG.api_key))
+            .map_err(|e| {
+                SpotError::ConfigurationError(format!(
+                    "Cannot assemble authorization header: {}",
+                    e
+                ))
+            })?,
+    );
+
+    let resp = CONFIG.client
+        .put(&url)
+        .headers(headers)
+        .json(&result)
+        .send()
+        .await
+        .map_err(|e| SpotError::UnableToAnswerTask(e))?;
+
+    let status_code = resp.status();
+    let status_text = status_code.as_str();
+    debug!("{status_text}");
+
+    match status_code {
+        StatusCode::CREATED | StatusCode::NO_CONTENT => Ok(()),
+        StatusCode::BAD_REQUEST => {
+            let msg = resp
+                .text()
+                .await
+                .map_err(|e| SpotError::UnableToAnswerTask(e))?;
+            warn!("Error while failing the task with id: {msg}");
             Ok(()) // return error
         }
         _ => {

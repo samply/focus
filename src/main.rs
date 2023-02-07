@@ -12,7 +12,7 @@ use beam::{BeamResult, BeamTask};
 use blaze::Inquery;
 use serde_json::from_slice;
 
-use tracing::{debug, error};
+use tracing::{debug, warn, error};
 
 use crate::{config::CONFIG, errors::SpotError};
 
@@ -32,7 +32,9 @@ async fn main() -> Result<(), SpotError> {
     blaze::check_availability().await;
 
     loop {
-        process_tasks().await?;
+        if let Err(e) = process_tasks().await {
+            warn!("Encontered the following error, while processing tasks: {e}");
+        };
     }
 }
 
@@ -43,9 +45,9 @@ async fn process_tasks() -> Result<(), SpotError> {
     for task in tasks {
         debug!("Processing task with ID: {}", task.id);
 
-        let inquery = parse_inquery(&task)?;
-        let run_result = run_inquery(&task, &inquery).await?;
-        beam::answer_task(task, run_result).await?;
+        let Ok(inquery) = parse_inquery(&task) else {beam::fail_task(task, "Cannot pare inquery".into()).await?; continue;};
+        let Ok(run_result) = run_inquery(&task, &inquery).await else {beam::fail_task(task, "Cannot run inquery".into()).await?; continue;};
+        match beam::answer_task(task.clone(), run_result).await {Ok(()) => (), Err(e) => {beam::fail_task(task, "e".to_string()).await?; continue;}};
     }
     Ok(())
 }
