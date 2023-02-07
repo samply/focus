@@ -10,8 +10,7 @@ jobs:
     strategy:
       matrix:
         component:
-          - proxy
-          - broker
+          - local-spot
 
     steps:
       - name: Checkout
