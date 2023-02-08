@@ -28,10 +28,9 @@ async fn main() -> Result<(), FocusError> {
 
     let _ = CONFIG.api_key; // Initialize config
 
-    beam::check_availability().await;
-    blaze::check_availability().await;
-
     loop {
+        beam::check_availability().await;
+        blaze::check_availability().await;
         if let Err(e) = process_tasks().await {
             warn!("Encontered the following error, while processing tasks: {e}");
         };
