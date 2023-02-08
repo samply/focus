@@ -7,7 +7,7 @@ use tokio::time::sleep;
 use tokio::time::Duration;
 use tracing::{debug, info, warn};
 
-use crate::errors::SpotError;
+use crate::errors::FocusError;
 use crate::util::get_json_field;
 use crate::config::CONFIG;
 
@@ -51,7 +51,7 @@ pub async fn check_availability() {
     }
 }
 
-pub async fn post_library(library: String) -> Result<(), SpotError> {
+pub async fn post_library(library: String) -> Result<(), FocusError> {
     debug!("Creating a Library...");
 
     let resp = CONFIG.client
@@ -60,7 +60,7 @@ pub async fn post_library(library: String) -> Result<(), SpotError> {
         .body(library)
         .send()
         .await
-        .map_err(|e| SpotError::UnableToPostLibrary(e))?;
+        .map_err(|e| FocusError::UnableToPostLibrary(e))?;
 
     if resp.status() == StatusCode::CREATED {
         debug!("Successfully created a Library");
@@ -72,7 +72,7 @@ pub async fn post_library(library: String) -> Result<(), SpotError> {
     Ok(())
 }
 
-pub async fn post_measure(measure: String) -> Result<(), SpotError> {
+pub async fn post_measure(measure: String) -> Result<(), FocusError> {
     debug!("Creating a Measure...");
     let resp = CONFIG.client
         .post(format!("{}Measure", CONFIG.blaze_url))
@@ -80,7 +80,7 @@ pub async fn post_measure(measure: String) -> Result<(), SpotError> {
         .body(measure)
         .send()
         .await
-        .map_err(|e| SpotError::UnableToPostMeasure(e))?;
+        .map_err(|e| FocusError::UnableToPostMeasure(e))?;
 
     if resp.status() == StatusCode::CREATED {
         debug!("Successfully created a Measure");
@@ -92,7 +92,7 @@ pub async fn post_measure(measure: String) -> Result<(), SpotError> {
     Ok(())
 }
 
-pub async fn evaluate_measure(url: String) -> Result<String, SpotError> {
+pub async fn evaluate_measure(url: String) -> Result<String, FocusError> {
     debug!("Evaluating the Measure with canonical URL: {}", url);
     let mut text: String = String::new();
     let resp = CONFIG.client
@@ -103,7 +103,7 @@ pub async fn evaluate_measure(url: String) -> Result<String, SpotError> {
         ))
         .send()
         .await
-        .map_err(|e| SpotError::MeasureEvaluationError(e))?;
+        .map_err(|e| FocusError::MeasureEvaluationError(e))?;
 
     if resp.status() == StatusCode::OK {
         debug!(
@@ -113,7 +113,7 @@ pub async fn evaluate_measure(url: String) -> Result<String, SpotError> {
         text = resp
             .text()
             .await
-            .map_err(|e| SpotError::MeasureEvaluationError(e))?;
+            .map_err(|e| FocusError::MeasureEvaluationError(e))?;
     } else {
         warn!(
             "Error while evaluating the Measure with canonical URL `{}`: {:?}",
@@ -124,11 +124,11 @@ pub async fn evaluate_measure(url: String) -> Result<String, SpotError> {
     Ok(text)
 }
 
-pub async fn run_cql_query(library: &Value, measure: &Value) -> Result<String, SpotError> {
+pub async fn run_cql_query(library: &Value, measure: &Value) -> Result<String, FocusError> {
     let url: String = if let Ok(value) = get_json_field(&measure.to_string(), "url") {
         value.to_string().replace("\"", "")
     } else {
-        return Err(SpotError::CQLQueryError());
+        return Err(FocusError::CQLQueryError());
     };
     debug!("Evaluating the Measure with canonical URL: {}", url);
 

@@ -6,7 +6,7 @@ use static_init::dynamic;
 use tracing::{debug, info, warn};
 use clap::Parser;
 
-use crate::{errors::SpotError, beam::AppId};
+use crate::{errors::FocusError, beam::AppId};
 
 #[dynamic(lazy)]
 pub(crate) static CONFIG: Config = {
@@ -17,16 +17,16 @@ pub(crate) static CONFIG: Config = {
     })
 };
 
-const CLAP_FOOTER: &str = "For proxy support, environment variables HTTP_PROXY, HTTPS_PROXY, ALL_PROXY and NO_PROXY (and their lower-case variants) are supported. Usually, you want to set HTTP_PROXY *and* HTTPS_PROXY or set ALL_PROXY if both values are the same.\n\nFor updates and detailed usage instructions, visit https://github.com/samply/local-spot";
+const CLAP_FOOTER: &str = "For proxy support, environment variables HTTP_PROXY, HTTPS_PROXY, ALL_PROXY and NO_PROXY (and their lower-case variants) are supported. Usually, you want to set HTTP_PROXY *and* HTTPS_PROXY or set ALL_PROXY if both values are the same.\n\nFor updates and detailed usage instructions, visit https://github.com/samply/focus";
 
 #[derive(Parser,Debug)]
-#[clap(name("🔍 Local Spot"), version, arg_required_else_help(true), after_help(CLAP_FOOTER))]
+#[clap(name("🔭 Focus"), version, arg_required_else_help(true), after_help(CLAP_FOOTER))]
 struct CliArgs {
     /// The beam proxy's base URL, e.g. https://proxy1.beam.samply.de
     #[clap(long, env, value_parser)]
     beam_proxy_url: Uri,
 
-    /// This application's beam AppId, e.g. spot.proxy1.broker.samply.de
+    /// This application's beam AppId, e.g. focus.proxy1.broker.samply.de
     #[clap(long, env, value_parser)]
     beam_app_id: String,
 
@@ -58,12 +58,12 @@ pub(crate) struct Config {
 }
 
 impl Config {
-    fn load() -> Result<Self,SpotError> {
+    fn load() -> Result<Self,FocusError> {
         let cli_args = CliArgs::parse(); 
         info!("Successfully read config and API keys from CLI and secrets files.");
         let tls_ca_certificates_dir = cli_args.tls_ca_certificates_dir;
         let tls_ca_certificates = load_certificates_from_dir(tls_ca_certificates_dir.clone())
-            .map_err(|e| SpotError::ConfigurationError(format!("Unable to read from TLS CA directory: {}", e)))?;
+            .map_err(|e| FocusError::ConfigurationError(format!("Unable to read from TLS CA directory: {}", e)))?;
         let client = prepare_reqwest_client(&tls_ca_certificates)?;
         let config = Config {
             beam_proxy_url: cli_args.beam_proxy_url,
@@ -96,7 +96,7 @@ pub fn load_certificates_from_dir(ca_dir: Option<PathBuf>) -> Result<Vec<Certifi
     Ok(result)
 }
 
-pub fn prepare_reqwest_client(certs: &Vec<Certificate>) -> Result<reqwest::Client, SpotError>{
+pub fn prepare_reqwest_client(certs: &Vec<Certificate>) -> Result<reqwest::Client, FocusError>{
     let mut client = reqwest::Client::builder()
         .tcp_nodelay(true)
         .user_agent(HeaderValue::from_static(env!("SAMPLY_USER_AGENT")));
@@ -109,13 +109,13 @@ pub fn prepare_reqwest_client(certs: &Vec<Certificate>) -> Result<reqwest::Clien
         for (k,v) in std::env::vars().filter(|(k,_)| k.to_lowercase() == var) {
             std::env::set_var(k.to_uppercase(), v.clone());
             match k.as_str() {
-                "http_proxy" => proxies.push(Proxy::http(v).map_err(|e|SpotError::InvalidProxyConfig(e))?.no_proxy(no_proxy.clone())),
-                "https_proxy" => proxies.push(Proxy::https(v).map_err(|e|SpotError::InvalidProxyConfig(e))?.no_proxy(no_proxy.clone())),
-                "all_proxy" => proxies.push(Proxy::all(v).map_err(|e|SpotError::InvalidProxyConfig(e))?.no_proxy(no_proxy.clone())),
+                "http_proxy" => proxies.push(Proxy::http(v).map_err(|e|FocusError::InvalidProxyConfig(e))?.no_proxy(no_proxy.clone())),
+                "https_proxy" => proxies.push(Proxy::https(v).map_err(|e|FocusError::InvalidProxyConfig(e))?.no_proxy(no_proxy.clone())),
+                "all_proxy" => proxies.push(Proxy::all(v).map_err(|e|FocusError::InvalidProxyConfig(e))?.no_proxy(no_proxy.clone())),
                 _ => ()
             };
         }
     }
-    client.build().map_err(|e|SpotError::ConfigurationError(format!("Cannot create http client: {}",e)))
+    client.build().map_err(|e|FocusError::ConfigurationError(format!("Cannot create http client: {}",e)))
 
 }

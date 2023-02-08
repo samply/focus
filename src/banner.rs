@@ -9,5 +9,5 @@ pub(crate) fn print_banner() {
             "SNAPSHOT"
         }
     };
-    info!("🔍 Local Spot ({}) v{} (built {} {}, {}) starting up ...", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"), env!("BUILD_DATE"), env!("BUILD_TIME"), commit);
+    info!("🔭 Samply.Focus ({}) v{} (built {} {}, {}) starting up ...", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"), env!("BUILD_DATE"), env!("BUILD_TIME"), commit);
 }

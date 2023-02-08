@@ -14,12 +14,12 @@ use serde_json::from_slice;
 
 use tracing::{debug, warn, error};
 
-use crate::{config::CONFIG, errors::SpotError};
+use crate::{config::CONFIG, errors::FocusError};
 
 mod errors;
 
 #[tokio::main]
-async fn main() -> Result<(), SpotError> {
+async fn main() -> Result<(), FocusError> {
     if let Err(e) = logger::init_logger() {
         error!("Cannot initalize logger: {}", e);
         exit(1);
@@ -38,7 +38,7 @@ async fn main() -> Result<(), SpotError> {
     }
 }
 
-async fn process_tasks() -> Result<(), SpotError> {
+async fn process_tasks() -> Result<(), FocusError> {
     debug!("Start processing tasks...");
 
     let tasks = beam::retrieve_tasks().await?;
@@ -52,16 +52,16 @@ async fn process_tasks() -> Result<(), SpotError> {
     Ok(())
 }
 
-fn parse_inquery(task: &BeamTask) -> Result<blaze::Inquery, SpotError> {
+fn parse_inquery(task: &BeamTask) -> Result<blaze::Inquery, FocusError> {
     let decoded = general_purpose::STANDARD
         .decode(task.body.clone())
-        .map_err(|e| SpotError::DecodeError(e))?;
+        .map_err(|e| FocusError::DecodeError(e))?;
     let inquery: blaze::Inquery =
-        from_slice(&decoded).map_err(|e| SpotError::ParsingError(e.to_string()))?;
+        from_slice(&decoded).map_err(|e| FocusError::ParsingError(e.to_string()))?;
     Ok(inquery)
 }
 
-async fn run_inquery(task: &BeamTask, inquery: &Inquery) -> Result<BeamResult, SpotError> {
+async fn run_inquery(task: &BeamTask, inquery: &Inquery) -> Result<BeamResult, FocusError> {
     debug!("Run");
     if inquery.lang == "cql" {
         // TODO: Change inquery.lang to an enum
@@ -100,7 +100,7 @@ async fn run_cql_query(task: &BeamTask, inquery: &Inquery) -> BeamResult {
 fn beam_result(
     task: beam::BeamTask,
     measure_report: String,
-) -> Result<beam::BeamResult, SpotError> {
+) -> Result<beam::BeamResult, FocusError> {
     let data = general_purpose::STANDARD.encode(measure_report.as_bytes());
     return Ok(beam::BeamResult::succeeded(
         CONFIG.beam_app_id.clone(),

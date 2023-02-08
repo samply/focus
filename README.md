@@ -1,25 +1,25 @@
-# Spot
+# Focus
 
-Spot is a Samply component ran on the sites, which checks Beam Broker for tasks for the application on the site, runs the tasks agains the local Blaze store, and sends the results back to Beam Broker. For speed, reliability and security, it is fully written in the Rust programming language.
+Focus is a Samply component ran on the sites, which distributes tasks from Beam.Proxy to the applications on the site and re-transmits the results through Samply.Beam. Currenly, only Samply.Blaze is supported as a target applicatin, but Focus is easily extensible.
 
 ## Installation
 
 ### Samply/Bridgehead Integration
 
-Spot is already included in the [Samply.Bridgehead deployment](https://github.com/samply/bridgehead/), a turnkey solution for deploying, maintaining, and monitoring applications in a medical IT environment.
+Focus is already included in the [Samply.Bridgehead deployment](https://github.com/samply/bridgehead/), a turnkey solution for deploying, maintaining, and monitoring applications in a medical IT environment.
 
 ### Standalone Installation
 
-To run a standalone Spot, you need at least one running [Samply.Beam.Proxy](https://github.com/samply/beam/) and one running [Samply.Blaze FHIR store](https://github.com/samply/blaze).
-You can compile and run this application via Cargo, however, we encourage the usage of the pre-compiled [docker images](https://hub.docker.com/r/samply/local-spot):
+To run a standalone Focus, you need at least one running [Samply.Beam.Proxy](https://github.com/samply/beam/) and one running [Samply.Blaze FHIR store](https://github.com/samply/blaze).
+You can compile and run this application via Cargo, however, we encourage the usage of the pre-compiled [docker images](https://hub.docker.com/r/samply/focus):
 
 ```bash
-docker run --rm -e BEAM_BASE_URL=http://localhost:8081 -e BLAZE_BASE_URL=http://localhost:8089/fhir -e PROXY_ID=proxy1.broker -e API_KEY=App1Secret -e APP_ID=app1 samply/local-spot:latest
+docker run --rm -e BEAM_BASE_URL=http://localhost:8081 -e BLAZE_BASE_URL=http://localhost:8089/fhir -e PROXY_ID=proxy1.broker -e API_KEY=App1Secret -e APP_ID=app1 samply/focus:latest
 ```
 
 ## Configuration
 
-The following environment variables are mandatory for the usage of the Spot. If compiling and running local-spot yourself, they are provided as command line options as well. See `spot  --help` for details.
+The following environment variables are mandatory for the usage of Focus. If compiling and running Focus yourself, they are provided as command line options as well. See `focus  --help` for details.
 
 ```bash
 BEAM_BASE_URL = "http://localhost:8081"

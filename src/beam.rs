@@ -10,7 +10,7 @@ use tokio::time::Duration;
 use tracing::{debug, warn};
 use uuid::Uuid;
 
-use crate::{config::CONFIG, errors::SpotError};
+use crate::{config::CONFIG, errors::FocusError};
 
 type BrokerId = String;
 
@@ -33,14 +33,14 @@ impl ProxyId {
     pub fn get_broker_id(&self) -> String {
         self.broker.clone()
     }
-    pub fn new(full: String) -> Result<Self, SpotError> {
+    pub fn new(full: String) -> Result<Self, FocusError> {
         let mut components: Vec<String> = full.split(".").map(|x| x.to_string()).collect();
         let rest = components.split_off(1).join(".");
         Ok(ProxyId {
             proxy: components
                 .first()
                 .cloned()
-                .ok_or_else(|| SpotError::InvalidBeamId(format!("Invalid ProxyId: {}", full)))?,
+                .ok_or_else(|| FocusError::InvalidBeamId(format!("Invalid ProxyId: {}", full)))?,
             broker: rest,
         })
     }
@@ -53,14 +53,14 @@ impl AppId {
     pub fn get_proxy_id(&self) -> String {
         self.rest.get_proxy_id()
     }
-    pub fn new(full: String) -> Result<Self, SpotError> {
+    pub fn new(full: String) -> Result<Self, FocusError> {
         let mut components: Vec<String> = full.split(".").map(|x| x.to_string()).collect();
         let rest = components.split_off(1).join(".");
         Ok(AppId {
             app: components
                 .first()
                 .cloned()
-                .ok_or_else(|| SpotError::InvalidBeamId(format!("Invalid ProxyId: {}", full)))?,
+                .ok_or_else(|| FocusError::InvalidBeamId(format!("Invalid ProxyId: {}", full)))?,
             rest: ProxyId::new(rest)?,
         })
     }
@@ -206,7 +206,7 @@ pub async fn check_availability() {
     }
 }
 
-pub async fn retrieve_tasks() -> Result<Vec<BeamTask>, SpotError> {
+pub async fn retrieve_tasks() -> Result<Vec<BeamTask>, FocusError> {
     debug!("Retrieve tasks...");
 
     let mut tasks: Vec<BeamTask> = Vec::new();
@@ -215,7 +215,7 @@ pub async fn retrieve_tasks() -> Result<Vec<BeamTask>, SpotError> {
         AUTHORIZATION,
         HeaderValue::from_str(&format!("ApiKey {} {}", CONFIG.beam_app_id, CONFIG.api_key))
             .map_err(|e| {
-                SpotError::ConfigurationError(format!(
+                FocusError::ConfigurationError(format!(
                     "Cannot assemble authorization header: {}",
                     e
                 ))
@@ -231,7 +231,7 @@ pub async fn retrieve_tasks() -> Result<Vec<BeamTask>, SpotError> {
         .headers(headers)
         .send()
         .await
-        .map_err(|e| SpotError::UnableToRetrieveTasks(e))?;
+        .map_err(|e| FocusError::UnableToRetrieveTasks(e))?;
 
     let status_code = resp.status();
     let status_text = status_code.as_str();
@@ -242,7 +242,7 @@ pub async fn retrieve_tasks() -> Result<Vec<BeamTask>, SpotError> {
             tasks = resp
                 .json::<Vec<BeamTask>>()
                 .await
-                .map_err(|e| SpotError::UnableToParseTasks(e))?;
+                .map_err(|e| FocusError::UnableToParseTasks(e))?;
         }
         _ => {
             warn!("Unable to retrieve tasks: {}", status_code);
@@ -252,7 +252,7 @@ pub async fn retrieve_tasks() -> Result<Vec<BeamTask>, SpotError> {
     Ok(tasks)
 }
 
-pub async fn answer_task(task: BeamTask, result: BeamResult) -> Result<(), SpotError> {
+pub async fn answer_task(task: BeamTask, result: BeamResult) -> Result<(), FocusError> {
     let task_id = task.id.to_string();
     debug!("Answer task with id: {task_id}");
     let result_task = result.task;
@@ -266,7 +266,7 @@ pub async fn answer_task(task: BeamTask, result: BeamResult) -> Result<(), SpotE
         AUTHORIZATION,
         HeaderValue::from_str(&format!("ApiKey {} {}", CONFIG.beam_app_id, CONFIG.api_key))
             .map_err(|e| {
-                SpotError::ConfigurationError(format!(
+                FocusError::ConfigurationError(format!(
                     "Cannot assemble authorization header: {}",
                     e
                 ))
@@ -279,7 +279,7 @@ pub async fn answer_task(task: BeamTask, result: BeamResult) -> Result<(), SpotE
         .json(&result)
         .send()
         .await
-        .map_err(|e| SpotError::UnableToAnswerTask(e))?;
+        .map_err(|e| FocusError::UnableToAnswerTask(e))?;
 
     let status_code = resp.status();
     let status_text = status_code.as_str();
@@ -291,7 +291,7 @@ pub async fn answer_task(task: BeamTask, result: BeamResult) -> Result<(), SpotE
             let msg = resp
                 .text()
                 .await
-                .map_err(|e| SpotError::UnableToAnswerTask(e))?;
+                .map_err(|e| FocusError::UnableToAnswerTask(e))?;
             warn!("Error while answering the task with id: {msg}");
             Ok(()) // return error
         }
@@ -302,7 +302,7 @@ pub async fn answer_task(task: BeamTask, result: BeamResult) -> Result<(), SpotE
     }
 }
 
-pub async fn fail_task(task: BeamTask, body: String) -> Result<(), SpotError> {
+pub async fn fail_task(task: BeamTask, body: String) -> Result<(), FocusError> {
     warn!("Failing task with id {}: {}", task.id, body);
     let result_task = task.from.to_string(); 
     let result = BeamResult::perm_failed(CONFIG.beam_app_id.clone(), vec![task.from], task.id, body);
@@ -316,7 +316,7 @@ pub async fn fail_task(task: BeamTask, body: String) -> Result<(), SpotError> {
         AUTHORIZATION,
         HeaderValue::from_str(&format!("ApiKey {} {}", CONFIG.beam_app_id, CONFIG.api_key))
             .map_err(|e| {
-                SpotError::ConfigurationError(format!(
+                FocusError::ConfigurationError(format!(
                     "Cannot assemble authorization header: {}",
                     e
                 ))
@@ -329,7 +329,7 @@ pub async fn fail_task(task: BeamTask, body: String) -> Result<(), SpotError> {
         .json(&result)
         .send()
         .await
-        .map_err(|e| SpotError::UnableToAnswerTask(e))?;
+        .map_err(|e| FocusError::UnableToAnswerTask(e))?;
 
     let status_code = resp.status();
     let status_text = status_code.as_str();
@@ -341,7 +341,7 @@ pub async fn fail_task(task: BeamTask, body: String) -> Result<(), SpotError> {
             let msg = resp
                 .text()
                 .await
-                .map_err(|e| SpotError::UnableToAnswerTask(e))?;
+                .map_err(|e| FocusError::UnableToAnswerTask(e))?;
             warn!("Error while failing the task with id: {msg}");
             Ok(()) // return error
         }

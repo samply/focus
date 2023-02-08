@@ -21,5 +21,5 @@ fn main() {
     build_data::set_BUILD_DATE();
     build_data::set_BUILD_TIME();
     build_data::no_debug_rebuilds();
-    println!("cargo:rustc-env=SAMPLY_USER_AGENT=Local-Spot.{}/{}", env!("CARGO_PKG_NAME"), version());
+    println!("cargo:rustc-env=SAMPLY_USER_AGENT=Samply.Focus.{}/{}", env!("CARGO_PKG_NAME"), version());
 }

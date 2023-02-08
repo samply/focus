@@ -265,6 +265,30 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3f9eec918d3f24069decb9af1554cad7c880e2da24a9afd88aca000531ab82c1"
 
 [[package]]
+name = "focus"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "base64",
+ "build-data",
+ "clap",
+ "futures",
+ "http",
+ "hyper",
+ "once_cell",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "static_init",
+ "thiserror",
+ "tokio",
+ "tokio-test",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
+]
+
+[[package]]
 name = "foreign-types"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1233,30 +1257,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "spot"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "base64",
- "build-data",
- "clap",
- "futures",
- "http",
- "hyper",
- "once_cell",
- "reqwest",
- "serde",
- "serde_json",
- "static_init",
- "thiserror",
- "tokio",
- "tokio-test",
- "tracing",
- "tracing-subscriber",
- "uuid",
-]
-
-[[package]]
 name = "static_init"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1412,9 +1412,9 @@ dependencies = [
 
 [[package]]
 name = "tokio-native-tls"
-version = "0.3.0"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f7d995660bd2b7f8c1568414c1126076c13fbb725c40112dc0120b78eb9b717b"
+checksum = "bbae76ab933c85776efabc971569dd6119c580d8f5d448769dec1764bf796ef2"
 dependencies = [
  "native-tls",
  "tokio",

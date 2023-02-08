@@ -1,7 +1,7 @@
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-pub enum SpotError {
+pub enum FocusError {
     #[error("Unable to post FHIR Library")]
     UnableToPostLibrary(reqwest::Error),
     #[error("Unable to post FHIR Measure")]
