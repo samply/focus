@@ -10,7 +10,7 @@ jobs:
     strategy:
       matrix:
         component:
-          - local-spot
+          - focus
 
     steps:
       - name: Checkout
