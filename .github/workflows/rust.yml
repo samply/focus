@@ -81,8 +81,7 @@ jobs:
         with:
           name: binaries-${{ matrix.arch }}
           path: |
-            target/${{ env.rustarch }}/${{ env.PROFILE }}/proxy
-            target/${{ env.rustarch }}/${{ env.PROFILE }}/broker
+            target/${{ env.rustarch }}/${{ env.PROFILE }}/spot
 
   # test:
   #   name: Run tests
