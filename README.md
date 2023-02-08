@@ -1,20 +1,16 @@
-# Local Spot
+# Spot
 
-## Description
-
-Local Spot is a Samply component ran on the sites, which checks Beam Broker for tasks for the application on the site, runs the tasks agains the local Blaze store, and sends the results back to Beam Broker.
-For speed and reliability, it is fully written in rust.
+Spot is a Samply component ran on the sites, which checks Beam Broker for tasks for the application on the site, runs the tasks agains the local Blaze store, and sends the results back to Beam Broker. For speed, reliability and security, it is fully written in the Rust programming language.
 
 ## Installation
 
 ### Samply/Bridgehead Integration
 
-This local spot is already included in the [Samply.Bridgehead deployment](https://github.com/samply/bridgehead/).
-The Bridgehead is a turnkey solution for deploying, maintaining, and monitoring applications in a medical IT environment.
+Spot is already included in the [Samply.Bridgehead deployment](https://github.com/samply/bridgehead/), a turnkey solution for deploying, maintaining, and monitoring applications in a medical IT environment.
 
 ### Standalone Installation
 
-For running a standalone local spot, you need at least one running [Samply.Beam.Proxy](https://github.com/samply/beam/) and one runnig [Samply.Blaze FHIR store](https://github.com/samply/blaze).
+To run a standalone Spot, you need at least one running [Samply.Beam.Proxy](https://github.com/samply/beam/) and one running [Samply.Blaze FHIR store](https://github.com/samply/blaze).
 You can compile and run this application via Cargo, however, we encourage the usage of the pre-compiled [docker images](https://hub.docker.com/r/samply/local-spot):
 
 ```bash
@@ -23,13 +19,15 @@ docker run --rm -e BEAM_BASE_URL=http://localhost:8081 -e BLAZE_BASE_URL=http://
 
 ## Configuration
 
-The following environment variables are mandatory for the usage of the local spot. If compiling and running local-spot yourself, they are provided as command line options as well. See `spot  --help` for details.
+The following environment variables are mandatory for the usage of the Spot. If compiling and running local-spot yourself, they are provided as command line options as well. See `spot  --help` for details.
 
-- BEAM_BASE_URL = "http://localhost:8081"
-- BLAZE_BASE_URL = "http://localhost:8089/fhir"
-- PROXY_ID = "proxy1.broker"
-- API_KEY = "App1Secret"
-- APP_ID = "app1"
+```bash
+BEAM_BASE_URL = "http://localhost:8081"
+BLAZE_BASE_URL = "http://localhost:8089/fhir"
+PROXY_ID = "proxy1.broker"
+API_KEY = "App1Secret"
+APP_ID = "app1"
+```
 
 Optionally, you can provide the `TLS_CA_CERTIFICATES_DIR` environment variable to add additional trusted certificates, e.g., if you have a TLS-terminating proxy server in place. The application respects the `HTTP_PROXY`, `HTTPS_PROXY`, `ALL_PROXY`, `NO_PROXY`, and their respective lowercase equivalents.
 
