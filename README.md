@@ -1,6 +1,6 @@
 # Focus
 
-Focus is a Samply component ran on the sites, which distributes tasks from Beam.Proxy to the applications on the site and re-transmits the results through Samply.Beam. Currenly, only Samply.Blaze is supported as a target applicatin, but Focus is easily extensible.
+Focus is a Samply component ran on the sites, which distributes tasks from Beam.Proxy to the applications on the site and re-transmits the results through Samply.Beam. Currenly, only Samply.Blaze is supported as a target application, but Focus is easily extensible.
 
 ## Installation
 
