@@ -1,10 +1,7 @@
 use http::StatusCode;
-use reqwest::Client;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_json::Value;
-use tokio::time::sleep;
-use tokio::time::Duration;
 use tracing::{debug, info, warn};
 
 use crate::errors::FocusError;
@@ -12,43 +9,33 @@ use crate::util::get_json_field;
 use crate::config::CONFIG;
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
-pub struct Inquery {
+pub struct Query {
     pub lang: String,
     pub lib: Value,
     pub measure: Value
 }
 
-pub async fn check_availability() {
+pub async fn check_availability() -> bool {
 
-    debug!("Check Blaze availability...");
+    debug!("Checking Blaze availability...");
 
-    let mut attempt = 0;
-
-    loop {
-        let resp = match CONFIG.client
-            .get(format!("{}metadata", CONFIG.blaze_url))
-            .send()
-            .await
-        {
-            Ok(response) => response,
-            Err(e) => {
-                warn!("Error making request: {:?}", e);
-                continue;
-            }
-        };
-
-        if resp.status().is_success() {
-            debug!("Blaze is available now.");
-            break;
-        } else if attempt == CONFIG.retry_count {
-            warn!("Blaze still not available after {} attempts.", CONFIG.retry_count);
-            break;
-        } else {
-            warn!("Blaze still not available, retrying in 3 seconds...");
-            sleep(Duration::from_secs(3)).await;
-            attempt += 1;
+    let resp = match CONFIG.client
+        .get(format!("{}metadata", CONFIG.blaze_url))
+        .send()
+        .await
+    {
+        Ok(response) => response,
+        Err(e) => {
+            warn!("Error making Blaze request: {:?}", e);
+            return false;
         }
+    };
+
+    if resp.status().is_success() {
+        // debug!("Blaze is available now.");
+        return true;
     }
+    false
 }
 
 pub async fn post_library(library: String) -> Result<(), FocusError> {
