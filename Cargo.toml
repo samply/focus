@@ -28,7 +28,7 @@ static_init = "1.0.2"
 once_cell = "1.13.0"
 
 # Command Line Interface
-clap = { version = "4.0", features = ["env", "derive"] }
+clap = { version = "4.1", features = ["env", "derive"] }
 
 [dev-dependencies]
 tokio-test = "0.4.2"
