@@ -1,5 +1,5 @@
 use base64::decode;
-use serde_json::{Value, json, Number};
+use serde_json::{json, Number, Value};
 use std::collections::HashMap;
 
 pub(crate) fn get_json_field(json_string: &str, field: &str) -> Result<Value, serde_json::Error> {
@@ -54,16 +54,15 @@ fn obfuscate_counts_recursive(val: &mut Value) {
             for (_, sub_val) in map.iter_mut() {
                 obfuscate_counts_recursive(sub_val);
             }
-        },
+        }
         Value::Array(vec) => {
             for sub_val in vec.iter_mut() {
                 obfuscate_counts_recursive(sub_val);
             }
-        },
+        }
         _ => {}
     }
 }
-
 
 #[cfg(test)]
 mod test {
