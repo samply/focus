@@ -12,7 +12,7 @@ use std::{process::exit, time::Duration};
 use base64::{engine::general_purpose, Engine as _};
 use beam::{BeamResult, BeamTask};
 use blaze::Query;
-use serde_json::from_slice;
+use serde_json::{from_slice, Value};
 
 use tracing::{debug, error, warn, info};
 
@@ -73,6 +73,9 @@ async fn process_tasks() -> Result<(), FocusError> {
             Err(FocusError::DecodeError(_)) | Err(FocusError::ParsingError(_)) => {
                 Some("Cannot parse query".to_string())
             }
+            Err(FocusError::ParseError(_)) => {
+                Some("Cannot parse result".to_string())
+            }
             Err(ref e) => {
                 Some(format!("Cannot execute query: {}", e))
             }
@@ -114,7 +117,7 @@ fn parse_query(task: &BeamTask) -> Result<blaze::Query, FocusError> {
     let decoded = general_purpose::STANDARD
         .decode(task.body.to_owned())
         .map_err(|e| FocusError::DecodeError(e))?;
-    //println!("{:?}", decoded);
+    //debug!("{:?}", decoded);
 
 
     let query: blaze::Query =
@@ -127,7 +130,7 @@ async fn run_query(task: &BeamTask, query: &Query) -> Result<BeamResult, FocusEr
     debug!("Run");
 
     if query.lang == "cql" {
-        // TODO: Change inquery.lang to an enum
+        // TODO: Change query.lang to an enum
         return Ok(run_cql_query(task, query).await)?;
     } else {
         return Ok(beam::BeamResult::perm_failed(
@@ -149,7 +152,7 @@ async fn run_cql_query(task: &BeamTask, query: &Query) -> Result<BeamResult, Foc
 
     let query = replace_cql_library(query.clone())?;
 
-    dbg!(&query, &query.lib);
+    //dbg!(&query, &query.lib);
     let cql_result = match blaze::run_cql_query(&query.lib, &query.measure).await {
         Ok(s) => s,
         Err(e) => {
@@ -157,12 +160,26 @@ async fn run_cql_query(task: &BeamTask, query: &Query) -> Result<BeamResult, Foc
             return Err(e);
         }
     };
-    let result = beam_result(task.to_owned(), cql_result).unwrap_or_else(|e| {
+
+    //dbg!(&cql_result);
+
+    debug!("_________________________________________________________");
+    
+    let cql_result_new = util::obfuscate_counts(&cql_result);
+
+    dbg!(&cql_result_new);
+
+    debug!("_________________________________________________________");
+
+
+    let result = beam_result(task.to_owned(), cql_result_new.to_string()).unwrap_or_else(|e| {
         err.body = e.to_string();
         return err;
     });
     Ok(result)
 }
+
+
 
 fn replace_cql_library(mut query: Query) -> Result<Query, FocusError> {
     let old_data_value = &query.lib["content"][0]["data"];
@@ -188,7 +205,7 @@ fn replace_cql_library(mut query: Query) -> Result<Query, FocusError> {
     };
 
     let replaced_cql_str = util::replace_cql(decoded_string);
-    println!("{}", replaced_cql_str);
+    debug!("{}", replaced_cql_str);
 
     let replaced_cql_str_base64 = general_purpose::STANDARD.encode(replaced_cql_str);
     let new_data_value = serde_json::to_value(replaced_cql_str_base64)

@@ -1,5 +1,5 @@
 use base64::decode;
-use serde_json::Value;
+use serde_json::{Value, json, Number};
 use std::collections::HashMap;
 
 
@@ -38,3 +38,29 @@ pub(crate) fn is_cql_tampered_with(decoded_library: impl Into<String>) -> bool {
     decoded_library.contains("define")
 }
 
+pub(crate) fn obfuscate_counts(json_str: &str) -> String {
+    let mut json_val: Value = serde_json::from_str(json_str).unwrap();
+    obfuscate_counts_recursive(&mut json_val);
+    json_val.to_string()
+}
+
+fn obfuscate_counts_recursive(val: &mut Value) {
+    match val {
+        Value::Object(map) => {
+            if let Some(count_val) = map.get_mut("count") {
+                if let Some(count) = count_val.as_u64() {
+                    *count_val = json!(count * 2); //TODO change function
+                }
+            }
+            for (_, sub_val) in map.iter_mut() {
+                obfuscate_counts_recursive(sub_val);
+            }
+        },
+        Value::Array(vec) => {
+            for sub_val in vec.iter_mut() {
+                obfuscate_counts_recursive(sub_val);
+            }
+        },
+        _ => {}
+    }
+}

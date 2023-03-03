@@ -22,8 +22,8 @@ pub enum FocusError {
     InvalidProxyConfig(reqwest::Error),
     #[error("Decode error")]
     DecodeError(base64::DecodeError),
-    #[error("Encode error")]
-    EncodeError(serde_json::Error),
+    #[error("Parse error")]
+    ParseError(serde_json::Error),
     #[error("Configuration error")]
     ConfigurationError(String),
     #[error("Invalid BeamID")]
