@@ -30,6 +30,8 @@ once_cell = "1.13.0"
 # Command Line Interface
 clap = { version = "4.0", features = ["env", "derive"] }
 hyper-mock-client = "0.1.3"
+statrs = "0.16.0"
+rand = "0.8.5"
 
 [dev-dependencies]
 tokio-test = "0.4.2"

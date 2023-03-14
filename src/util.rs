@@ -1,6 +1,94 @@
-use base64::decode;
+use rand::distributions::Distribution;
+use rand::thread_rng;
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Number, Value};
+use statrs::distribution::Laplace;
 use std::collections::HashMap;
+use tracing::{debug, info, warn};
+
+#[derive(Debug, Deserialize, Serialize)]
+struct Period {
+    end: String,
+    start: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+struct ValueQuantity {
+    code: String,
+    system: String,
+    unit: String,
+    value: f64,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct Extension {
+    url: String,
+    value_quantity: ValueQuantity,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+struct Code {
+    text: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+struct Coding {
+    code: String,
+    system: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+struct Population {
+    code: Code,
+    count: u64,
+}
+
+// #[derive(Debug, Deserialize, Serialize)]
+// struct Stratum {
+//     population: Vec<Population>,
+//     value: HashMap<String, String>,
+// }
+
+// #[derive(Debug, Deserialize, Serialize)]
+// struct Stratifier {
+//     code: Vec<Code>,
+//     stratum: Vec<Stratum>,
+// }
+
+#[derive(Debug, Deserialize, Serialize)]
+struct Group {
+    code: Code,
+    population: Value,
+    stratifier: Value,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct MeasureReport {
+    date: String,
+    extension: Vec<Extension>,
+    group: Vec<Group>,
+    measure: String,
+    period: Period,
+    resource_type: String,
+    status: String,
+    type_: String, //because "type" is a reserved keyword
+}
+
+type Sensitivity = usize;
+type Count = usize;
+type Bin = usize;
+
+struct ObfCache {
+    cache: HashMap<(Sensitivity, Count, Bin), usize>,
+}
+
+const DELTA_PATIENT: f64 = 1.;
+const DELTA_SPECIMEN: f64 = 20.;
+const DELTA_DIAGNOSIS: f64 = 3.;
+const EPSILON: f64 = 0.1;
+
 
 pub(crate) fn get_json_field(json_string: &str, field: &str) -> Result<Value, serde_json::Error> {
     let json: Value = serde_json::from_str(json_string)?;
@@ -38,26 +126,65 @@ pub(crate) fn is_cql_tampered_with(decoded_library: impl Into<String>) -> bool {
 }
 
 pub(crate) fn obfuscate_counts(json_str: &str) -> String {
-    let mut json_val: Value = serde_json::from_str(json_str).unwrap();
-    obfuscate_counts_recursive(&mut json_val);
-    json_val.to_string()
+    let specimen_dist = Laplace::new(0.0, DELTA_SPECIMEN/EPSILON).unwrap();
+    let patient_dist = Laplace::new(0.0, DELTA_PATIENT/EPSILON).unwrap();
+    let diagnosis_dist = Laplace::new(0.0, DELTA_DIAGNOSIS/EPSILON).unwrap();
+
+    let mut measure_report: MeasureReport = serde_json::from_str(&json_str).unwrap();
+    for g in &mut measure_report.group {
+        match &g.code.text[..] {
+            "patients" => {
+                info!("patients");
+                obfuscate_counts_recursive(&mut g.population, &patient_dist, 1);
+                obfuscate_counts_recursive(&mut g.stratifier, &patient_dist, 2);
+            }
+            "diagnosis" => {
+                info!("diagnosis");
+                obfuscate_counts_recursive(&mut g.population, &diagnosis_dist, 1);
+                obfuscate_counts_recursive(&mut g.stratifier, &diagnosis_dist, 2);
+            }
+            "specimen" => {
+                info!("specimen");
+                obfuscate_counts_recursive(&mut g.population, &specimen_dist, 1);
+                obfuscate_counts_recursive(&mut g.stratifier, &specimen_dist, 2);
+            }
+            _ => {
+                warn!("focus is not aware of this type of stratifier")
+            }
+        }
+    }
+
+    let measure_report_string = serde_json::to_string_pretty(&measure_report).unwrap();
+    dbg!(measure_report_string.clone());
+    measure_report_string
 }
 
-fn obfuscate_counts_recursive(val: &mut Value) {
+fn obfuscate_counts_recursive(val: &mut Value, dist: &Laplace, bin: Bin) {
     match val {
         Value::Object(map) => {
             if let Some(count_val) = map.get_mut("count") {
                 if let Some(count) = count_val.as_u64() {
-                    *count_val = json!(count * 2); //TODO change function
+                    if count >= 1 && count <= 10 {
+                        *count_val = json!(10);
+                    } else if count > 10 {
+                        let mut rng = thread_rng();
+                        let pertubation = dist.sample(&mut rng);
+
+                        //TODO caching pertubations
+
+                        *count_val = json!((count + pertubation.round() as u64 + 5) / 10 * 10);
+                        // Per data protection concept it must be rounded to the nearest multiple of 10
+                        // "Counts of patients and samples undergo obfuscation on site before being sent to central infrastructure. This is done by incorporating some randomness into the count and then rounding it to the nearest multiple of ten."
+                    } // And zero stays zero
                 }
             }
             for (_, sub_val) in map.iter_mut() {
-                obfuscate_counts_recursive(sub_val);
+                obfuscate_counts_recursive(sub_val, dist, bin);
             }
         }
         Value::Array(vec) => {
             for sub_val in vec.iter_mut() {
-                obfuscate_counts_recursive(sub_val);
+                obfuscate_counts_recursive(sub_val, dist, bin);
             }
         }
         _ => {}
@@ -73,7 +200,7 @@ mod test {
     fn test_get_json_field_success() {
         let json_string = r#"
             {
-                "name": "Name Surname",
+                "name": "FHIRy McFHIRFace",
                 "age": 47,
                 "address": {
                     "street": "Brückenkopfstrasse 1",
@@ -100,7 +227,7 @@ mod test {
     fn test_get_json_field_nonexistent_field() {
         let json_string = r#"
             {
-                "name": "Name Surname",
+                "name": "FHIRy McFHIRFace",
                 "age": 47,
                 "address": {
                     "street": "Brückenkopfstrasse 1",
@@ -119,7 +246,7 @@ mod test {
 
     #[test]
     fn test_get_json_field_invalid_json() {
-        let json_string = r#"{"name": "Name Surname", "age": 47"#;
+        let json_string = r#"{"name": "FHIRy McFHIRFace", "age": 47"#;
 
         // Call the function and assert that it returns an error
         let result = get_json_field(json_string, "name");
