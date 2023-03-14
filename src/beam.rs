@@ -1,11 +1,9 @@
-use std::{fmt::Display, str::FromStr};
+use std::{fmt::Display};
 
 use anyhow::Result;
 use http::{HeaderValue, StatusCode};
 use reqwest::header::{HeaderMap, AUTHORIZATION};
 use serde::{de, Deserializer, Deserialize, Serialize, Serializer};
-use tokio::time::sleep;
-use tokio::time::Duration;
 use tracing::{debug, warn};
 use uuid::Uuid;
 
