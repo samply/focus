@@ -17,8 +17,10 @@ use serde_json::from_slice;
 
 use tracing::{debug, error, warn, info};
 
-use crate::util::{ObfCache, obfuscate_counts, is_cql_tampered_with};
+use crate::util::{is_cql_tampered_with};
 use crate::{config::CONFIG, errors::FocusError};
+
+use laplace_rs::{ObfCache, obfuscate_counts};
 
 mod errors;
 

@@ -349,6 +349,7 @@ dependencies = [
  "http",
  "hyper",
  "hyper-mock-client",
+ "laplace-rs",
  "once_cell",
  "rand",
  "reqwest",
@@ -717,6 +718,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "445dde2150c55e483f3d8416706b97ec8e8237c307e5b7b4b8dd15e6af2a0730"
 dependencies = [
  "wasm-bindgen",
+]
+
+[[package]]
+name = "laplace-rs"
+version = "0.1.0"
+source = "git+https://github.com/samply/laplace-rs.git?branch=main#a88a21b5452a99f5ea15348d7408ff5ace1bdcb3"
+dependencies = [
+ "rand",
+ "serde",
+ "serde_json",
+ "statrs",
+ "thiserror",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
