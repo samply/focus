@@ -22,8 +22,6 @@ pub enum FocusError {
     InvalidProxyConfig(reqwest::Error),
     #[error("Decode error")]
     DecodeError(base64::DecodeError),
-    #[error("Parse error")]
-    ParseError(serde_json::Error),
     #[error("Configuration error")]
     ConfigurationError(String),
     #[error("Invalid BeamID")]
@@ -32,4 +30,6 @@ pub enum FocusError {
     ParsingError(String),
     #[error("CQL tempered with")]
     CQLTemperedWithError(String),
+    #[error("Laplace error")]
+    LaplaceError(laplace_rs::errors::LaplaceError),
 }

@@ -80,8 +80,8 @@ async fn process_tasks(obf_cache: &mut ObfCache) -> Result<(), FocusError> {
             Err(FocusError::DecodeError(_)) | Err(FocusError::ParsingError(_)) => {
                 Some("Cannot parse query".to_string())
             }
-            Err(FocusError::ParseError(_)) => {
-                Some("Cannot parse result".to_string())
+            Err(FocusError::LaplaceError(_)) => {
+                Some("Cannot obfuscate result".to_string())
             }
             Err(ref e) => {
                 Some(format!("Cannot execute query: {}", e))
@@ -179,7 +179,9 @@ async fn run_cql_query(task: &BeamTask, query: &Query, obf_cache: &mut ObfCache)
     //debug!("_________________________________________________________");
 
 
-    let result = beam_result(task.to_owned(), cql_result_new.to_string()).unwrap_or_else(|e| {
+    let result = beam_result(task.to_owned(), cql_result_new
+    .map_err(|e| FocusError::LaplaceError(e))?
+    .to_string()).unwrap_or_else(|e| {
         err.body = e.to_string();
         return err;
     });
