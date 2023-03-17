@@ -2,8 +2,7 @@ use base64::decode;
 use serde_json::Value;
 use std::collections::HashMap;
 
-
-pub(crate) fn get_json_field(json_string: &str, field: &str) -> Result<Value,serde_json::Error> {
+pub(crate) fn get_json_field(json_string: &str, field: &str) -> Result<Value, serde_json::Error> {
     let json: Value = serde_json::from_str(json_string)?;
     Ok(json[field].clone())
 }
@@ -38,3 +37,109 @@ pub(crate) fn is_cql_tampered_with(decoded_library: impl Into<String>) -> bool {
     decoded_library.contains("define")
 }
 
+#[cfg(test)]
+mod test {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn test_get_json_field_success() {
+        let json_string = r#"
+            {
+                "name": "Name Surname",
+                "age": 47,
+                "address": {
+                    "street": "Brückenkopfstrasse 1",
+                    "city": "Heidelberg",
+                    "state": "BW",
+                    "zip": "69120"
+                }
+            }
+        "#;
+        let expected_result = serde_json::json!({
+            "street": "Brückenkopfstrasse 1",
+            "city": "Heidelberg",
+            "state": "BW",
+            "zip": "69120"
+        });
+
+        // Call the function and assert that it returns the expected result
+        let result = get_json_field(json_string, "address");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), expected_result);
+    }
+
+    #[test]
+    fn test_get_json_field_nonexistent_field() {
+        let json_string = r#"
+            {
+                "name": "Name Surname",
+                "age": 47,
+                "address": {
+                    "street": "Brückenkopfstrasse 1",
+                    "city": "Heidelberg",
+                    "state": "BW",
+                    "zip": "69120"
+                }
+            }
+        "#;
+
+        // Call the function and assert that it returns json null
+        let result = get_json_field(json_string, "phone");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), json!(null));
+    }
+
+    #[test]
+    fn test_get_json_field_invalid_json() {
+        let json_string = r#"{"name": "Name Surname", "age": 47"#;
+
+        // Call the function and assert that it returns an error
+        let result = get_json_field(json_string, "name");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_is_cql_tampered_with_true() {
+        let decoded_library =
+            "define Gender:\n if (Patient.gender is null) then 'unknown' else Patient.gender \n";
+        assert!(is_cql_tampered_with(decoded_library));
+    }
+
+    #[test]
+    fn test_is_cql_tampered_with_false() {
+        let decoded_library = "context Patient\nBORSCHTSCH_GENDER_STRATIFIER";
+        assert!(!is_cql_tampered_with(decoded_library));
+    }
+
+    #[test]
+    fn test_replace_cql() {
+        let decoded_library = "BORSCHTSCH_GENDER_STRATIFIER";
+        let expected_result = "define Gender:\n             if (Patient.gender is null) then 'unknown' else Patient.gender\n";
+        assert_eq!(replace_cql(decoded_library), expected_result);
+
+        let decoded_library = "BORSCHTSCH_CUSTODIAN_STRATIFIER";
+        let expected_result = "define Custodian:\n First(from Specimen.extension E\n where E.url = 'https://fhir.bbmri.de/StructureDefinition/Custodian'\n return (E.value as Reference).identifier.value)\n";
+        assert_eq!(replace_cql(decoded_library), expected_result);
+
+        let decoded_library = "BORSCHTSCH_DIAGNOSIS_STRATIFIER";
+        let expected_result = "define Diagnosis:\n if InInitialPopulation then [Condition] else {} as List<Condition> \n define function DiagnosisCode(condition FHIR.Condition, specimen FHIR.Specimen):\n Coalesce(condition.code.coding.where(system = 'http://hl7.org/fhir/sid/icd-10').code.first(), condition.code.coding.where(system = 'http://fhir.de/CodeSystem/dimdi/icd-10-gm').code.first(), specimen.extension.where(url='https://fhir.bbmri.de/StructureDefinition/SampleDiagnosis').value.coding.code.first(), condition.code.coding.where(system = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm').code.first())\n\n";
+        assert_eq!(replace_cql(decoded_library), expected_result);
+
+        let decoded_library = "BORSCHTSCH_AGE_STRATIFIER";
+        let expected_result = "define AgeClass:\n     (AgeInYears() div 10) * 10\n";
+        assert_eq!(replace_cql(decoded_library), expected_result);
+
+        let decoded_library = "BORSCHTSCH_DEF_SPECIMEN";
+        let expected_result = "define Specimen:\n";
+        assert_eq!(replace_cql(decoded_library), expected_result);
+
+        let decoded_library = "BORSCHTSCH_DEF_IN_INITIAL_POPULATION";
+        let expected_result = "define InInitialPopulation:\n";
+        assert_eq!(replace_cql(decoded_library), expected_result);
+
+        let decoded_library = "INVALID_KEY";
+        let expected_result = "INVALID_KEY";
+        assert_eq!(replace_cql(decoded_library), expected_result);
+    }
+}
