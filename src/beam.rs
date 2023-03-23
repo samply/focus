@@ -33,7 +33,7 @@ impl ProxyId {
     pub fn new(full: String) -> Result<Self, FocusError> {
         let mut components: Vec<String> = full.split(".").map(|x| x.to_string()).collect();
         let rest = components.split_off(1).join(".");
-        Ok(ProxyId {
+        Ok(ProxyId { 
             proxy: components
                 .first()
                 .cloned()
@@ -193,7 +193,7 @@ pub async fn retrieve_tasks() -> Result<Vec<BeamTask>, FocusError> {
     let mut headers = HeaderMap::new();
     headers.insert(
         AUTHORIZATION,
-        HeaderValue::from_str(&format!("ApiKey {} {}", CONFIG.beam_app_id, CONFIG.api_key))
+        HeaderValue::from_str(&format!("ApiKey {} {}", CONFIG.beam_app_id_long, CONFIG.api_key))
             .map_err(|e| {
                 FocusError::ConfigurationError(format!(
                     "Cannot assemble authorization header: {}",
@@ -236,13 +236,13 @@ pub async fn answer_task(task: &BeamTask, result: &BeamResult) -> Result<(), Foc
     let result_task = result.task;
     let url = format!(
         "{}v1/tasks/{}/results/{}",
-        CONFIG.beam_proxy_url, &result_task, CONFIG.beam_app_id
+        CONFIG.beam_proxy_url, &result_task, CONFIG.beam_app_id_long
     );
 
     let mut headers = HeaderMap::new();
     headers.insert(
         AUTHORIZATION,
-        HeaderValue::from_str(&format!("ApiKey {} {}", CONFIG.beam_app_id, CONFIG.api_key))
+        HeaderValue::from_str(&format!("ApiKey {} {}", CONFIG.beam_app_id_long, CONFIG.api_key))
             .map_err(|e| {
                 FocusError::ConfigurationError(format!(
                     "Cannot assemble authorization header: {}",
@@ -283,16 +283,16 @@ pub async fn answer_task(task: &BeamTask, result: &BeamResult) -> Result<(), Foc
 pub async fn fail_task(task: &BeamTask, body: impl Into<String>) -> Result<(), FocusError> {
     let body = body.into();
     warn!("Reporting failed task with id {}: {}", task.id, body);
-    let result = BeamResult::perm_failed(CONFIG.beam_app_id.clone(), vec![task.from.clone()], task.id, body);
+    let result = BeamResult::perm_failed(CONFIG.beam_app_id_long.clone(), vec![task.from.clone()], task.id, body);
     let url = format!(
         "{}v1/tasks/{}/results/{}",
-        CONFIG.beam_proxy_url, task.id, CONFIG.beam_app_id
+        CONFIG.beam_proxy_url, task.id, CONFIG.beam_app_id_long
     );
 
     let mut headers = HeaderMap::new();
     headers.insert(
         AUTHORIZATION,
-        HeaderValue::from_str(&format!("ApiKey {} {}", CONFIG.beam_app_id, CONFIG.api_key))
+        HeaderValue::from_str(&format!("ApiKey {} {}", CONFIG.beam_app_id_long, CONFIG.api_key))
             .map_err(|e| {
                 FocusError::ConfigurationError(format!(
                     "Cannot assemble authorization header: {}",

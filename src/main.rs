@@ -141,7 +141,7 @@ async fn run_query(task: &BeamTask, query: &Query, obf_cache: &mut ObfCache) -> 
         return Ok(run_cql_query(task, query, obf_cache).await)?;
     } else {
         return Ok(beam::BeamResult::perm_failed(
-            CONFIG.beam_app_id.clone(),
+            CONFIG.beam_app_id_long.clone(),
             vec![task.from.clone()],
             task.id,
             format!("Can't run inqueries with language {}", query.lang),
@@ -151,7 +151,7 @@ async fn run_query(task: &BeamTask, query: &Query, obf_cache: &mut ObfCache) -> 
 
 async fn run_cql_query(task: &BeamTask, query: &Query, obf_cache: &mut ObfCache) -> Result<BeamResult, FocusError> {
     let mut err = beam::BeamResult::perm_failed(
-        CONFIG.beam_app_id.clone(),
+        CONFIG.beam_app_id_long.clone(),
         vec![task.to_owned().from],
         task.to_owned().id,
         String::new(),
@@ -232,7 +232,7 @@ fn beam_result(
 ) -> Result<beam::BeamResult, FocusError> {
     let data = general_purpose::STANDARD.encode(measure_report.as_bytes());
     return Ok(beam::BeamResult::succeeded(
-        CONFIG.beam_app_id.clone(),
+        CONFIG.beam_app_id_long.clone(),
         vec![task.from],
         task.id,
         data,
