@@ -1,0 +1,59 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'focus'",
+            "cargo": {
+                "args": [
+                    "run",
+                    "--bin=focus",
+                    "--package=focus"
+                ],
+                "filter": {
+                    "name": "focus",
+                    "kind": "bin"
+                }
+            },
+            "args": [
+                "--beam-proxy-url=http://localhost:8081/",
+                "--beam-app-id=app1.proxy1.broker",
+                "--api-key=App1Secret",
+                "--retry-count=5", 
+                "--blaze-url=http://localhost:8089/fhir/"
+            ],
+            "env": {
+                "BEAM_PROXY_URL": "http://localhost:8081",
+                "BLAZE_URL": "http://localhost:8089/fhir",
+                "PROXY_ID": "proxy1.broker",
+                "API_KEY": "App1Secret",
+                "BEAM_APP_ID_LONG": "app1.proxy1.broker",
+                "RETRY_COUNT": "5",
+            },
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'focus'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bin=focus",
+                    "--package=focus"
+                ],
+                "filter": {
+                    "name": "focus",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}

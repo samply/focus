@@ -28,7 +28,7 @@ struct CliArgs {
 
     /// This application's beam AppId, e.g. focus.proxy1.broker.samply.de
     #[clap(long, env, value_parser)]
-    beam_app_id: String,
+    beam_app_id_long: String,
 
     /// This applications beam API key
     #[clap(long, env, value_parser)]
@@ -49,7 +49,7 @@ struct CliArgs {
 
 pub(crate) struct Config {
     pub beam_proxy_url: Uri,
-    pub beam_app_id: AppId,
+    pub beam_app_id_long: AppId,
     pub api_key: String,
     pub retry_count: usize,
     pub blaze_url: Uri,
@@ -67,7 +67,7 @@ impl Config {
         let client = prepare_reqwest_client(&tls_ca_certificates)?;
         let config = Config {
             beam_proxy_url: cli_args.beam_proxy_url,
-            beam_app_id: AppId::new(cli_args.beam_app_id)?,
+            beam_app_id_long: AppId::new(cli_args.beam_app_id_long)?,
             api_key: cli_args.api_key,
             retry_count: cli_args.retry_count,
             blaze_url: cli_args.blaze_url,
