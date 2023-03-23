@@ -35,7 +35,7 @@ struct CliArgs {
     api_key: String,
 
     /// Number of retries for reaching the beam proxy and FHIR server, respectively
-    #[clap(long, env, value_parser)]
+    #[clap(long, env, value_parser, default_value = "32")]
     retry_count: usize,
 
     /// The FHIR servers base URL, e.g. https://blaze.site/fhir
