@@ -42,7 +42,8 @@ async fn main() -> ExitCode {
         }
         if let Err(e) = process_tasks().await {
             warn!("Encountered the following error, while processing tasks: {e}");
-            failures += 1;
+            warn!("Just to make sure, that 502 could mean just timeout");
+            //failures += 1;
         } else {
             failures = 0;
         }
