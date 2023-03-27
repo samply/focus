@@ -1,6 +1,6 @@
-use base64::decode;
 use serde_json::Value;
 use std::collections::HashMap;
+
 
 pub(crate) fn get_json_field(json_string: &str, field: &str) -> Result<Value, serde_json::Error> {
     let json: Value = serde_json::from_str(json_string)?;
@@ -46,7 +46,7 @@ mod test {
     fn test_get_json_field_success() {
         let json_string = r#"
             {
-                "name": "Name Surname",
+                "name": "FHIRy McFHIRFace",
                 "age": 47,
                 "address": {
                     "street": "Brückenkopfstrasse 1",
@@ -73,7 +73,7 @@ mod test {
     fn test_get_json_field_nonexistent_field() {
         let json_string = r#"
             {
-                "name": "Name Surname",
+                "name": "FHIRy McFHIRFace",
                 "age": 47,
                 "address": {
                     "street": "Brückenkopfstrasse 1",
@@ -92,7 +92,7 @@ mod test {
 
     #[test]
     fn test_get_json_field_invalid_json() {
-        let json_string = r#"{"name": "Name Surname", "age": 47"#;
+        let json_string = r#"{"name": "FHIRy McFHIRFace", "age": 47"#;
 
         // Call the function and assert that it returns an error
         let result = get_json_field(json_string, "name");
@@ -142,4 +142,6 @@ mod test {
         let expected_result = "INVALID_KEY";
         assert_eq!(replace_cql(decoded_library), expected_result);
     }
+
+
 }

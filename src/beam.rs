@@ -1,11 +1,9 @@
-use std::{fmt::Display, str::FromStr};
+use std::{fmt::Display};
 
 use anyhow::Result;
 use http::{HeaderValue, StatusCode};
 use reqwest::header::{HeaderMap, AUTHORIZATION};
 use serde::{de, Deserializer, Deserialize, Serialize, Serializer};
-use tokio::time::sleep;
-use tokio::time::Duration;
 use tracing::{debug, warn};
 use uuid::Uuid;
 
@@ -35,7 +33,7 @@ impl ProxyId {
     pub fn new(full: String) -> Result<Self, FocusError> {
         let mut components: Vec<String> = full.split(".").map(|x| x.to_string()).collect();
         let rest = components.split_off(1).join(".");
-        Ok(ProxyId {
+        Ok(ProxyId { 
             proxy: components
                 .first()
                 .cloned()
