@@ -215,7 +215,7 @@ fn replace_cql_library(mut query: Query) -> Result<Query, FocusError> {
     };
 
     let replaced_cql_str = util::replace_cql(decoded_string);
-    debug!("{}", replaced_cql_str);
+    //debug!("{}", replaced_cql_str);
 
     let replaced_cql_str_base64 = general_purpose::STANDARD.encode(replaced_cql_str);
     let new_data_value = serde_json::to_value(replaced_cql_str_base64)
