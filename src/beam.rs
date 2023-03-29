@@ -96,7 +96,7 @@ pub struct BeamTask {
     pub to: Vec<AppId>,
     pub metadata: String,
     pub body: String,
-    pub ttl: usize,
+    pub ttl: String,
     pub failure_strategy: FailureStrategy,
 }
 
@@ -206,7 +206,7 @@ pub async fn retrieve_tasks() -> Result<Vec<BeamTask>, FocusError> {
     //dbg!(headers.to_owned());
 
     let url = format!(
-        "{}v1/tasks?filter=todo&wait_count=1&wait_time=10000",
+        "{}v1/tasks?filter=todo&wait_count=1&wait_time=10s",
         CONFIG.beam_proxy_url
     );
     let resp = CONFIG.client
