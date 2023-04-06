@@ -1,5 +1,76 @@
-use serde_json::Value;
+use serde_json::{json, Value};
+use tracing::{debug, info, warn};
 use std::collections::HashMap;
+use laplace_rs::{ObfCache, get_from_cache_or_privatize, Bin};
+use laplace_rs::errors::LaplaceError;
+use serde::{Deserialize, Serialize};
+use rand::thread_rng;
+
+
+#[derive(Debug, Deserialize, Serialize)]
+struct Period {
+    end: String,
+    start: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+struct ValueQuantity {
+    code: String,
+    system: String,
+    unit: String,
+    value: f64,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct Extension {
+    url: String,
+    value_quantity: ValueQuantity,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+struct Code {
+    text: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+struct Coding {
+    code: String,
+    system: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+struct Population {
+    code: Code,
+    count: u64,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+struct Group {
+    code: Code,
+    population: Value,
+    stratifier: Value,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct MeasureReport {
+    date: String,
+    extension: Vec<Extension>,
+    group: Vec<Group>,
+    measure: String,
+    period: Period,
+    resource_type: String,
+    status: String,
+    type_: String, //because "type" is a reserved keyword
+}
+
+const DELTA_PATIENT: f64 = 1.;
+const DELTA_SPECIMEN: f64 = 20.;
+const DELTA_DIAGNOSIS: f64 = 3.;
+const EPSILON: f64 = 0.1;
+const MU: f64 = 0.;
+const ROUNDING_STEP: u64 = 10;
 
 
 pub(crate) fn get_json_field(json_string: &str, field: &str) -> Result<Value, serde_json::Error> {
@@ -37,10 +108,554 @@ pub(crate) fn is_cql_tampered_with(decoded_library: impl Into<String>) -> bool {
     decoded_library.contains("define")
 }
 
+
+pub fn obfuscate_counts_mr(
+    json_str: &str,
+    obf_cache: &mut ObfCache,
+) -> Result<String, LaplaceError> {
+    let mut measure_report: MeasureReport = serde_json::from_str(&json_str)
+        .map_err(|e| LaplaceError::DeserializationError(e.to_string()))?;
+    for g in &mut measure_report.group {
+        match &g.code.text[..] {
+            "patients" => {
+                info!("patients");
+                obfuscate_counts_recursive(
+                    &mut g.population,
+                    MU,
+                    DELTA_PATIENT,
+                    EPSILON,
+                    1,
+                    obf_cache,
+                );
+                obfuscate_counts_recursive(
+                    &mut g.stratifier,
+                    MU,
+                    DELTA_PATIENT,
+                    EPSILON,
+                    2,
+                    obf_cache,
+                );
+            }
+            "diagnosis" => {
+                info!("diagnosis");
+                obfuscate_counts_recursive(
+                    &mut g.population,
+                    MU,
+                    DELTA_DIAGNOSIS,
+                    EPSILON,
+                    1,
+                    obf_cache,
+                );
+                obfuscate_counts_recursive(
+                    &mut g.stratifier,
+                    MU,
+                    DELTA_DIAGNOSIS,
+                    EPSILON,
+                    2,
+                    obf_cache,
+                );
+            }
+            "specimen" => {
+                info!("specimen");
+                obfuscate_counts_recursive(
+                    &mut g.population,
+                    MU,
+                    DELTA_SPECIMEN,
+                    EPSILON,
+                    1,
+                    obf_cache,
+                );
+                obfuscate_counts_recursive(
+                    &mut g.stratifier,
+                    MU,
+                    DELTA_SPECIMEN,
+                    EPSILON,
+                    2,
+                    obf_cache,
+                );
+            }
+            _ => {
+                warn!("focus is not aware of this type of stratifier")
+            }
+        }
+    }
+
+    let measure_report_obfuscated = serde_json::to_string_pretty(&measure_report)
+        .map_err(|e| LaplaceError::SerializationError(e.to_string()))?;
+    //dbg!(measure_report_obfuscated.clone());
+    Ok(measure_report_obfuscated)
+}
+
+fn obfuscate_counts_recursive(
+    val: &mut Value,
+    mu: f64,
+    delta: f64,
+    epsilon: f64,
+    bin: Bin,
+    obf_cache: &mut ObfCache,
+) {
+    let mut rng = thread_rng();
+    match val {
+        Value::Object(map) => {
+            if let Some(count_val) = map.get_mut("count") {
+                if let Some(count) = count_val.as_u64() {
+                    if count >= 1 && count <= 10 {
+                        *count_val = json!(10);
+                    } else {
+                        let obfuscated = get_from_cache_or_privatize(
+                            count,
+                            delta,
+                            epsilon,
+                            bin,
+                            Some(obf_cache),
+                            false,
+                            ROUNDING_STEP,
+                            &mut rng,
+                        )
+                        .unwrap();
+
+                        *count_val = json!(obfuscated);
+                    }
+                }
+            }
+            for (_, sub_val) in map.iter_mut() {
+                obfuscate_counts_recursive(sub_val, mu, delta, epsilon, bin, obf_cache);
+            }
+        }
+        Value::Array(vec) => {
+            for sub_val in vec.iter_mut() {
+                obfuscate_counts_recursive(sub_val, mu, delta, epsilon, bin, obf_cache);
+            }
+        }
+        _ => {}
+    }
+}
+
+
 #[cfg(test)]
 mod test {
     use super::*;
     use serde_json::json;
+
+    const EXAMPLE_JSON: &str = r#"
+    {
+        "date": "2023-03-03T15:54:21.740195064Z",
+        "extension": [
+            {
+                "url": "https://samply.github.io/blaze/fhir/StructureDefinition/eval-duration",
+                "valueQuantity": {
+                    "code": "s",
+                    "system": "http://unitsofmeasure.org",
+                    "unit": "s",
+                    "value": 0.050495759
+                }
+            }
+        ],
+        "group": [
+            {
+                "code": {
+                    "text": "patients"
+                },
+                "population": [
+                    {
+                        "code": {
+                            "coding": [
+                                {
+                                    "code": "initial-population",
+                                    "system": "http://terminology.hl7.org/CodeSystem/measure-population"
+                                }
+                            ]
+                        },
+                        "count": 74
+                    }
+                ],
+                "stratifier": [
+                    {
+                        "code": [
+                            {
+                                "text": "Gender"
+                            }
+                        ],
+                        "stratum": [
+                            {
+                                "population": [
+                                    {
+                                        "code": {
+                                            "coding": [
+                                                {
+                                                    "code": "initial-population",
+                                                    "system": "http://terminology.hl7.org/CodeSystem/measure-population"
+                                                }
+                                            ]
+                                        },
+                                        "count": 31
+                                    }
+                                ],
+                                "value": {
+                                    "text": "female"
+                                }
+                            },
+                            {
+                                "population": [
+                                    {
+                                        "code": {
+                                            "coding": [
+                                                {
+                                                    "code": "initial-population",
+                                                    "system": "http://terminology.hl7.org/CodeSystem/measure-population"
+                                                }
+                                            ]
+                                        },
+                                        "count": 43
+                                    }
+                                ],
+                                "value": {
+                                    "text": "male"
+                                }
+                            }
+                        ]
+                    },
+                    {
+                        "code": [
+                            {
+                                "text": "Age"
+                            }
+                        ],
+                        "stratum": [
+                            {
+                                "population": [
+                                    {
+                                        "code": {
+                                            "coding": [
+                                                {
+                                                    "code": "initial-population",
+                                                    "system": "http://terminology.hl7.org/CodeSystem/measure-population"
+                                                }
+                                            ]
+                                        },
+                                        "count": 5
+                                    }
+                                ],
+                                "value": {
+                                    "text": "40"
+                                }
+                            },
+                            {
+                                "population": [
+                                    {
+                                        "code": {
+                                            "coding": [
+                                                {
+                                                    "code": "initial-population",
+                                                    "system": "http://terminology.hl7.org/CodeSystem/measure-population"
+                                                }
+                                            ]
+                                        },
+                                        "count": 4
+                                    }
+                                ],
+                                "value": {
+                                    "text": "50"
+                                }
+                            },
+                            {
+                                "population": [
+                                    {
+                                        "code": {
+                                            "coding": [
+                                                {
+                                                    "code": "initial-population",
+                                                    "system": "http://terminology.hl7.org/CodeSystem/measure-population"
+                                                }
+                                            ]
+                                        },
+                                        "count": 14
+                                    }
+                                ],
+                                "value": {
+                                    "text": "60"
+                                }
+                            },
+                            {
+                                "population": [
+                                    {
+                                        "code": {
+                                            "coding": [
+                                                {
+                                                    "code": "initial-population",
+                                                    "system": "http://terminology.hl7.org/CodeSystem/measure-population"
+                                                }
+                                            ]
+                                        },
+                                        "count": 4
+                                    }
+                                ],
+                                "value": {
+                                    "text": "80"
+                                }
+                            }
+                        ]
+                    },
+                    {
+                        "code": [
+                            {
+                                "text": "Custodian"
+                            }
+                        ],
+                        "stratum": [
+                            {
+                                "population": [
+                                    {
+                                        "code": {
+                                            "coding": [
+                                                {
+                                                    "code": "initial-population",
+                                                    "system": "http://terminology.hl7.org/CodeSystem/measure-population"
+                                                }
+                                            ]
+                                        },
+                                        "count": 31
+                                    }
+                                ],
+                                "value": {
+                                    "text": "bbmri-eric:ID:CZ_CUNI_PILS:collection:serum_plasma"
+                                }
+                            },
+                            {
+                                "population": [
+                                    {
+                                        "code": {
+                                            "coding": [
+                                                {
+                                                    "code": "initial-population",
+                                                    "system": "http://terminology.hl7.org/CodeSystem/measure-population"
+                                                }
+                                            ]
+                                        },
+                                        "count": 43
+                                    }
+                                ],
+                                "value": {
+                                    "text": "null"
+                                }
+                            }
+                        ]
+                    }
+                ]
+            },
+            {
+                "code": {
+                    "text": "diagnosis"
+                },
+                "population": [
+                    {
+                        "code": {
+                            "coding": [
+                                {
+                                    "code": "initial-population",
+                                    "system": "http://terminology.hl7.org/CodeSystem/measure-population"
+                                }
+                            ]
+                        },
+                        "count": 324
+                    }
+                ],
+                "stratifier": [
+                    {
+                        "code": [
+                            {
+                                "text": "diagnosis"
+                            }
+                        ],
+                        "stratum": [
+                            {
+                                "population": [
+                                    {
+                                        "code": {
+                                            "coding": [
+                                                {
+                                                    "code": "initial-population",
+                                                    "system": "http://terminology.hl7.org/CodeSystem/measure-population"
+                                                }
+                                            ]
+                                        },
+                                        "count": 26
+                                    }
+                                ],
+                                "value": {
+                                    "text": "C34.0"
+                                }
+                            },
+                            {
+                                "population": [
+                                    {
+                                        "code": {
+                                            "coding": [
+                                                {
+                                                    "code": "initial-population",
+                                                    "system": "http://terminology.hl7.org/CodeSystem/measure-population"
+                                                }
+                                            ]
+                                        },
+                                        "count": 28
+                                    }
+                                ],
+                                "value": {
+                                    "text": "C34.2"
+                                }
+                            },
+                            {
+                                "population": [
+                                    {
+                                        "code": {
+                                            "coding": [
+                                                {
+                                                    "code": "initial-population",
+                                                    "system": "http://terminology.hl7.org/CodeSystem/measure-population"
+                                                }
+                                            ]
+                                        },
+                                        "count": 25
+                                    }
+                                ],
+                                "value": {
+                                    "text": "C34.8"
+                                }
+                            },
+                            {
+                                "population": [
+                                    {
+                                        "code": {
+                                            "coding": [
+                                                {
+                                                    "code": "initial-population",
+                                                    "system": "http://terminology.hl7.org/CodeSystem/measure-population"
+                                                }
+                                            ]
+                                        },
+                                        "count": 27
+                                    }
+                                ],
+                                "value": {
+                                    "text": "C78.0"
+                                }
+                            },
+                            {
+                                "population": [
+                                    {
+                                        "code": {
+                                            "coding": [
+                                                {
+                                                    "code": "initial-population",
+                                                    "system": "http://terminology.hl7.org/CodeSystem/measure-population"
+                                                }
+                                            ]
+                                        },
+                                        "count": 25
+                                    }
+                                ],
+                                "value": {
+                                    "text": "D38.6"
+                                }
+                            },
+                            {
+                                "population": [
+                                    {
+                                        "code": {
+                                            "coding": [
+                                                {
+                                                    "code": "initial-population",
+                                                    "system": "http://terminology.hl7.org/CodeSystem/measure-population"
+                                                }
+                                            ]
+                                        },
+                                        "count": 25
+                                    }
+                                ],
+                                "value": {
+                                    "text": "R91"
+                                }
+                            }
+                        ]
+                    }
+                ]
+            },
+            {
+                "code": {
+                    "text": "specimen"
+                },
+                "population": [
+                    {
+                        "code": {
+                            "coding": [
+                                {
+                                    "code": "initial-population",
+                                    "system": "http://terminology.hl7.org/CodeSystem/measure-population"
+                                }
+                            ]
+                        },
+                        "count": 124
+                    }
+                ],
+                "stratifier": [
+                    {
+                        "code": [
+                            {
+                                "text": "sample_kind"
+                            }
+                        ],
+                        "stratum": [
+                            {
+                                "population": [
+                                    {
+                                        "code": {
+                                            "coding": [
+                                                {
+                                                    "code": "initial-population",
+                                                    "system": "http://terminology.hl7.org/CodeSystem/measure-population"
+                                                }
+                                            ]
+                                        },
+                                        "count": 62
+                                    }
+                                ],
+                                "value": {
+                                    "text": "blood-plasma"
+                                }
+                            },
+                            {
+                                "population": [
+                                    {
+                                        "code": {
+                                            "coding": [
+                                                {
+                                                    "code": "initial-population",
+                                                    "system": "http://terminology.hl7.org/CodeSystem/measure-population"
+                                                }
+                                            ]
+                                        },
+                                        "count": 62
+                                    }
+                                ],
+                                "value": {
+                                    "text": "blood-serum"
+                                }
+                            }
+                        ]
+                    }
+                ]
+            }
+        ],
+        "measure": "urn:uuid:fe7e5bf7-d792-4368-b1d2-5798930db13e",
+        "period": {
+            "end": "2030",
+            "start": "2000"
+        },
+        "resourceType": "MeasureReport",
+        "status": "complete",
+        "type": "summary"
+    }
+    "#;
 
     #[test]
     fn test_get_json_field_success() {
@@ -143,5 +758,22 @@ mod test {
         assert_eq!(replace_cql(decoded_library), expected_result);
     }
 
+    #[test]
+    fn test_obfuscate_counts() {
+        let mut obf_cache = ObfCache { cache: HashMap::new() };
+        let obfuscated_json = obfuscate_counts_mr(EXAMPLE_JSON, &mut obf_cache).unwrap();
+
+        // Check that the obfuscated JSON can be parsed and has the same structure as the original JSON
+        let _: MeasureReport = serde_json::from_str(&obfuscated_json).unwrap();
+
+        // Check that the obfuscated JSON is different from the original JSON
+        assert_ne!(obfuscated_json, EXAMPLE_JSON);
+
+        // Check that obfuscating the same JSON twice with the same obfuscation cache gives the same result
+        let obfuscated_json_2 = obfuscate_counts_mr(EXAMPLE_JSON, &mut obf_cache).unwrap();
+        assert_eq!(obfuscated_json, obfuscated_json_2);
+    }
+
 
 }
+

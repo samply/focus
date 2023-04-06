@@ -17,10 +17,10 @@ use serde_json::from_slice;
 
 use tracing::{debug, error, warn, info};
 
-use crate::util::{is_cql_tampered_with};
+use crate::util::{is_cql_tampered_with, obfuscate_counts_mr};
 use crate::{config::CONFIG, errors::FocusError};
 
-use laplace_rs::{ObfCache, obfuscate_counts};
+use laplace_rs::{ObfCache};
 
 mod errors;
 
@@ -169,13 +169,13 @@ async fn run_cql_query(task: &BeamTask, query: &Query, obf_cache: &mut ObfCache)
         }
     };
 
-    //dbg!(&cql_result);
+    dbg!(&cql_result);
 
     debug!("_________________________________________________________");
     
-    let cql_result_new = obfuscate_counts(&cql_result, obf_cache);
+    let cql_result_new = obfuscate_counts_mr(&cql_result, obf_cache);
 
-    //dbg!(&cql_result_new);
+    dbg!(&cql_result_new);
 
     //debug!("_________________________________________________________");
 
