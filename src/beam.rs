@@ -202,9 +202,6 @@ pub async fn retrieve_tasks() -> Result<Vec<BeamTask>, FocusError> {
             })?,
     );
 
-    // #[cfg(not(debug_assertions))]
-    //dbg!(headers.to_owned());
-
     let url = format!(
         "{}v1/tasks?filter=todo&wait_count=1&wait_time=10s",
         CONFIG.beam_proxy_url
