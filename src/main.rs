@@ -17,10 +17,10 @@ use serde_json::from_slice;
 
 use tracing::{debug, error, warn, info};
 
-use crate::util::{is_cql_tampered_with};
+use crate::util::{is_cql_tampered_with, obfuscate_counts_mr};
 use crate::{config::CONFIG, errors::FocusError};
 
-use laplace_rs::{ObfCache, obfuscate_counts};
+use laplace_rs::ObfCache;
 
 mod errors;
 
@@ -56,7 +56,7 @@ async fn main() -> ExitCode {
         }
     }
     error!("Encountered too many errors -- exiting after {} attempts.", CONFIG.retry_count);
-    ExitCode::from(42)
+    ExitCode::from(22)
 }
 
 async fn process_task(task: &BeamTask, obf_cache: &mut ObfCache) -> Result<BeamResult, FocusError> {
@@ -125,7 +125,6 @@ fn parse_query(task: &BeamTask) -> Result<blaze::Query, FocusError> {
     let decoded = general_purpose::STANDARD
         .decode(task.body.to_owned())
         .map_err(|e| FocusError::DecodeError(e))?;
-    //debug!("{:?}", decoded);
 
 
     let query: blaze::Query =
@@ -160,7 +159,6 @@ async fn run_cql_query(task: &BeamTask, query: &Query, obf_cache: &mut ObfCache)
 
     let query = replace_cql_library(query.clone())?;
 
-    //dbg!(&query, &query.lib);
     let cql_result = match blaze::run_cql_query(&query.lib, &query.measure).await {
         Ok(s) => s,
         Err(e) => {
@@ -169,16 +167,7 @@ async fn run_cql_query(task: &BeamTask, query: &Query, obf_cache: &mut ObfCache)
         }
     };
 
-    //dbg!(&cql_result);
-
-    debug!("_________________________________________________________");
-    
-    let cql_result_new = obfuscate_counts(&cql_result, obf_cache);
-
-    //dbg!(&cql_result_new);
-
-    //debug!("_________________________________________________________");
-
+    let cql_result_new = obfuscate_counts_mr(&cql_result, obf_cache);
 
     let result = beam_result(task.to_owned(), cql_result_new
     .map_err(|e| FocusError::LaplaceError(e))?
@@ -215,8 +204,6 @@ fn replace_cql_library(mut query: Query) -> Result<Query, FocusError> {
     };
 
     let replaced_cql_str = util::replace_cql(decoded_string);
-    //debug!("{}", replaced_cql_str);
-
     let replaced_cql_str_base64 = general_purpose::STANDARD.encode(replaced_cql_str);
     let new_data_value = serde_json::to_value(replaced_cql_str_base64)
         .expect("unable to turn base64 string into json value - this should not happen");

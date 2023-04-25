@@ -32,7 +32,6 @@ pub async fn check_availability() -> bool {
     };
 
     if resp.status().is_success() {
-        // debug!("Blaze is available now.");
         return true;
     }
     false
