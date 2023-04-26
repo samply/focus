@@ -2,7 +2,7 @@ use serde_json::{json, Value};
 use tracing::{debug, info, warn};
 use std::collections::HashMap;
 use laplace_rs::{ObfCache, get_from_cache_or_privatize, Bin, ObfuscateBelow10Mode};
-use laplace_rs::errors::LaplaceError;
+use crate::errors::FocusError;
 use serde::{Deserialize, Serialize};
 use rand::thread_rng;
 
@@ -112,9 +112,9 @@ pub(crate) fn is_cql_tampered_with(decoded_library: impl Into<String>) -> bool {
 pub fn obfuscate_counts_mr(
     json_str: &str,
     obf_cache: &mut ObfCache,
-) -> Result<String, LaplaceError> {
+) -> Result<String, FocusError> {
     let mut measure_report: MeasureReport = serde_json::from_str(&json_str)
-        .map_err(|e| LaplaceError::DeserializationError(e.to_string()))?;
+        .map_err(|e| FocusError::DeserializationError(e.to_string()))?;
     for g in &mut measure_report.group {
         match &g.code.text[..] {
             "patients" => {
@@ -125,7 +125,7 @@ pub fn obfuscate_counts_mr(
                     EPSILON,
                     1,
                     obf_cache,
-                )?;
+                );
                 obfuscate_counts_recursive(
                     &mut g.stratifier,
                     MU,
@@ -133,7 +133,7 @@ pub fn obfuscate_counts_mr(
                     EPSILON,
                     2,
                     obf_cache,
-                )?;
+                );
             }
             "diagnosis" => {
                 obfuscate_counts_recursive(
@@ -143,7 +143,7 @@ pub fn obfuscate_counts_mr(
                     EPSILON,
                     1,
                     obf_cache,
-                )?;
+                );
                 obfuscate_counts_recursive(
                     &mut g.stratifier,
                     MU,
@@ -151,7 +151,7 @@ pub fn obfuscate_counts_mr(
                     EPSILON,
                     2,
                     obf_cache,
-                )?;
+                );
             }
             "specimen" => {
                 obfuscate_counts_recursive(
@@ -161,7 +161,7 @@ pub fn obfuscate_counts_mr(
                     EPSILON,
                     1,
                     obf_cache,
-                )?;
+                );
                 obfuscate_counts_recursive(
                     &mut g.stratifier,
                     MU,
@@ -169,7 +169,7 @@ pub fn obfuscate_counts_mr(
                     EPSILON,
                     2,
                     obf_cache,
-                )?;
+                );
             }
             _ => {
                 warn!("Focus is not aware of {} type of stratifier, hence it will not obfuscate the values.", &g.code.text[..])
@@ -178,7 +178,7 @@ pub fn obfuscate_counts_mr(
     }
 
     let measure_report_obfuscated = serde_json::to_string_pretty(&measure_report)
-        .map_err(|e| LaplaceError::SerializationError(e.to_string()))?;
+        .map_err(|e| FocusError::SerializationError(e.to_string()))?;
     Ok(measure_report_obfuscated)
 }
 
@@ -189,7 +189,7 @@ fn obfuscate_counts_recursive(
     epsilon: f64,
     bin: Bin,
     obf_cache: &mut ObfCache,
-) -> Result<(), LaplaceError> {
+) -> Result<(), FocusError> {
     let mut rng = thread_rng();
     match val {
         Value::Object(map) => {
@@ -208,7 +208,7 @@ fn obfuscate_counts_recursive(
                             ObfuscateBelow10Mode::Ten,
                             ROUNDING_STEP,
                             &mut rng,
-                        );
+                        ).map_err(|e| FocusError::LaplaceError(e));
 
                         *count_val = json!(obfuscated?);
                     }
