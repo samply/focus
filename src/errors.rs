@@ -32,4 +32,8 @@ pub enum FocusError {
     CQLTemperedWithError(String),
     #[error("Laplace error")]
     LaplaceError(laplace_rs::errors::LaplaceError),
+    #[error("Deserialization error: {0}")]
+    DeserializationError(String),
+    #[error("Serialization error: {0}")]
+    SerializationError(String),
 }
