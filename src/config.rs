@@ -42,6 +42,10 @@ struct CliArgs {
     #[clap(long, env, value_parser)]
     blaze_url: Uri,
 
+    /// Should the results be do_not_obfuscated
+    #[clap(long, env, value_parser)]
+    do_not_obfuscate: bool,
+
     /// Outgoing HTTP proxy: Directory with CA certificates to trust for TLS connections (e.g. /etc/samply/cacerts/)
     #[clap(long, env, value_parser)]
     tls_ca_certificates_dir: Option<PathBuf>,
@@ -53,6 +57,7 @@ pub(crate) struct Config {
     pub api_key: String,
     pub retry_count: usize,
     pub blaze_url: Uri,
+    pub do_not_obfuscate: bool,
     tls_ca_certificates: Vec<Certificate>,
     pub client: Client,
 }
@@ -71,6 +76,7 @@ impl Config {
             api_key: cli_args.api_key,
             retry_count: cli_args.retry_count,
             blaze_url: cli_args.blaze_url,
+            do_not_obfuscate: cli_args.do_not_obfuscate,
             tls_ca_certificates,
             client
         };
