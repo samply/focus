@@ -172,8 +172,6 @@ async fn run_cql_query(task: &BeamTask, query: &Query, obf_cache: &mut ObfCache)
         true => cql_result
     };
 
-    dbg!(cql_result_new.clone());
-
     let result = beam_result(task.to_owned(), cql_result_new
     .to_string()).unwrap_or_else(|e| {
         err.body = e.to_string();
