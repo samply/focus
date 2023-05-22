@@ -167,9 +167,12 @@ async fn run_cql_query(task: &BeamTask, query: &Query, obf_cache: &mut ObfCache)
         }
     };
 
-    let cql_result_new = obfuscate_counts_mr(&cql_result, obf_cache);
+    let cql_result_new = match CONFIG.do_not_obfuscate {
+        false => obfuscate_counts_mr(&cql_result, obf_cache)?,
+        true => cql_result
+    };
 
-    let result = beam_result(task.to_owned(), cql_result_new?
+    let result = beam_result(task.to_owned(), cql_result_new
     .to_string()).unwrap_or_else(|e| {
         err.body = e.to_string();
         return err;

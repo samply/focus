@@ -29,13 +29,15 @@ API_KEY = "App1Secret"
 BEAM_APP_ID_LONG = "app1.broker.example.com"
 ```
 
-optional variable
+### Optional variables
+
 ```bash
 RETRY_COUNT = "32"
 ```
 
 The default maximum number of retries for beam and blaze healthchecks is 32. 
 
+To disable the count obfuscation, set the env. variable `DO_NOT_OBFUSCATE`.
 
 Optionally, you can provide the `TLS_CA_CERTIFICATES_DIR` environment variable to add additional trusted certificates, e.g., if you have a TLS-terminating proxy server in place. The application respects the `HTTP_PROXY`, `HTTPS_PROXY`, `ALL_PROXY`, `NO_PROXY`, and their respective lowercase equivalents.
 
