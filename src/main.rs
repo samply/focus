@@ -52,7 +52,6 @@ async fn main() -> ExitCode {
             //failures += 1;
         } else {
             failures = 0;
-            dbg!(&obf_cache.cache);
         }
     }
     error!("Encountered too many errors -- exiting after {} attempts.", CONFIG.retry_count);
