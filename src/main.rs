@@ -5,17 +5,17 @@ mod config;
 mod logger;
 mod util;
 
+use std::collections::HashMap;
 use std::process::ExitCode;
 use std::str;
 use std::{process::exit, time::Duration};
-use std::collections::HashMap;
 
 use base64::{engine::general_purpose, Engine as _};
 use beam::{BeamResult, BeamTask};
 use blaze::Query;
 use serde_json::from_slice;
 
-use tracing::{debug, error, warn, info};
+use tracing::{debug, error, info, warn};
 
 use crate::util::{is_cql_tampered_with, obfuscate_counts_mr};
 use crate::{config::CONFIG, errors::FocusError};
@@ -23,7 +23,6 @@ use crate::{config::CONFIG, errors::FocusError};
 use laplace_rs::ObfCache;
 
 mod errors;
-
 
 #[tokio::main]
 async fn main() -> ExitCode {
@@ -35,12 +34,18 @@ async fn main() -> ExitCode {
 
     let _ = CONFIG.api_key; // Initialize config
 
-    let mut obf_cache: ObfCache = ObfCache { cache: HashMap::new() };
+    let mut obf_cache: ObfCache = ObfCache {
+        cache: HashMap::new(),
+    };
 
     let mut failures = 0;
     while failures < CONFIG.retry_count {
         if failures > 0 {
-            warn!("Retrying connection (attempt {}/{})", failures+1, CONFIG.retry_count);
+            warn!(
+                "Retrying connection (attempt {}/{})",
+                failures + 1,
+                CONFIG.retry_count
+            );
             tokio::time::sleep(Duration::from_secs(2)).await;
         }
         if !(beam::check_availability().await && blaze::check_availability().await) {
@@ -54,7 +59,10 @@ async fn main() -> ExitCode {
             failures = 0;
         }
     }
-    error!("Encountered too many errors -- exiting after {} attempts.", CONFIG.retry_count);
+    error!(
+        "Encountered too many errors -- exiting after {} attempts.",
+        CONFIG.retry_count
+    );
     ExitCode::from(22)
 }
 
@@ -80,12 +88,8 @@ async fn process_tasks(obf_cache: &mut ObfCache) -> Result<(), FocusError> {
             Err(FocusError::DecodeError(_)) | Err(FocusError::ParsingError(_)) => {
                 Some("Cannot parse query".to_string())
             }
-            Err(FocusError::LaplaceError(_)) => {
-                Some("Cannot obfuscate result".to_string())
-            }
-            Err(ref e) => {
-                Some(format!("Cannot execute query: {}", e))
-            }
+            Err(FocusError::LaplaceError(_)) => Some("Cannot obfuscate result".to_string()),
+            Err(ref e) => Some(format!("Cannot execute query: {}", e)),
             Ok(_) => None,
         };
 
@@ -125,14 +129,17 @@ fn parse_query(task: &BeamTask) -> Result<blaze::Query, FocusError> {
         .decode(task.body.to_owned())
         .map_err(|e| FocusError::DecodeError(e))?;
 
-
     let query: blaze::Query =
         from_slice(&decoded).map_err(|e| FocusError::ParsingError(e.to_string()))?;
-    
+
     Ok(query)
 }
 
-async fn run_query(task: &BeamTask, query: &Query, obf_cache: &mut ObfCache) -> Result<BeamResult, FocusError> {
+async fn run_query(
+    task: &BeamTask,
+    query: &Query,
+    obf_cache: &mut ObfCache,
+) -> Result<BeamResult, FocusError> {
     debug!("Run");
 
     if query.lang == "cql" {
@@ -148,7 +155,11 @@ async fn run_query(task: &BeamTask, query: &Query, obf_cache: &mut ObfCache) -> 
     }
 }
 
-async fn run_cql_query(task: &BeamTask, query: &Query, obf_cache: &mut ObfCache) -> Result<BeamResult, FocusError> {
+async fn run_cql_query(
+    task: &BeamTask,
+    query: &Query,
+    obf_cache: &mut ObfCache,
+) -> Result<BeamResult, FocusError> {
     let mut err = beam::BeamResult::perm_failed(
         CONFIG.beam_app_id_long.clone(),
         vec![task.to_owned().from],
@@ -167,26 +178,38 @@ async fn run_cql_query(task: &BeamTask, query: &Query, obf_cache: &mut ObfCache)
     };
 
     let cql_result_new = match CONFIG.do_not_obfuscate {
-        false => obfuscate_counts_mr(&cql_result, obf_cache)?,
-        true => cql_result
+        false => obfuscate_counts_mr(
+            &cql_result,
+            obf_cache,
+            CONFIG.obfuscate_zero,
+            CONFIG.obfuscate_below_10_mode,
+            CONFIG.delta_patient,
+            CONFIG.delta_specimen,
+            CONFIG.delta_diagnosis,
+            CONFIG.epsilon,
+            CONFIG.mu,
+            CONFIG.rounding_step,
+        )?,
+        true => cql_result,
     };
 
-    let result = beam_result(task.to_owned(), cql_result_new
-    .to_string()).unwrap_or_else(|e| {
+    let result = beam_result(task.to_owned(), cql_result_new.to_string()).unwrap_or_else(|e| {
         err.body = e.to_string();
         return err;
     });
+
     Ok(result)
 }
-
-
 
 fn replace_cql_library(mut query: Query) -> Result<Query, FocusError> {
     let old_data_value = &query.lib["content"][0]["data"];
 
     let old_data_string = old_data_value
         .as_str()
-        .ok_or(FocusError::ParsingError(format!("{} is not a valid library: Field .content[0].data not found.", query.lib.to_string())))?;
+        .ok_or(FocusError::ParsingError(format!(
+            "{} is not a valid library: Field .content[0].data not found.",
+            query.lib.to_string()
+        )))?;
 
     let decoded_cql = general_purpose::STANDARD
         .decode(old_data_string)
@@ -195,12 +218,13 @@ fn replace_cql_library(mut query: Query) -> Result<Query, FocusError> {
     let decoded_string = str::from_utf8(&decoded_cql)
         .map_err(|_| FocusError::ParsingError("CQL query was invalid".into()))?;
 
-    match is_cql_tampered_with(decoded_string)
-    {
+    match is_cql_tampered_with(decoded_string) {
         false => debug!("CQL not tampered with"),
         true => {
             debug!("CQL tampered with");
-            return Err(FocusError::CQLTemperedWithError("'define' keyword found in CQL".to_string()));
+            return Err(FocusError::CQLTemperedWithError(
+                "'define' keyword found in CQL".to_string(),
+            ));
         }
     };
 
