@@ -1,11 +1,10 @@
-use serde_json::{json, Value};
-use tracing::{debug, info, warn};
-use std::collections::HashMap;
-use laplace_rs::{ObfCache, get_from_cache_or_privatize, Bin, ObfuscateBelow10Mode};
 use crate::errors::FocusError;
-use serde::{Deserialize, Serialize};
+use laplace_rs::{get_from_cache_or_privatize, Bin, ObfCache, ObfuscateBelow10Mode};
 use rand::thread_rng;
-
+use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
+use std::collections::HashMap;
+use tracing::{debug, info, warn};
 
 #[derive(Debug, Deserialize, Serialize)]
 struct Period {
@@ -65,14 +64,6 @@ struct MeasureReport {
     type_: String, //because "type" is a reserved keyword
 }
 
-const DELTA_PATIENT: f64 = 1.;
-const DELTA_SPECIMEN: f64 = 20.;
-const DELTA_DIAGNOSIS: f64 = 3.;
-const EPSILON: f64 = 0.1;
-const MU: f64 = 0.;
-const ROUNDING_STEP: usize = 10;
-
-
 pub(crate) fn get_json_field(json_string: &str, field: &str) -> Result<Value, serde_json::Error> {
     let json: Value = serde_json::from_str(json_string)?;
     Ok(json[field].clone())
@@ -108,11 +99,24 @@ pub(crate) fn is_cql_tampered_with(decoded_library: impl Into<String>) -> bool {
     decoded_library.contains("define")
 }
 
-
 pub fn obfuscate_counts_mr(
     json_str: &str,
     obf_cache: &mut ObfCache,
+    obfuscate_zero: bool,
+    obfuscate_below_10_mode: usize,
+    delta_patient: f64,
+    delta_specimen: f64,
+    delta_diagnosis: f64,
+    epsilon: f64,
+    mu: f64,
+    rounding_step: usize,
 ) -> Result<String, FocusError> {
+    let obf_10: ObfuscateBelow10Mode = match obfuscate_below_10_mode {
+        0 => ObfuscateBelow10Mode::Zero,
+        1 => ObfuscateBelow10Mode::Ten,
+        2 => ObfuscateBelow10Mode::Obfuscate,
+        _ => ObfuscateBelow10Mode::Obfuscate,
+    };
     let mut measure_report: MeasureReport = serde_json::from_str(&json_str)
         .map_err(|e| FocusError::DeserializationError(e.to_string()))?;
     for g in &mut measure_report.group {
@@ -120,56 +124,74 @@ pub fn obfuscate_counts_mr(
             "patients" => {
                 obfuscate_counts_recursive(
                     &mut g.population,
-                    MU,
-                    DELTA_PATIENT,
-                    EPSILON,
+                    mu,
+                    delta_patient,
+                    epsilon,
                     1,
                     obf_cache,
-                );
+                    obfuscate_zero,
+                    obf_10.clone(),
+                    rounding_step,
+                )?;
                 obfuscate_counts_recursive(
                     &mut g.stratifier,
-                    MU,
-                    DELTA_PATIENT,
-                    EPSILON,
+                    mu,
+                    delta_patient,
+                    epsilon,
                     2,
                     obf_cache,
-                );
+                    obfuscate_zero,
+                    obf_10.clone(),
+                    rounding_step,
+                )?;
             }
             "diagnosis" => {
                 obfuscate_counts_recursive(
                     &mut g.population,
-                    MU,
-                    DELTA_DIAGNOSIS,
-                    EPSILON,
+                    mu,
+                    delta_diagnosis,
+                    epsilon,
                     1,
                     obf_cache,
-                );
+                    obfuscate_zero,
+                    obf_10.clone(),
+                    rounding_step,
+                )?;
                 obfuscate_counts_recursive(
                     &mut g.stratifier,
-                    MU,
-                    DELTA_DIAGNOSIS,
-                    EPSILON,
+                    mu,
+                    delta_diagnosis,
+                    epsilon,
                     2,
                     obf_cache,
-                );
+                    obfuscate_zero,
+                    obf_10.clone(),
+                    rounding_step,
+                )?;
             }
             "specimen" => {
                 obfuscate_counts_recursive(
                     &mut g.population,
-                    MU,
-                    DELTA_SPECIMEN,
-                    EPSILON,
+                    mu,
+                    delta_specimen,
+                    epsilon,
                     1,
                     obf_cache,
-                );
+                    obfuscate_zero,
+                    obf_10.clone(),
+                    rounding_step,
+                )?;
                 obfuscate_counts_recursive(
                     &mut g.stratifier,
-                    MU,
-                    DELTA_SPECIMEN,
-                    EPSILON,
+                    mu,
+                    delta_specimen,
+                    epsilon,
                     2,
                     obf_cache,
-                );
+                    obfuscate_zero,
+                    obf_10.clone(),
+                    rounding_step,
+                )?;
             }
             _ => {
                 warn!("Focus is not aware of {} type of stratifier, hence it will not obfuscate the values.", &g.code.text[..])
@@ -189,6 +211,9 @@ fn obfuscate_counts_recursive(
     epsilon: f64,
     bin: Bin,
     obf_cache: &mut ObfCache,
+    obfuscate_zero: bool,
+    obfuscate_below_10_mode: ObfuscateBelow10Mode,
+    rounding_step: usize,
 ) -> Result<(), FocusError> {
     let mut rng = thread_rng();
     match val {
@@ -204,23 +229,44 @@ fn obfuscate_counts_recursive(
                             epsilon,
                             bin,
                             Some(obf_cache),
-                            false,
-                            ObfuscateBelow10Mode::Ten,
-                            ROUNDING_STEP,
+                            obfuscate_zero,
+                            obfuscate_below_10_mode.clone(),
+                            rounding_step,
                             &mut rng,
-                        ).map_err(|e| FocusError::LaplaceError(e));
+                        )
+                        .map_err(|e| FocusError::LaplaceError(e));
 
                         *count_val = json!(obfuscated?);
                     }
                 }
             }
             for (_, sub_val) in map.iter_mut() {
-                obfuscate_counts_recursive(sub_val, mu, delta, epsilon, bin, obf_cache)?;
+                obfuscate_counts_recursive(
+                    sub_val,
+                    mu,
+                    delta,
+                    epsilon,
+                    bin,
+                    obf_cache,
+                    obfuscate_zero,
+                    obfuscate_below_10_mode.clone(),
+                    rounding_step,
+                )?;
             }
         }
         Value::Array(vec) => {
             for sub_val in vec.iter_mut() {
-                obfuscate_counts_recursive(sub_val, mu, delta, epsilon, bin, obf_cache)?;
+                obfuscate_counts_recursive(
+                    sub_val,
+                    mu,
+                    delta,
+                    epsilon,
+                    bin,
+                    obf_cache,
+                    obfuscate_zero,
+                    obfuscate_below_10_mode.clone(),
+                    rounding_step,
+                )?;
             }
         }
         _ => {}
@@ -228,13 +274,19 @@ fn obfuscate_counts_recursive(
     Ok(())
 }
 
-
 #[cfg(test)]
 mod test {
     use super::*;
     use serde_json::json;
 
     const EXAMPLE_JSON: &str = r#"{"date": "2023-03-03T15:54:21.740195064Z", "extension": [{"url": "https://samply.github.io/blaze/fhir/StructureDefinition/eval-duration", "valueQuantity": {"code": "s", "system": "http://unitsofmeasure.org", "unit": "s", "value": 0.050495759}}], "group": [{"code": {"text": "patients"}, "population": [{"code": {"coding": [{"code": "initial-population", "system": "http://terminology.hl7.org/CodeSystem/measure-population"}]}, "count": 74}], "stratifier": [{"code": [{"text": "Gender"}], "stratum": [{"population": [{"code": {"coding": [{"code": "initial-population", "system": "http://terminology.hl7.org/CodeSystem/measure-population"}]}, "count": 31}], "value": {"text": "female"}}, {"population": [{"code": {"coding": [{"code": "initial-population", "system": "http://terminology.hl7.org/CodeSystem/measure-population"}]}, "count": 43}], "value": {"text": "male"}}]}, {"code": [{"text": "Age"}], "stratum": [{"population": [{"code": {"coding": [{"code": "initial-population", "system": "http://terminology.hl7.org/CodeSystem/measure-population"}]}, "count": 5}], "value": {"text": "40"}}, {"population": [{"code": {"coding": [{"code": "initial-population", "system": "http://terminology.hl7.org/CodeSystem/measure-population"}]}, "count": 4}], "value": {"text": "50"}}, {"population": [{"code": {"coding": [{"code": "initial-population", "system": "http://terminology.hl7.org/CodeSystem/measure-population"}]}, "count": 14}], "value": {"text": "60"}}, {"population": [{"code": {"coding": [{"code": "initial-population", "system": "http://terminology.hl7.org/CodeSystem/measure-population"}]}, "count": 4}], "value": {"text": "80"}}]}, {"code": [{"text": "Custodian"}], "stratum": [{"population": [{"code": {"coding": [{"code": "initial-population", "system": "http://terminology.hl7.org/CodeSystem/measure-population"}]}, "count": 31}], "value": {"text": "bbmri-eric:ID:CZ_CUNI_PILS:collection:serum_plasma"}}, {"population": [{"code": {"coding": [{"code": "initial-population", "system": "http://terminology.hl7.org/CodeSystem/measure-population"}]}, "count": 43}], "value": {"text": "null"}}]}]}, {"code": {"text": "diagnosis"}, "population": [{"code": {"coding": [{"code": "initial-population", "system": "http://terminology.hl7.org/CodeSystem/measure-population"}]}, "count": 324}], "stratifier": [{"code": [{"text": "diagnosis"}], "stratum": [{"population": [{"code": {"coding": [{"code": "initial-population", "system": "http://terminology.hl7.org/CodeSystem/measure-population"}]}, "count": 26}], "value": {"text": "C34.0"}}, {"population": [{"code": {"coding": [{"code": "initial-population", "system": "http://terminology.hl7.org/CodeSystem/measure-population"}]}, "count": 28}], "value": {"text": "C34.2"}}, {"population": [{"code": {"coding": [{"code": "initial-population", "system": "http://terminology.hl7.org/CodeSystem/measure-population"}]}, "count": 25}], "value": {"text": "C34.8"}}, {"population": [{"code": {"coding": [{"code": "initial-population", "system": "http://terminology.hl7.org/CodeSystem/measure-population"}]}, "count": 27}], "value": {"text": "C78.0"}}, {"population": [{"code": {"coding": [{"code": "initial-population", "system": "http://terminology.hl7.org/CodeSystem/measure-population"}]}, "count": 25}], "value": {"text": "D38.6"}}, {"population": [{"code": {"coding": [{"code": "initial-population", "system": "http://terminology.hl7.org/CodeSystem/measure-population"}]}, "count": 25}], "value": {"text": "R91"}}]}]}, {"code": {"text": "specimen"}, "population": [{"code": {"coding": [{"code": "initial-population", "system": "http://terminology.hl7.org/CodeSystem/measure-population"}]}, "count": 124}], "stratifier": [{"code": [{"text": "sample_kind"}], "stratum": [{"population": [{"code": {"coding": [{"code": "initial-population", "system": "http://terminology.hl7.org/CodeSystem/measure-population"}]}, "count": 62}], "value": {"text": "blood-plasma"}}, {"population": [{"code": {"coding": [{"code": "initial-population", "system": "http://terminology.hl7.org/CodeSystem/measure-population"}]}, "count": 62}], "value": {"text": "blood-serum"}}]}]}], "measure": "urn:uuid:fe7e5bf7-d792-4368-b1d2-5798930db13e", "period": {"end": "2030", "start": "2000"}, "resourceType": "MeasureReport", "status": "complete", "type": "summary"}"#;
+
+    const DELTA_PATIENT: f64 = 1.;
+    const DELTA_SPECIMEN: f64 = 20.;
+    const DELTA_DIAGNOSIS: f64 = 3.;
+    const EPSILON: f64 = 0.1;
+    const MU: f64 = 0.;
+    const ROUNDING_STEP: usize = 10;
 
     #[test]
     fn test_get_json_field_success() {
@@ -339,8 +391,22 @@ mod test {
 
     #[test]
     fn test_obfuscate_counts() {
-        let mut obf_cache = ObfCache { cache: HashMap::new() };
-        let obfuscated_json = obfuscate_counts_mr(EXAMPLE_JSON, &mut obf_cache).unwrap();
+        let mut obf_cache = ObfCache {
+            cache: HashMap::new(),
+        };
+        let obfuscated_json = obfuscate_counts_mr(
+            EXAMPLE_JSON,
+            &mut obf_cache,
+            false,
+            1,
+            DELTA_PATIENT,
+            DELTA_SPECIMEN,
+            DELTA_DIAGNOSIS,
+            EPSILON,
+            MU,
+            ROUNDING_STEP,
+        )
+        .unwrap();
 
         // Check that the obfuscated JSON can be parsed and has the same structure as the original JSON
         let _: MeasureReport = serde_json::from_str(&obfuscated_json).unwrap();
@@ -349,10 +415,14 @@ mod test {
         assert_ne!(obfuscated_json, EXAMPLE_JSON);
 
         // Check that obfuscating the same JSON twice with the same obfuscation cache gives the same result
-        let obfuscated_json_2 = obfuscate_counts_mr(EXAMPLE_JSON, &mut obf_cache).unwrap();
+        let obfuscated_json_2 = obfuscate_counts_mr(EXAMPLE_JSON, &mut obf_cache, false,
+            1,
+            DELTA_PATIENT,
+            DELTA_SPECIMEN,
+            DELTA_DIAGNOSIS,
+            EPSILON,
+            MU,
+            ROUNDING_STEP,).unwrap();
         assert_eq!(obfuscated_json, obfuscated_json_2);
     }
-
-
 }
-
