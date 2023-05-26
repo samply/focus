@@ -75,10 +75,6 @@ struct CliArgs {
     #[clap(long, env, value_parser, default_value = "0.1")]
     epsilon: f64,
 
-    /// The mean of the Laplace distributions used for obfuscating the counts in the stratifiers
-    #[clap(long, env, value_parser, default_value = "0.")]
-    mu: f64,
-
     /// The granularity of the rounding of the obfuscated values
     #[clap(long, env, value_parser, default_value = "10")]
     rounding_step: usize,
@@ -101,7 +97,6 @@ pub(crate) struct Config {
     pub delta_specimen: f64,
     pub delta_diagnosis: f64,
     pub epsilon: f64,
-    pub mu: f64,
     pub rounding_step: usize,
     tls_ca_certificates: Vec<Certificate>,
     pub client: Client,
@@ -133,7 +128,6 @@ impl Config {
             delta_specimen: cli_args.delta_specimen,
             delta_diagnosis: cli_args.delta_diagnosis,
             epsilon: cli_args.epsilon,
-            mu: cli_args.mu,
             rounding_step: cli_args.rounding_step,
             tls_ca_certificates,
             client,

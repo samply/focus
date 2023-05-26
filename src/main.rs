@@ -187,7 +187,6 @@ async fn run_cql_query(
             CONFIG.delta_specimen,
             CONFIG.delta_diagnosis,
             CONFIG.epsilon,
-            CONFIG.mu,
             CONFIG.rounding_step,
         )?,
         true => cql_result,

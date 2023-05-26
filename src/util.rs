@@ -64,6 +64,8 @@ struct MeasureReport {
     type_: String, //because "type" is a reserved keyword
 }
 
+const MU: f64 = 0.;
+
 pub(crate) fn get_json_field(json_string: &str, field: &str) -> Result<Value, serde_json::Error> {
     let json: Value = serde_json::from_str(json_string)?;
     Ok(json[field].clone())
@@ -108,7 +110,6 @@ pub fn obfuscate_counts_mr(
     delta_specimen: f64,
     delta_diagnosis: f64,
     epsilon: f64,
-    mu: f64,
     rounding_step: usize,
 ) -> Result<String, FocusError> {
     let obf_10: ObfuscateBelow10Mode = match obfuscate_below_10_mode {
@@ -124,7 +125,7 @@ pub fn obfuscate_counts_mr(
             "patients" => {
                 obfuscate_counts_recursive(
                     &mut g.population,
-                    mu,
+                    MU,
                     delta_patient,
                     epsilon,
                     1,
@@ -135,7 +136,7 @@ pub fn obfuscate_counts_mr(
                 )?;
                 obfuscate_counts_recursive(
                     &mut g.stratifier,
-                    mu,
+                    MU,
                     delta_patient,
                     epsilon,
                     2,
@@ -148,7 +149,7 @@ pub fn obfuscate_counts_mr(
             "diagnosis" => {
                 obfuscate_counts_recursive(
                     &mut g.population,
-                    mu,
+                    MU,
                     delta_diagnosis,
                     epsilon,
                     1,
@@ -159,7 +160,7 @@ pub fn obfuscate_counts_mr(
                 )?;
                 obfuscate_counts_recursive(
                     &mut g.stratifier,
-                    mu,
+                    MU,
                     delta_diagnosis,
                     epsilon,
                     2,
@@ -172,7 +173,7 @@ pub fn obfuscate_counts_mr(
             "specimen" => {
                 obfuscate_counts_recursive(
                     &mut g.population,
-                    mu,
+                    MU,
                     delta_specimen,
                     epsilon,
                     1,
@@ -183,7 +184,7 @@ pub fn obfuscate_counts_mr(
                 )?;
                 obfuscate_counts_recursive(
                     &mut g.stratifier,
-                    mu,
+                    MU,
                     delta_specimen,
                     epsilon,
                     2,
@@ -285,7 +286,6 @@ mod test {
     const DELTA_SPECIMEN: f64 = 20.;
     const DELTA_DIAGNOSIS: f64 = 3.;
     const EPSILON: f64 = 0.1;
-    const MU: f64 = 0.;
     const ROUNDING_STEP: usize = 10;
 
     #[test]
@@ -403,7 +403,6 @@ mod test {
             DELTA_SPECIMEN,
             DELTA_DIAGNOSIS,
             EPSILON,
-            MU,
             ROUNDING_STEP,
         )
         .unwrap();
@@ -421,7 +420,6 @@ mod test {
             DELTA_SPECIMEN,
             DELTA_DIAGNOSIS,
             EPSILON,
-            MU,
             ROUNDING_STEP,).unwrap();
         assert_eq!(obfuscated_json, obfuscated_json_2);
     }
