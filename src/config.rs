@@ -55,7 +55,7 @@ struct CliArgs {
     #[clap(long, env, value_parser)]
     obfuscate_zero: bool,
 
-    /// The mode of obfuscating values below 10: 0 - return 0, 1 - return 10, 2 - obfuscate using Laplace distribution and rounding
+    /// The mode of obfuscating values below 10: 0 - return zero, 1 - return ten, 2 - obfuscate using Laplace distribution and rounding
     #[clap(long, env, value_parser, default_value = "1")]
     obfuscate_below_10_mode: usize,
 
