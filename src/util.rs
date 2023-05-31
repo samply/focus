@@ -83,7 +83,8 @@ pub(crate) fn replace_cql(decoded_library: impl Into<String>) -> String {
             ("BBMRI_STRAT_DIAGNOSIS_STRATIFIER", "define Diagnosis:\n if InInitialPopulation then [Condition] else {} as List<Condition> \n define function DiagnosisCode(condition FHIR.Condition, specimen FHIR.Specimen):\n Coalesce(condition.code.coding.where(system = 'http://hl7.org/fhir/sid/icd-10').code.first(), condition.code.coding.where(system = 'http://fhir.de/CodeSystem/dimdi/icd-10-gm').code.first(), specimen.extension.where(url='https://fhir.bbmri.de/StructureDefinition/SampleDiagnosis').value.coding.code.first(), condition.code.coding.where(system = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm').code.first())\n"),
             ("BBMRI_STRAT_AGE_STRATIFIER", "define AgeClass:\n     (AgeInYears() div 10) * 10"),
             ("BBMRI_STRAT_DEF_SPECIMEN", "define Specimen:"),
-            ("BBMRI_STRAT_DEF_IN_INITIAL_POPULATION", "define InInitialPopulation:")
+            ("BBMRI_STRAT_DEF_IN_INITIAL_POPULATION", "define InInitialPopulation:"),
+            ("EXLIQUID_CQL", "library \"Library-dashboard\"\n using FHIR version '4.0.0'\n include FHIRHelpers version '4.0.0'\n\n codesystem SampleMaterialType: 'https://fhir.bbmri.de/CodeSystem/SampleMaterialType'\n\n context Patient\n\n define ExliquidSpecimen:\n   from [Specimen] S\n   where S.identifier.system contains 'https://dktk.dkfz.de/fhir/NamingSystem/exliquid-specimen'\n\n define InInitialPopulation:\n   exists ExliquidSpecimen\n\n define retrieveCondition:\n  First(from [Condition] C\n   return C.code.coding.where(system = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm').code.first())\n\n define Diagnosis:\n   if (retrieveCondition is null) then 'unknown' else retrieveCondition\n\n define function SampleType(specimen FHIR.Specimen):\n   specimen.type.coding.where(system = 'https://fhir.bbmri.de/CodeSystem/SampleMaterialType').code.first()")
         ].into();
 
     let mut decoded_library = decoded_library.into();
@@ -382,6 +383,10 @@ mod test {
 
         let decoded_library = "BBMRI_STRAT_DEF_IN_INITIAL_POPULATION";
         let expected_result = "define InInitialPopulation:\n";
+        assert_eq!(replace_cql(decoded_library), expected_result);
+
+        let decoded_library = "EXLIQUID_CQL";
+        let expected_result = "library \"Library-dashboard\"\n using FHIR version '4.0.0'\n include FHIRHelpers version '4.0.0'\n\n codesystem SampleMaterialType: 'https://fhir.bbmri.de/CodeSystem/SampleMaterialType'\n\n context Patient\n\n define ExliquidSpecimen:\n   from [Specimen] S\n   where S.identifier.system contains 'https://dktk.dkfz.de/fhir/NamingSystem/exliquid-specimen'\n\n define InInitialPopulation:\n   exists ExliquidSpecimen\n\n define retrieveCondition:\n  First(from [Condition] C\n   return C.code.coding.where(system = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm').code.first())\n\n define Diagnosis:\n   if (retrieveCondition is null) then 'unknown' else retrieveCondition\n\n define function SampleType(specimen FHIR.Specimen):\n   specimen.type.coding.where(system = 'https://fhir.bbmri.de/CodeSystem/SampleMaterialType').code.first()\n";
         assert_eq!(replace_cql(decoded_library), expected_result);
 
         let decoded_library = "INVALID_KEY";
