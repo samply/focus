@@ -24,6 +24,8 @@ pub enum FocusError {
     DecodeError(base64::DecodeError),
     #[error("Configuration error")]
     ConfigurationError(String),
+    #[error("Cannot open file")]
+    FileOpeningError(String),
     #[error("Invalid BeamID")]
     InvalidBeamId(String),
     #[error("Parsing error")]
