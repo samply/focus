@@ -63,9 +63,7 @@ async fn main() -> ExitCode {
                 let Ok(ok_line) = line else{
                     continue;
                 };
-                report_cache
-                    .cache
-                    .insert(ok_line, ("".into(), UNIX_EPOCH));
+                report_cache.cache.insert(ok_line, ("".into(), UNIX_EPOCH));
             }
         }
         Err(_) => {} //If the file cannot be opened, no queries are inserted into the cache
@@ -217,18 +215,19 @@ async fn run_cql_query(
                 query.lib.to_string()
             )))?;
 
+    let mut key_exists = false;
+
     let cached_report = report_cache.cache.get(encoded_query);
     let report_from_cache = match cached_report {
         Some(existing_report) => {
+            key_exists = true;
             if SystemTime::now().duration_since(existing_report.1).unwrap() < VALIDITY {
                 Some(existing_report.0.clone())
             } else {
                 None
             }
         }
-        None => {
-            None
-        }
+        None => None,
     };
 
     let cql_result_new = match report_from_cache {
@@ -258,10 +257,13 @@ async fn run_cql_query(
                 true => cql_result,
             };
 
-            report_cache
-            .cache
-            .insert(encoded_query.to_string(), (cql_result_new.clone(), std::time::SystemTime::now()));
-        
+            if key_exists {
+                report_cache.cache.insert(
+                    encoded_query.to_string(),
+                    (cql_result_new.clone(), std::time::SystemTime::now()),
+                );
+            }
+
             cql_result_new
         }
         Some(some_report_from_cache) => some_report_from_cache.to_string(),
