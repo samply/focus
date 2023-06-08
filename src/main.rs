@@ -267,7 +267,6 @@ async fn run_cql_query(
                     (cql_result_new.clone(), std::time::SystemTime::now()),
                 );
             }
-            dbg!(cql_result_new.clone());
             cql_result_new
         }
     };
