@@ -54,10 +54,6 @@ struct CliArgs {
     #[clap(long, env, value_parser)]
     blaze_url: Uri,
 
-    /// Should the results not be obfuscated - default false
-    #[clap(long, env, value_parser)]
-    do_not_obfuscate: bool,
-
     /// Should the results be obfuscated
     #[clap(long, env, value_parser = clap::value_parser!(Obfuscate), default_value = "yes")]
     obfuscate: Obfuscate,
