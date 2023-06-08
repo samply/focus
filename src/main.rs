@@ -25,6 +25,7 @@ use laplace_rs::ObfCache;
 
 mod errors;
 
+
 // result cache
 type SearchQuery = String;
 type Report = String;
@@ -35,10 +36,10 @@ struct ReportCache {
     cache: HashMap<SearchQuery, (Report, Created)>,
 }
 
-const VALIDITY: Duration = Duration::from_secs(86400); //24h
+const REPORTCACHE_TTL: Duration = Duration::from_secs(86400); //24h
 
 #[tokio::main]
-async fn main() -> ExitCode {
+pub async fn main() -> ExitCode {
     if let Err(e) = logger::init_logger() {
         error!("Cannot initalize logger: {}", e);
         exit(1);
@@ -55,18 +56,27 @@ async fn main() -> ExitCode {
         cache: HashMap::new(),
     };
 
-    let lines = util::read_lines("resources/queries_to_cache".to_string());
+    match CONFIG.queries_to_cache_file_path.clone() {
+        Some(filename) => {
+            let lines = util::read_lines(filename.clone().to_string());
 
-    match lines {
-        Ok(ok_lines) => {
-            for line in ok_lines {
-                let Ok(ok_line) = line else{
-                    continue;
-                };
-                report_cache.cache.insert(ok_line, ("".into(), UNIX_EPOCH));
+            match lines {
+                Ok(ok_lines) => {
+                    for line in ok_lines {
+                        let Ok(ok_line) = line else{
+                            warn!("A line in the file {} is not readable", filename);
+                            continue;
+                        };
+                        report_cache.cache.insert(ok_line, ("".into(), UNIX_EPOCH));
+                    }
+                }
+                Err(_) => {
+                    error!("The file {} cannot be opened", filename);
+                    exit(2);
+                } 
             }
-        }
-        Err(_) => {} //If the file cannot be opened, no queries are inserted into the cache
+        },
+        None => {}
     }
 
     let mut failures = 0;
@@ -84,7 +94,6 @@ async fn main() -> ExitCode {
         }
         if let Err(e) = process_tasks(&mut obf_cache, &mut report_cache).await {
             warn!("Encountered the following error, while processing tasks: {e}");
-            warn!("Just to make sure, that 502 could mean just timeout");
             //failures += 1;
         } else {
             failures = 0;
@@ -211,7 +220,7 @@ async fn run_cql_query(
         query.lib["content"][0]["data"]
             .as_str()
             .ok_or(FocusError::ParsingError(format!(
-                "{} is not a valid library: Field .content[0].data not found.",
+                "Not a valid library: Field .content[0].data not found. Library: {}",
                 query.lib.to_string()
             )))?;
 
@@ -221,7 +230,7 @@ async fn run_cql_query(
     let report_from_cache = match cached_report {
         Some(existing_report) => {
             key_exists = true;
-            if SystemTime::now().duration_since(existing_report.1).unwrap() < VALIDITY {
+            if SystemTime::now().duration_since(existing_report.1).unwrap() < REPORTCACHE_TTL {
                 Some(existing_report.0.clone())
             } else {
                 None
@@ -231,19 +240,14 @@ async fn run_cql_query(
     };
 
     let cql_result_new = match report_from_cache {
+        Some(some_report_from_cache) => some_report_from_cache.to_string(),
         None => {
             let query = replace_cql_library(query.clone())?;
 
-            let cql_result = match blaze::run_cql_query(&query.lib, &query.measure).await {
-                Ok(s) => s,
-                Err(e) => {
-                    err.body = e.to_string();
-                    return Err(e);
-                }
-            };
+            let cql_result = blaze::run_cql_query(&query.lib, &query.measure).await?;
 
-            let cql_result_new = match CONFIG.do_not_obfuscate {
-                false => obfuscate_counts_mr(
+            let cql_result_new: String = match CONFIG.obfuscate {
+                config::Obfuscate::Yes => obfuscate_counts_mr(
                     &cql_result,
                     obf_cache,
                     CONFIG.obfuscate_zero,
@@ -254,7 +258,7 @@ async fn run_cql_query(
                     CONFIG.epsilon,
                     CONFIG.rounding_step,
                 )?,
-                true => cql_result,
+                config::Obfuscate::No => cql_result,
             };
 
             if key_exists {
@@ -263,10 +267,9 @@ async fn run_cql_query(
                     (cql_result_new.clone(), std::time::SystemTime::now()),
                 );
             }
-
+            dbg!(cql_result_new.clone());
             cql_result_new
         }
-        Some(some_report_from_cache) => some_report_from_cache.to_string(),
     };
 
     let result = beam_result(task.to_owned(), cql_result_new).unwrap_or_else(|e| {

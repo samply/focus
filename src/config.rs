@@ -8,6 +8,13 @@ use tracing::{debug, info, warn};
 
 use crate::{beam::AppId, errors::FocusError};
 
+#[derive(clap::ValueEnum, Clone, Debug)]
+pub enum Obfuscate {
+    No,
+    Yes,
+}
+
+
 #[dynamic(lazy)]
 pub(crate) static CONFIG: Config = {
     debug!("Loading config");
@@ -51,6 +58,10 @@ struct CliArgs {
     #[clap(long, env, value_parser)]
     do_not_obfuscate: bool,
 
+    /// Should the results be obfuscated
+    #[clap(long, env, value_parser = clap::value_parser!(Obfuscate), default_value = "yes")]
+    obfuscate: Obfuscate,
+
     /// Should zero values be obfuscated - default false
     #[clap(long, env, value_parser)]
     obfuscate_zero: bool,
@@ -79,6 +90,10 @@ struct CliArgs {
     #[clap(long, env, value_parser, default_value = "10")]
     rounding_step: usize,
 
+    /// The path to the file containing BASE64 encoded queries whose results are to be cached
+    #[clap(long, env, value_parser)]
+    queries_to_cache_file_path: Option<String>,
+
     /// Outgoing HTTP proxy: Directory with CA certificates to trust for TLS connections (e.g. /etc/samply/cacerts/)
     #[clap(long, env, value_parser)]
     tls_ca_certificates_dir: Option<PathBuf>,
@@ -90,7 +105,7 @@ pub(crate) struct Config {
     pub api_key: String,
     pub retry_count: usize,
     pub blaze_url: Uri,
-    pub do_not_obfuscate: bool,
+    pub obfuscate: Obfuscate,
     pub obfuscate_zero: bool,
     pub obfuscate_below_10_mode: usize,
     pub delta_patient: f64,
@@ -98,6 +113,7 @@ pub(crate) struct Config {
     pub delta_diagnosis: f64,
     pub epsilon: f64,
     pub rounding_step: usize,
+    pub queries_to_cache_file_path: Option<String>,
     tls_ca_certificates: Vec<Certificate>,
     pub client: Client,
 }
@@ -121,7 +137,7 @@ impl Config {
             api_key: cli_args.api_key,
             retry_count: cli_args.retry_count,
             blaze_url: cli_args.blaze_url,
-            do_not_obfuscate: cli_args.do_not_obfuscate,
+            obfuscate: cli_args.obfuscate,
             obfuscate_zero: cli_args.obfuscate_zero,
             obfuscate_below_10_mode: cli_args.obfuscate_below_10_mode,
             delta_patient: cli_args.delta_patient,
@@ -129,6 +145,7 @@ impl Config {
             delta_diagnosis: cli_args.delta_diagnosis,
             epsilon: cli_args.epsilon,
             rounding_step: cli_args.rounding_step,
+            queries_to_cache_file_path: cli_args.queries_to_cache_file_path,
             tls_ca_certificates,
             client,
         };
