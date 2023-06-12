@@ -1,4 +1,6 @@
 use crate::errors::FocusError;
+use std::fs::File;
+use std::io::{ self, BufRead, BufReader };
 use laplace_rs::{get_from_cache_or_privatize, Bin, ObfCache, ObfuscateBelow10Mode};
 use rand::thread_rng;
 use serde::{Deserialize, Serialize};
@@ -69,6 +71,17 @@ const MU: f64 = 0.;
 pub(crate) fn get_json_field(json_string: &str, field: &str) -> Result<Value, serde_json::Error> {
     let json: Value = serde_json::from_str(json_string)?;
     Ok(json[field].clone())
+}
+
+pub(crate) fn read_lines(filename: String) -> Result<io::Lines<BufReader<File>>, FocusError> {
+    let file = File::open(filename.clone()).map_err(|e| {
+        FocusError::FileOpeningError(format!(
+            "Cannot open file {}: {} ", 
+            filename,
+            e
+        ))
+    })?; 
+    Ok(io::BufReader::new(file).lines())
 }
 
 pub(crate) fn replace_cql(decoded_library: impl Into<String>) -> String {

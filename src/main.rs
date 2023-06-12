@@ -8,6 +8,7 @@ mod util;
 use std::collections::HashMap;
 use std::process::ExitCode;
 use std::str;
+use std::time::{SystemTime, UNIX_EPOCH};
 use std::{process::exit, time::Duration};
 
 use base64::{engine::general_purpose, Engine as _};
@@ -24,8 +25,21 @@ use laplace_rs::ObfCache;
 
 mod errors;
 
+
+// result cache
+type SearchQuery = String;
+type Report = String;
+type Created = std::time::SystemTime; //epoch
+
+#[derive(Debug, Clone)]
+struct ReportCache {
+    cache: HashMap<SearchQuery, (Report, Created)>,
+}
+
+const REPORTCACHE_TTL: Duration = Duration::from_secs(86400); //24h
+
 #[tokio::main]
-async fn main() -> ExitCode {
+pub async fn main() -> ExitCode {
     if let Err(e) = logger::init_logger() {
         error!("Cannot initalize logger: {}", e);
         exit(1);
@@ -37,6 +51,33 @@ async fn main() -> ExitCode {
     let mut obf_cache: ObfCache = ObfCache {
         cache: HashMap::new(),
     };
+
+    let mut report_cache: ReportCache = ReportCache {
+        cache: HashMap::new(),
+    };
+
+    match CONFIG.queries_to_cache_file_path.clone() {
+        Some(filename) => {
+            let lines = util::read_lines(filename.clone().to_string());
+
+            match lines {
+                Ok(ok_lines) => {
+                    for line in ok_lines {
+                        let Ok(ok_line) = line else{
+                            warn!("A line in the file {} is not readable", filename);
+                            continue;
+                        };
+                        report_cache.cache.insert(ok_line, ("".into(), UNIX_EPOCH));
+                    }
+                }
+                Err(_) => {
+                    error!("The file {} cannot be opened", filename);
+                    exit(2);
+                } 
+            }
+        },
+        None => {}
+    }
 
     let mut failures = 0;
     while failures < CONFIG.retry_count {
@@ -51,9 +92,8 @@ async fn main() -> ExitCode {
         if !(beam::check_availability().await && blaze::check_availability().await) {
             failures += 1;
         }
-        if let Err(e) = process_tasks(&mut obf_cache).await {
+        if let Err(e) = process_tasks(&mut obf_cache, &mut report_cache).await {
             warn!("Encountered the following error, while processing tasks: {e}");
-            warn!("Just to make sure, that 502 could mean just timeout");
             //failures += 1;
         } else {
             failures = 0;
@@ -66,24 +106,31 @@ async fn main() -> ExitCode {
     ExitCode::from(22)
 }
 
-async fn process_task(task: &BeamTask, obf_cache: &mut ObfCache) -> Result<BeamResult, FocusError> {
+async fn process_task(
+    task: &BeamTask,
+    obf_cache: &mut ObfCache,
+    report_cache: &mut ReportCache,
+) -> Result<BeamResult, FocusError> {
     debug!("Processing task {}", task.id);
 
     let query = parse_query(task)?;
 
-    let run_result = run_query(task, &query, obf_cache).await?;
+    let run_result = run_query(task, &query, obf_cache, report_cache).await?;
 
     info!("Reported successful execution of task {} to Beam.", task.id);
 
     Ok(run_result)
 }
 
-async fn process_tasks(obf_cache: &mut ObfCache) -> Result<(), FocusError> {
+async fn process_tasks(
+    obf_cache: &mut ObfCache,
+    report_cache: &mut ReportCache,
+) -> Result<(), FocusError> {
     debug!("Start processing tasks...");
 
     let tasks = beam::retrieve_tasks().await?;
     for task in tasks {
-        let res = process_task(&task, obf_cache).await;
+        let res = process_task(&task, obf_cache, report_cache).await;
         let error_msg = match res {
             Err(FocusError::DecodeError(_)) | Err(FocusError::ParsingError(_)) => {
                 Some("Cannot parse query".to_string())
@@ -139,12 +186,13 @@ async fn run_query(
     task: &BeamTask,
     query: &Query,
     obf_cache: &mut ObfCache,
+    report_cache: &mut ReportCache,
 ) -> Result<BeamResult, FocusError> {
     debug!("Run");
 
     if query.lang == "cql" {
         // TODO: Change query.lang to an enum
-        return Ok(run_cql_query(task, query, obf_cache).await)?;
+        return Ok(run_cql_query(task, query, obf_cache, report_cache).await)?;
     } else {
         return Ok(beam::BeamResult::perm_failed(
             CONFIG.beam_app_id_long.clone(),
@@ -159,6 +207,7 @@ async fn run_cql_query(
     task: &BeamTask,
     query: &Query,
     obf_cache: &mut ObfCache,
+    report_cache: &mut ReportCache,
 ) -> Result<BeamResult, FocusError> {
     let mut err = beam::BeamResult::perm_failed(
         CONFIG.beam_app_id_long.clone(),
@@ -167,32 +216,62 @@ async fn run_cql_query(
         String::new(),
     );
 
-    let query = replace_cql_library(query.clone())?;
+    let encoded_query =
+        query.lib["content"][0]["data"]
+            .as_str()
+            .ok_or(FocusError::ParsingError(format!(
+                "Not a valid library: Field .content[0].data not found. Library: {}",
+                query.lib.to_string()
+            )))?;
 
-    let cql_result = match blaze::run_cql_query(&query.lib, &query.measure).await {
-        Ok(s) => s,
-        Err(e) => {
-            err.body = e.to_string();
-            return Err(e);
+    let mut key_exists = false;
+
+    let cached_report = report_cache.cache.get(encoded_query);
+    let report_from_cache = match cached_report {
+        Some(existing_report) => {
+            key_exists = true;
+            if SystemTime::now().duration_since(existing_report.1).unwrap() < REPORTCACHE_TTL {
+                Some(existing_report.0.clone())
+            } else {
+                None
+            }
+        }
+        None => None,
+    };
+
+    let cql_result_new = match report_from_cache {
+        Some(some_report_from_cache) => some_report_from_cache.to_string(),
+        None => {
+            let query = replace_cql_library(query.clone())?;
+
+            let cql_result = blaze::run_cql_query(&query.lib, &query.measure).await?;
+
+            let cql_result_new: String = match CONFIG.obfuscate {
+                config::Obfuscate::Yes => obfuscate_counts_mr(
+                    &cql_result,
+                    obf_cache,
+                    CONFIG.obfuscate_zero,
+                    CONFIG.obfuscate_below_10_mode,
+                    CONFIG.delta_patient,
+                    CONFIG.delta_specimen,
+                    CONFIG.delta_diagnosis,
+                    CONFIG.epsilon,
+                    CONFIG.rounding_step,
+                )?,
+                config::Obfuscate::No => cql_result,
+            };
+
+            if key_exists {
+                report_cache.cache.insert(
+                    encoded_query.to_string(),
+                    (cql_result_new.clone(), std::time::SystemTime::now()),
+                );
+            }
+            cql_result_new
         }
     };
 
-    let cql_result_new = match CONFIG.do_not_obfuscate {
-        false => obfuscate_counts_mr(
-            &cql_result,
-            obf_cache,
-            CONFIG.obfuscate_zero,
-            CONFIG.obfuscate_below_10_mode,
-            CONFIG.delta_patient,
-            CONFIG.delta_specimen,
-            CONFIG.delta_diagnosis,
-            CONFIG.epsilon,
-            CONFIG.rounding_step,
-        )?,
-        true => cql_result,
-    };
-
-    let result = beam_result(task.to_owned(), cql_result_new.to_string()).unwrap_or_else(|e| {
+    let result = beam_result(task.to_owned(), cql_result_new).unwrap_or_else(|e| {
         err.body = e.to_string();
         return err;
     });
