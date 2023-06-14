@@ -112,7 +112,7 @@ pub struct Config {
     pub delta_diagnosis: f64,
     pub epsilon: f64,
     pub rounding_step: usize,
-    tls_ca_certificates: Vec<Certificate>,
+    pub tls_ca_certificates: Vec<Certificate>,
     pub client: Client,
 }
 
