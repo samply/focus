@@ -2,20 +2,33 @@ use std::path::PathBuf;
 
 use clap::Parser;
 use http::{HeaderValue, Uri};
+use once_cell::sync::OnceCell;
 use reqwest::{Certificate, Client, Proxy};
-use static_init::dynamic;
-use tracing::{debug, info, warn};
+use tracing::{info, warn};
 
 use crate::{beam::AppId, errors::FocusError};
 
-#[dynamic(lazy)]
-pub(crate) static CONFIG: Config = {
-    debug!("Loading config");
-    Config::load().unwrap_or_else(|e| {
-        eprintln!("Unable to start as there was an error reading the config:\n{}\n\nTerminating -- please double-check your startup parameters with --help and refer to the documentation.", e);
-        std::process::exit(1);
-    })
-};
+pub struct ConfigWrapper<T>(OnceCell<T>);
+
+impl<T> ConfigWrapper<T> {
+    pub const fn new() -> Self {
+        ConfigWrapper(OnceCell::new())
+    }
+
+    pub fn set(&self, val: T) -> Result<(), T> {
+        self.0.set(val)
+    }
+}
+
+impl<T> std::ops::Deref for ConfigWrapper<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        self.0.get().expect("Config to be initialized already!")
+    }
+}
+
+pub(crate) static CONFIG: ConfigWrapper<Config> = ConfigWrapper::new();
 
 const CLAP_FOOTER: &str = "For proxy support, environment variables HTTP_PROXY, HTTPS_PROXY, ALL_PROXY and NO_PROXY (and their lower-case variants) are supported. Usually, you want to set HTTP_PROXY *and* HTTPS_PROXY or set ALL_PROXY if both values are the same.\n\nFor updates and detailed usage instructions, visit https://github.com/samply/focus";
 
@@ -84,7 +97,8 @@ struct CliArgs {
     tls_ca_certificates_dir: Option<PathBuf>,
 }
 
-pub(crate) struct Config {
+#[derive(Debug)]
+pub struct Config {
     pub beam_proxy_url: Uri,
     pub beam_app_id_long: AppId,
     pub api_key: String,
@@ -103,7 +117,7 @@ pub(crate) struct Config {
 }
 
 impl Config {
-    fn load() -> Result<Self, FocusError> {
+    pub fn load() -> Result<Self, FocusError> {
         let cli_args = CliArgs::parse();
         info!("Successfully read config and API keys from CLI and secrets files.");
         let tls_ca_certificates_dir = cli_args.tls_ca_certificates_dir;

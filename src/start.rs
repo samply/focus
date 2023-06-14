@@ -7,6 +7,7 @@ use base64::{engine::general_purpose, Engine as _};
 use crate::beam::{BeamResult, BeamTask};
 use crate::blaze::Query;
 use crate::*;
+use crate::config::Config;
 use serde_json::from_slice;
 
 use tracing::{debug, error, info, warn};
@@ -17,14 +18,13 @@ use crate::{config::CONFIG, errors::FocusError};
 use laplace_rs::ObfCache;
 
 
-pub async fn main() -> ExitCode {
+pub async fn main(config: Config) -> ExitCode {
+    CONFIG.set(config).expect("to set config");
     if let Err(e) = logger::init_logger() {
         error!("Cannot initalize logger: {}", e);
         exit(1);
     };
     banner::print_banner();
-
-    let _ = CONFIG.api_key; // Initialize config
 
     let mut obf_cache: ObfCache = ObfCache {
         cache: HashMap::new(),

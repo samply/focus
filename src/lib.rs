@@ -9,3 +9,4 @@ mod start;
 mod errors;
 
 pub use start::main;
+pub use config::Config;
