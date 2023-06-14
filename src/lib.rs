@@ -11,3 +11,4 @@ mod errors;
 pub use start::main;
 pub use config::Config;
 pub use beam::AppId;
+pub use logger::init_logger;

@@ -20,10 +20,6 @@ use laplace_rs::ObfCache;
 
 pub async fn main(config: Config) -> ExitCode {
     CONFIG.set(config).expect("to set config");
-    if let Err(e) = logger::init_logger() {
-        error!("Cannot initalize logger: {}", e);
-        exit(1);
-    };
     banner::print_banner();
 
     let mut obf_cache: ObfCache = ObfCache {
