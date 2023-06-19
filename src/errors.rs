@@ -10,8 +10,10 @@ pub enum FocusError {
     MeasureEvaluationError(reqwest::Error),
     #[error("CQL query error")]
     CQLQueryError(),
-    #[error("Unable to retrieve tasks from Beam")]
-    UnableToRetrieveTasks(reqwest::Error),
+    #[error("Unable to retrieve tasks from Beam: {0}")]
+    UnableToRetrieveTasksHttp(reqwest::Error),
+    #[error("Unable to retrieve tasks from Beam: {0}")]
+    UnableToRetrieveTasksOther(String),
     #[error("Unable to parse tasks from Beam")]
     UnableToParseTasks(reqwest::Error),
     #[error("Unable to answer task")]
@@ -22,8 +24,18 @@ pub enum FocusError {
     DecodeError(base64::DecodeError),
     #[error("Configuration error")]
     ConfigurationError(String),
+    #[error("Cannot open file")]
+    FileOpeningError(String),
     #[error("Invalid BeamID")]
     InvalidBeamId(String),
     #[error("Parsing error")]
     ParsingError(String),
+    #[error("CQL tempered with")]
+    CQLTemperedWithError(String),
+    #[error("Laplace error")]
+    LaplaceError(laplace_rs::errors::LaplaceError),
+    #[error("Deserialization error: {0}")]
+    DeserializationError(String),
+    #[error("Serialization error: {0}")]
+    SerializationError(String),
 }

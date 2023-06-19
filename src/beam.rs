@@ -1,12 +1,9 @@
-use std::{fmt::Display, str::FromStr};
+use std::{fmt::Display};
 
 use anyhow::Result;
 use http::{HeaderValue, StatusCode};
 use reqwest::header::{HeaderMap, AUTHORIZATION};
-use reqwest::Client;
 use serde::{de, Deserializer, Deserialize, Serialize, Serializer};
-use tokio::time::sleep;
-use tokio::time::Duration;
 use tracing::{debug, warn};
 use uuid::Uuid;
 
@@ -36,7 +33,7 @@ impl ProxyId {
     pub fn new(full: String) -> Result<Self, FocusError> {
         let mut components: Vec<String> = full.split(".").map(|x| x.to_string()).collect();
         let rest = components.split_off(1).join(".");
-        Ok(ProxyId {
+        Ok(ProxyId { 
             proxy: components
                 .first()
                 .cloned()
@@ -99,7 +96,7 @@ pub struct BeamTask {
     pub to: Vec<AppId>,
     pub metadata: String,
     pub body: String,
-    pub ttl: usize,
+    pub ttl: String,
     pub failure_strategy: FailureStrategy,
 }
 
@@ -168,52 +165,35 @@ impl BeamResult {
     }
 }
 
-pub async fn check_availability() {
-    let mut attempt: usize = 0;
+pub async fn check_availability() -> bool {
+    debug!("Checking Beam availability...");
 
-    debug!("Check Beam availability...");
-
-    loop {
-        let resp = match CONFIG.client
-            .get(format!("{}v1/health", CONFIG.beam_proxy_url))
-            .send()
-            .await
-        {
-            Ok(response) => response,
-            Err(e) => {
-                warn!("Error making request: {:?}", e);
-                continue;
-            }
-        };
-
-        let status_code = resp.status();
-        let status_text = status_code.as_str();
-
-        if resp.status().is_success() {
-            debug!("Beam is available now.");
-            break;
-        } else if attempt == CONFIG.retry_count {
-            warn!(
-                "Beam still not available after {} attempts.",
-                CONFIG.retry_count
-            );
-            break;
-        } else {
-            warn!("Beam still not available, retrying in 3 seconds...");
-            sleep(Duration::from_secs(3)).await;
-            attempt += 1;
+    let resp = match CONFIG.client
+        .get(format!("{}v1/health", CONFIG.beam_proxy_url))
+        .send()
+        .await
+    {
+        Ok(response) => response,
+        Err(e) => {
+            warn!("Error making Beam request: {:?}", e);
+            return false;
         }
+    };
+
+    if resp.status().is_success() {
+        debug!("Beam is available now.");
+        return true;
     }
+    false
 }
 
 pub async fn retrieve_tasks() -> Result<Vec<BeamTask>, FocusError> {
-    debug!("Retrieve tasks...");
+    debug!("Retrieving tasks...");
 
-    let mut tasks: Vec<BeamTask> = Vec::new();
     let mut headers = HeaderMap::new();
     headers.insert(
         AUTHORIZATION,
-        HeaderValue::from_str(&format!("ApiKey {} {}", CONFIG.beam_app_id, CONFIG.api_key))
+        HeaderValue::from_str(&format!("ApiKey {} {}", CONFIG.beam_app_id_long, CONFIG.api_key))
             .map_err(|e| {
                 FocusError::ConfigurationError(format!(
                     "Cannot assemble authorization header: {}",
@@ -223,7 +203,7 @@ pub async fn retrieve_tasks() -> Result<Vec<BeamTask>, FocusError> {
     );
 
     let url = format!(
-        "{}v1/tasks?filter=todo&wait_count=1&wait_time=100",
+        "{}v1/tasks?filter=todo&wait_count=1&wait_time=10s",
         CONFIG.beam_proxy_url
     );
     let resp = CONFIG.client
@@ -231,40 +211,35 @@ pub async fn retrieve_tasks() -> Result<Vec<BeamTask>, FocusError> {
         .headers(headers)
         .send()
         .await
-        .map_err(|e| FocusError::UnableToRetrieveTasks(e))?;
+        .map_err(|e| FocusError::UnableToRetrieveTasksHttp(e))?;
 
-    let status_code = resp.status();
-    let status_text = status_code.as_str();
-    debug!("{status_text}");
-
-    match status_code {
+    let tasks = match resp.status() {
         StatusCode::OK | StatusCode::PARTIAL_CONTENT => {
-            tasks = resp
+            resp
                 .json::<Vec<BeamTask>>()
                 .await
-                .map_err(|e| FocusError::UnableToParseTasks(e))?;
+                .map_err(|e| FocusError::UnableToParseTasks(e))?
         }
-        _ => {
-            warn!("Unable to retrieve tasks: {}", status_code);
-            //return error
+        code => {
+            return Err(FocusError::UnableToRetrieveTasksOther(format!("Got status code {code}")));
         }
-    }
+    };
     Ok(tasks)
 }
 
-pub async fn answer_task(task: BeamTask, result: BeamResult) -> Result<(), FocusError> {
+pub async fn answer_task(task: &BeamTask, result: &BeamResult) -> Result<(), FocusError> {
     let task_id = task.id.to_string();
     debug!("Answer task with id: {task_id}");
     let result_task = result.task;
     let url = format!(
         "{}v1/tasks/{}/results/{}",
-        CONFIG.beam_proxy_url, &result_task, CONFIG.beam_app_id
+        CONFIG.beam_proxy_url, &result_task, CONFIG.beam_app_id_long
     );
 
     let mut headers = HeaderMap::new();
     headers.insert(
         AUTHORIZATION,
-        HeaderValue::from_str(&format!("ApiKey {} {}", CONFIG.beam_app_id, CONFIG.api_key))
+        HeaderValue::from_str(&format!("ApiKey {} {}", CONFIG.beam_app_id_long, CONFIG.api_key))
             .map_err(|e| {
                 FocusError::ConfigurationError(format!(
                     "Cannot assemble authorization header: {}",
@@ -302,19 +277,19 @@ pub async fn answer_task(task: BeamTask, result: BeamResult) -> Result<(), Focus
     }
 }
 
-pub async fn fail_task(task: BeamTask, body: String) -> Result<(), FocusError> {
-    warn!("Failing task with id {}: {}", task.id, body);
-    let result_task = task.from.to_string(); 
-    let result = BeamResult::perm_failed(CONFIG.beam_app_id.clone(), vec![task.from], task.id, body);
+pub async fn fail_task(task: &BeamTask, body: impl Into<String>) -> Result<(), FocusError> {
+    let body = body.into();
+    warn!("Reporting failed task with id {}: {}", task.id, body);
+    let result = BeamResult::perm_failed(CONFIG.beam_app_id_long.clone(), vec![task.from.clone()], task.id, body);
     let url = format!(
         "{}v1/tasks/{}/results/{}",
-        CONFIG.beam_proxy_url, &result_task, CONFIG.beam_app_id
+        CONFIG.beam_proxy_url, task.id, CONFIG.beam_app_id_long
     );
 
     let mut headers = HeaderMap::new();
     headers.insert(
         AUTHORIZATION,
-        HeaderValue::from_str(&format!("ApiKey {} {}", CONFIG.beam_app_id, CONFIG.api_key))
+        HeaderValue::from_str(&format!("ApiKey {} {}", CONFIG.beam_app_id_long, CONFIG.api_key))
             .map_err(|e| {
                 FocusError::ConfigurationError(format!(
                     "Cannot assemble authorization header: {}",
@@ -331,18 +306,14 @@ pub async fn fail_task(task: BeamTask, body: String) -> Result<(), FocusError> {
         .await
         .map_err(|e| FocusError::UnableToAnswerTask(e))?;
 
-    let status_code = resp.status();
-    let status_text = status_code.as_str();
-    debug!("{status_text}");
-
-    match status_code {
+    match resp.status() {
         StatusCode::CREATED | StatusCode::NO_CONTENT => Ok(()),
         StatusCode::BAD_REQUEST => {
             let msg = resp
                 .text()
                 .await
                 .map_err(|e| FocusError::UnableToAnswerTask(e))?;
-            warn!("Error while failing the task with id: {msg}");
+            warn!("Error while reporting the failed task with id {}: {msg}", task.id);
             Ok(()) // return error
         }
         _ => {
