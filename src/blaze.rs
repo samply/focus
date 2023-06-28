@@ -105,8 +105,6 @@ pub async fn evaluate_measure(url: String) -> Result<String, FocusError> {
         );
     }
 
-    dbg!(text.clone());
-
     Ok(text)
 }
 
