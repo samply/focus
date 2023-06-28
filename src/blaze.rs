@@ -84,7 +84,7 @@ pub async fn evaluate_measure(url: String) -> Result<String, FocusError> {
     let resp = CONFIG.client
         .post(format!("{}Measure/$evaluate-measure?measure={}", CONFIG.blaze_url, url))
         .header("Content-Type", "application/fhir+json")
-        .body("{\"resourceType\": \"Parameters\", \"parameter\": [{\"name\": \"periodStart\", \"valueDate\": \"2000\"}, {\"name\": \"periodEnd\", \"valueDate\": \"2030\"}, {\"name\": \"reportType\", \"valueCode\": \"subject-list\"}]}")
+        .body(r#"{"resourceType": "Parameters", "parameter": [{"name": "periodStart", "valueDate": "2000"}, {"name": "periodEnd", "valueDate": "2030"}, {"name": "reportType", "valueCode": "subject-list"}]}"#)
         .send()
         .await
         .map_err(|e| FocusError::MeasureEvaluationError(e))?;
