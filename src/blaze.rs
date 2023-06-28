@@ -89,7 +89,7 @@ pub async fn evaluate_measure(url: String) -> Result<String, FocusError> {
         .await
         .map_err(|e| FocusError::MeasureEvaluationError(e))?;
 
-    if resp.status() == StatusCode::OK || resp.status() == StatusCode::CREATED {
+    if StatusCode::is_success(&resp.status()) {
         debug!(
             "Successfully evaluated the Measure with canonical URL: {}",
             url
