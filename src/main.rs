@@ -24,7 +24,7 @@ use crate::{config::CONFIG, errors::FocusError};
 use laplace_rs::ObfCache;
 
 mod errors;
-
+mod graceful_shutdown;
 
 // result cache
 type SearchQuery = String;
@@ -48,6 +48,17 @@ pub async fn main() -> ExitCode {
 
     let _ = CONFIG.api_key; // Initialize config
 
+    tokio::select! {
+        _ = graceful_shutdown::wait_for_signal() => {
+            ExitCode::SUCCESS
+        },
+        code = main_loop() => {
+            code
+        }
+    }
+}
+
+async fn main_loop() -> ExitCode {
     let mut obf_cache: ObfCache = ObfCache {
         cache: HashMap::new(),
     };

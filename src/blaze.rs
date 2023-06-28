@@ -82,16 +82,14 @@ pub async fn evaluate_measure(url: String) -> Result<String, FocusError> {
     debug!("Evaluating the Measure with canonical URL: {}", url);
     let mut text: String = String::new();
     let resp = CONFIG.client
-        .get(format!(
-        "{}Measure/$evaluate-measure?measure={}&periodStart=2000&periodEnd=2030",
-        CONFIG.blaze_url,
-        url
-        ))
+        .post(format!("{}Measure/$evaluate-measure?measure={}", CONFIG.blaze_url, url))
+        .header("Content-Type", "application/fhir+json")
+        .body("{\"resourceType\": \"Parameters\", \"parameter\": [{\"name\": \"periodStart\", \"valueDate\": \"2000\"}, {\"name\": \"periodEnd\", \"valueDate\": \"2030\"}, {\"name\": \"reportType\", \"valueCode\": \"subject-list\"}]}")
         .send()
         .await
         .map_err(|e| FocusError::MeasureEvaluationError(e))?;
 
-    if resp.status() == StatusCode::OK {
+    if StatusCode::is_success(&resp.status()) {
         debug!(
             "Successfully evaluated the Measure with canonical URL: {}",
             url
