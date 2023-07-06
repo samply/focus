@@ -324,7 +324,6 @@ pub async fn fail_task(task: &BeamTask, body: impl Into<String>) -> Result<(), F
 }
 
 pub async fn claim_task(task: &BeamTask) -> Result<(), FocusError> {
-    info!("Task {} claimed", task.id);
     let result = BeamResult::claimed(CONFIG.beam_app_id_long.clone(), vec![task.from.clone()], task.id);
     let url = format!(
         "{}v1/tasks/{}/results/{}",
@@ -352,7 +351,10 @@ pub async fn claim_task(task: &BeamTask) -> Result<(), FocusError> {
         .map_err(|e| FocusError::UnableToAnswerTask(e))?;
 
     match resp.status() {
-        StatusCode::NO_CONTENT => Ok(()),
+        StatusCode::NO_CONTENT => {
+            info!("Task {} claimed", task.id);
+            Ok(())
+        },
         StatusCode::BAD_REQUEST => {
             let msg = resp
                 .text()
