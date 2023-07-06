@@ -84,9 +84,9 @@ async fn main_loop() -> ExitCode {
                 Err(_) => {
                     error!("The file {} cannot be opened", filename);
                     exit(2);
-                } 
+                }
             }
-        },
+        }
         None => {}
     }
 
@@ -140,6 +140,22 @@ async fn process_tasks(
     debug!("Start processing tasks...");
 
     let tasks = beam::retrieve_tasks().await?;
+    for task in tasks.clone() {
+        let claim_result = beam::claim_task(&task).await;
+        match claim_result {
+            Ok(_) => break,
+            Err(FocusError::ConfigurationError(s)) => {
+                error!("FATAL: Unable to report back to Beam due to a configuration issue: {s}");
+                return Err(FocusError::ConfigurationError(s));
+            }
+            Err(FocusError::UnableToAnswerTask(e)) => {
+                warn!("Unable to report claimed task to Beam: {e}");
+            }
+            Err(e) => {
+                warn!("Unknown error reporting claimed task back to Beam: {e}");
+            }
+        }
+    }
     for task in tasks {
         let res = process_task(&task, obf_cache, report_cache).await;
         let error_msg = match res {
