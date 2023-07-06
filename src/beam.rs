@@ -4,7 +4,7 @@ use anyhow::Result;
 use http::{HeaderValue, StatusCode};
 use reqwest::header::{HeaderMap, AUTHORIZATION};
 use serde::{de, Deserializer, Deserialize, Serialize, Serializer};
-use tracing::{debug, warn};
+use tracing::{debug, warn, info};
 use uuid::Uuid;
 
 use crate::{config::CONFIG, errors::FocusError};
@@ -314,6 +314,53 @@ pub async fn fail_task(task: &BeamTask, body: impl Into<String>) -> Result<(), F
                 .await
                 .map_err(|e| FocusError::UnableToAnswerTask(e))?;
             warn!("Error while reporting the failed task with id {}: {msg}", task.id);
+            Ok(()) // return error
+        }
+        _ => {
+            warn!("Unexpected status code: {}", resp.status());
+            Ok(()) //return error
+        }
+    }
+}
+
+pub async fn claim_task(task: &BeamTask) -> Result<(), FocusError> {
+    let result = BeamResult::claimed(CONFIG.beam_app_id_long.clone(), vec![task.from.clone()], task.id);
+    let url = format!(
+        "{}v1/tasks/{}/results/{}",
+        CONFIG.beam_proxy_url, task.id, CONFIG.beam_app_id_long
+    );
+
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        AUTHORIZATION,
+        HeaderValue::from_str(&format!("ApiKey {} {}", CONFIG.beam_app_id_long, CONFIG.api_key))
+            .map_err(|e| {
+                FocusError::ConfigurationError(format!(
+                    "Cannot assemble authorization header: {}",
+                    e
+                ))
+            })?,
+    );
+
+    let resp = CONFIG.client
+        .put(&url)
+        .headers(headers)
+        .json(&result)
+        .send()
+        .await
+        .map_err(|e| FocusError::UnableToAnswerTask(e))?;
+
+    match resp.status() {
+        StatusCode::NO_CONTENT => {
+            info!("Task {} claimed", task.id);
+            Ok(())
+        },
+        StatusCode::BAD_REQUEST => {
+            let msg = resp
+                .text()
+                .await
+                .map_err(|e| FocusError::UnableToAnswerTask(e))?;
+            warn!("Error while reporting the claimed task with id {}: {msg}", task.id);
             Ok(()) // return error
         }
         _ => {

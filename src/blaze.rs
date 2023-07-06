@@ -82,14 +82,16 @@ pub async fn evaluate_measure(url: String) -> Result<String, FocusError> {
     debug!("Evaluating the Measure with canonical URL: {}", url);
     let mut text: String = String::new();
     let resp = CONFIG.client
-        .post(format!("{}Measure/$evaluate-measure?measure={}", CONFIG.blaze_url, url))
-        .header("Content-Type", "application/fhir+json")
-        .body(r#"{"resourceType": "Parameters", "parameter": [{"name": "periodStart", "valueDate": "2000"}, {"name": "periodEnd", "valueDate": "2030"}, {"name": "reportType", "valueCode": "subject-list"}]}"#)
+        .get(format!(
+        "{}Measure/$evaluate-measure?measure={}&periodStart=2000&periodEnd=2030",
+        CONFIG.blaze_url,
+        url
+        ))
         .send()
         .await
         .map_err(|e| FocusError::MeasureEvaluationError(e))?;
 
-    if StatusCode::is_success(&resp.status()) {
+    if resp.status() == StatusCode::OK {
         debug!(
             "Successfully evaluated the Measure with canonical URL: {}",
             url
@@ -116,8 +118,8 @@ pub async fn run_cql_query(library: &Value, measure: &Value) -> Result<String, F
     };
     debug!("Evaluating the Measure with canonical URL: {}", url);
 
-    post_library(library.to_string()).await?;
-    post_measure(measure.to_string()).await?;
+    post_library(library.to_string()).await?; //TODO make it with into or could change the function signature to take the library
+    post_measure(measure.to_string()).await?; //ditto   &str
     let result_evaluation = evaluate_measure(url).await;
     return result_evaluation;
 }
