@@ -89,7 +89,7 @@ pub async fn evaluate_measure(url: String) -> Result<String, FocusError> {
         ))
         .send()
         .await
-        .map_err(|e| FocusError::MeasureEvaluationError(e))?;
+        .map_err(|e| FocusError::MeasureEvaluationErrorReqwest(e))?;
 
     if resp.status() == StatusCode::OK {
         debug!(
@@ -99,12 +99,13 @@ pub async fn evaluate_measure(url: String) -> Result<String, FocusError> {
         text = resp
             .text()
             .await
-            .map_err(|e| FocusError::MeasureEvaluationError(e))?;
+            .map_err(|e| FocusError::MeasureEvaluationErrorReqwest(e))?;
     } else {
         warn!(
             "Error while evaluating the Measure with canonical URL `{}`: {:?}",
             url, resp
         );
+        return Err(FocusError::MeasureEvaluationErrorBlaze(format!( "Error while evaluating the Measure with canonical URL `{}`: {:?}", url, resp)));
     }
 
     Ok(text)
