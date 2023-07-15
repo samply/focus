@@ -6,8 +6,10 @@ pub enum FocusError {
     UnableToPostLibrary(reqwest::Error),
     #[error("Unable to post FHIR Measure")]
     UnableToPostMeasure(reqwest::Error),
-    #[error("FHIR Measure evaluation error")]
-    MeasureEvaluationError(reqwest::Error),
+    #[error("FHIR Measure evaluation error in Reqwest")]
+    MeasureEvaluationErrorReqwest(reqwest::Error),
+    #[error("FHIR Measure evaluation error in Blaze")]
+    MeasureEvaluationErrorBlaze(String),
     #[error("CQL query error")]
     CQLQueryError(),
     #[error("Unable to retrieve tasks from Beam: {0}")]

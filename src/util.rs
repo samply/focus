@@ -100,7 +100,7 @@ pub(crate) fn replace_cql(decoded_library: impl Into<String>) -> String {
             ("BBMRI_STRAT_AGE_STRATIFIER", "define AgeClass:\n     (AgeInYears() div 10) * 10"),
             ("BBMRI_STRAT_DEF_SPECIMEN", "define Specimen:"),
             ("BBMRI_STRAT_DEF_IN_INITIAL_POPULATION", "define InInitialPopulation:"),
-            ("EXLIQUID_CQL", "library \"Library-dashboard\"\n using FHIR version '4.0.0'\n include FHIRHelpers version '4.0.0'\n\n codesystem SampleMaterialType: 'https://fhir.bbmri.de/CodeSystem/SampleMaterialType'\n\n context Patient\n\n define ExliquidSpecimen:\n   from [Specimen] S\n   where S.identifier.system contains 'https://dktk.dkfz.de/fhir/NamingSystem/exliquid-specimen'\n\n define InInitialPopulation:\n   exists ExliquidSpecimen\n\n define retrieveCondition:\n  First(from [Condition] C\n   return C.code.coding.where(system = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm').code.first())\n\n define Diagnosis:\n   if (retrieveCondition is null) then 'unknown' else retrieveCondition\n\n define function SampleType(specimen FHIR.Specimen):\n   specimen.type.coding.where(system = 'https://fhir.bbmri.de/CodeSystem/SampleMaterialType').code.first()"),
+            ("EXLIQUID_CQL", "\n\n codesystem SampleMaterialType: 'https://fhir.bbmri.de/CodeSystem/SampleMaterialType'\n\n define ExliquidSpecimen:\n   from [Specimen] S\n   where S.identifier.system contains 'https://dktk.dkfz.de/fhir/NamingSystem/exliquid-specimen'\n\n define retrieveCondition:\n  First(from [Condition] C\n   return C.code.coding.where(system = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm').code.first())\n\n define Diagnosis:\n   if (retrieveCondition is null) then 'unknown' else retrieveCondition\n\n define function SampleType(specimen FHIR.Specimen):\n   specimen.type.coding.where(system = 'https://fhir.bbmri.de/CodeSystem/SampleMaterialType').code.first()"),
             ("DKTK_STRAT_GENDER_STRATIFIER", "define Gender:\nif (Patient.gender is null) then 'unknown' else Patient.gender"),
             ("DKTK_STRAT_AGE_STRATIFIER", "define AgeClass:\nif (Patient.birthDate is null) then 'unknown' else ToString((AgeInYears() div 10) * 10)"),
             ("DKTK_STRAT_DECEASED_STRATIFIER", "define PatientDeceased:\nFirst (from [Observation: Code '75186-7' from loinc] O return O.value.coding.where(system = 'http://dktk.dkfz.de/fhir/onco/core/CodeSystem/VitalstatusCS').code.first())\ndefine Deceased:\nif (PatientDeceased is null) then 'unbekannt' else PatientDeceased"),
@@ -111,6 +111,7 @@ pub(crate) fn replace_cql(decoded_library: impl Into<String>) -> String {
             ("DKTK_STRAT_MEDICATION_STRATIFIER", "define MedicationStatement:\nif InInitialPopulation then [MedicationStatement] else {} as List <MedicationStatement>"),
             ("DKTK_STRAT_ENCOUNTER_STRATIFIER", "define Encounter:\nif InInitialPopulation then [Encounter] else {} as List<Encounter>\n\ndefine function Departments(encounter FHIR.Encounter):\nencounter.identifier.where(system = 'http://dktk.dkfz.de/fhir/sid/hki-department').value.first()"),
             ("DKTK_STRAT_DEF_IN_INITIAL_POPULATION", "define InInitialPopulation:"),        
+            ("EXLIQUID_STRAT_DEF_IN_INITIAL_POPULATION", "define InInitialPopulation:\n   exists ExliquidSpecimen\n")
         ].into();
 
     let mut decoded_library = decoded_library.into();
@@ -412,7 +413,11 @@ mod test {
         assert_eq!(replace_cql(decoded_library), expected_result);
 
         let decoded_library = "EXLIQUID_CQL";
-        let expected_result = "library \"Library-dashboard\"\n using FHIR version '4.0.0'\n include FHIRHelpers version '4.0.0'\n\n codesystem SampleMaterialType: 'https://fhir.bbmri.de/CodeSystem/SampleMaterialType'\n\n context Patient\n\n define ExliquidSpecimen:\n   from [Specimen] S\n   where S.identifier.system contains 'https://dktk.dkfz.de/fhir/NamingSystem/exliquid-specimen'\n\n define InInitialPopulation:\n   exists ExliquidSpecimen\n\n define retrieveCondition:\n  First(from [Condition] C\n   return C.code.coding.where(system = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm').code.first())\n\n define Diagnosis:\n   if (retrieveCondition is null) then 'unknown' else retrieveCondition\n\n define function SampleType(specimen FHIR.Specimen):\n   specimen.type.coding.where(system = 'https://fhir.bbmri.de/CodeSystem/SampleMaterialType').code.first()\n";
+        let expected_result = "\n\n codesystem SampleMaterialType: 'https://fhir.bbmri.de/CodeSystem/SampleMaterialType'\n\n define ExliquidSpecimen:\n   from [Specimen] S\n   where S.identifier.system contains 'https://dktk.dkfz.de/fhir/NamingSystem/exliquid-specimen'\n\n define retrieveCondition:\n  First(from [Condition] C\n   return C.code.coding.where(system = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm').code.first())\n\n define Diagnosis:\n   if (retrieveCondition is null) then 'unknown' else retrieveCondition\n\n define function SampleType(specimen FHIR.Specimen):\n   specimen.type.coding.where(system = 'https://fhir.bbmri.de/CodeSystem/SampleMaterialType').code.first()\n";
+        assert_eq!(replace_cql(decoded_library), expected_result);
+
+        let decoded_library = "EXLIQUID_STRAT_DEF_IN_INITIAL_POPULATION";
+        let expected_result = "define InInitialPopulation:\n   exists ExliquidSpecimen\n\n";
         assert_eq!(replace_cql(decoded_library), expected_result);
 
         let decoded_library = "INVALID_KEY";
