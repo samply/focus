@@ -13,13 +13,13 @@ pub enum FocusError {
     #[error("CQL query error")]
     CQLQueryError(),
     #[error("Unable to retrieve tasks from Beam: {0}")]
-    UnableToRetrieveTasksHttp(reqwest::Error),
+    UnableToRetrieveTasksHttp(beam_lib::BeamError),
     #[error("Unable to retrieve tasks from Beam: {0}")]
     UnableToRetrieveTasksOther(String),
     #[error("Unable to parse tasks from Beam")]
     UnableToParseTasks(reqwest::Error),
     #[error("Unable to answer task")]
-    UnableToAnswerTask(reqwest::Error),
+    UnableToAnswerTask(beam_lib::BeamError),
     #[error("Unable to set proxy settings")]
     InvalidProxyConfig(reqwest::Error),
     #[error("Decode error")]

@@ -1,12 +1,14 @@
 use std::path::PathBuf;
 
+use beam_lib::AppId;
 use clap::Parser;
 use http::{HeaderValue, Uri};
+use once_cell::sync::Lazy;
 use reqwest::{Certificate, Client, Proxy};
-use static_init::dynamic;
 use tracing::{debug, info, warn};
 
-use crate::{beam::AppId, errors::FocusError};
+use crate::errors::FocusError;
+
 
 #[derive(clap::ValueEnum, Clone, Debug)]
 pub enum Obfuscate {
@@ -14,15 +16,13 @@ pub enum Obfuscate {
     Yes,
 }
 
-
-#[dynamic(lazy)]
-pub(crate) static CONFIG: Config = {
+pub(crate) static CONFIG: Lazy<Config> = Lazy::new(|| {
     debug!("Loading config");
     Config::load().unwrap_or_else(|e| {
         eprintln!("Unable to start as there was an error reading the config:\n{}\n\nTerminating -- please double-check your startup parameters with --help and refer to the documentation.", e);
         std::process::exit(1);
     })
-};
+});
 
 const CLAP_FOOTER: &str = "For proxy support, environment variables HTTP_PROXY, HTTPS_PROXY, ALL_PROXY and NO_PROXY (and their lower-case variants) are supported. Usually, you want to set HTTP_PROXY *and* HTTPS_PROXY or set ALL_PROXY if both values are the same.\n\nFor updates and detailed usage instructions, visit https://github.com/samply/focus";
 
@@ -129,7 +129,7 @@ impl Config {
         let client = prepare_reqwest_client(&tls_ca_certificates)?;
         let config = Config {
             beam_proxy_url: cli_args.beam_proxy_url,
-            beam_app_id_long: AppId::new(cli_args.beam_app_id_long)?,
+            beam_app_id_long: AppId::new_unchecked(cli_args.beam_app_id_long),
             api_key: cli_args.api_key,
             retry_count: cli_args.retry_count,
             blaze_url: cli_args.blaze_url,
