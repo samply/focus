@@ -14,10 +14,6 @@ pub enum FocusError {
     CQLQueryError(),
     #[error("Unable to retrieve tasks from Beam: {0}")]
     UnableToRetrieveTasksHttp(beam_lib::BeamError),
-    #[error("Unable to retrieve tasks from Beam: {0}")]
-    UnableToRetrieveTasksOther(String),
-    #[error("Unable to parse tasks from Beam")]
-    UnableToParseTasks(reqwest::Error),
     #[error("Unable to answer task")]
     UnableToAnswerTask(beam_lib::BeamError),
     #[error("Unable to set proxy settings")]
@@ -28,8 +24,6 @@ pub enum FocusError {
     ConfigurationError(String),
     #[error("Cannot open file")]
     FileOpeningError(String),
-    #[error("Invalid BeamID")]
-    InvalidBeamId(String),
     #[error("Parsing error")]
     ParsingError(String),
     #[error("CQL tempered with")]
