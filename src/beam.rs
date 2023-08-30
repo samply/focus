@@ -67,7 +67,7 @@ pub async fn check_availability() -> bool {
     false
 }
 
-const BEAM_CLIENT: Lazy<BeamClient> = Lazy::new(|| BeamClient::new(
+static BEAM_CLIENT: Lazy<BeamClient> = Lazy::new(|| BeamClient::new(
     &CONFIG.beam_app_id_long,
     &CONFIG.api_key,
     CONFIG.beam_proxy_url.to_string().parse().expect("Uri always converts to url")
@@ -88,7 +88,7 @@ pub async fn answer_task<T: Serialize>(task_id: MsgId, result: &TaskResult<T>) -
     debug!("Answer task with id: {task_id}");
     BEAM_CLIENT.put_result(result, &task_id)
         .await
-        .map_err(|e| FocusError::UnableToAnswerTask(e))
+        .map_err(FocusError::UnableToAnswerTask)
 }
 
 pub async fn fail_task<T>(task: &TaskRequest<T>, body: impl Into<String>) -> Result<(), FocusError> {
@@ -97,12 +97,12 @@ pub async fn fail_task<T>(task: &TaskRequest<T>, body: impl Into<String>) -> Res
     let result = beam_result::perm_failed(CONFIG.beam_app_id_long.clone(), vec![task.from.clone()], task.id, body);
     BEAM_CLIENT.put_result(&result, &task.id)
         .await
-        .map_err(|e| FocusError::UnableToAnswerTask(e))
+        .map_err(FocusError::UnableToAnswerTask)
 }
 
 pub async fn claim_task<T>(task: &TaskRequest<T>) -> Result<(), FocusError> {
     let result = beam_result::claimed(CONFIG.beam_app_id_long.clone(), vec![task.from.clone()], task.id);
     BEAM_CLIENT.put_result(&result, &task.id)
         .await
-        .map_err(|e| FocusError::UnableToAnswerTask(e))
+        .map_err(FocusError::UnableToAnswerTask)
 }
