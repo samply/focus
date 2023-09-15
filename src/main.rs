@@ -201,7 +201,7 @@ async fn run_query(
 ) -> Result<BeamResult, FocusError> {
     debug!("Run");
 
-    if query.lang == "cql" {
+    if query.lang == "cql" && CONFIG.endpoint_type == "blaze" {
         // TODO: Change query.lang to an enum
         return Ok(run_cql_query(task, query, obf_cache, report_cache).await)?;
     } else {
@@ -209,7 +209,7 @@ async fn run_query(
             CONFIG.beam_app_id_long.clone(),
             vec![task.from.clone()],
             task.id,
-            format!("Can't run inqueries with language {}", query.lang),
+            format!("Can't run inqueries with language {} and/or endpoint type {}", query.lang, CONFIG.endpoint_type),
         ));
     }
 }

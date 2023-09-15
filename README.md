@@ -16,7 +16,7 @@ To run a standalone Focus, you need at least one running [Samply.Beam.Proxy](htt
 You can compile and run this application via Cargo, however, we encourage the usage of the pre-compiled [docker images](https://hub.docker.com/r/samply/focus):
 
 ```bash
-docker run --rm -e BEAM_BASE_URL=http://localhost:8081 -e BLAZE_BASE_URL=http://localhost:8089/fhir -e PROXY_ID=proxy1.broker -e API_KEY=App1Secret -e BEAM_APP_ID_LONG=app1.broker.example.com samply/focus:latest
+docker run --rm -e BEAM_PROXY_URL=http://localhost:8081 -e ENDPOINT_URL=http://localhost:8089/fhir -e PROXY_ID=proxy1.broker -e API_KEY=App1Secret -e BEAM_APP_ID_LONG=app1.broker.example.com samply/focus:latest
 ```
 
 ## Configuration
@@ -24,8 +24,8 @@ docker run --rm -e BEAM_BASE_URL=http://localhost:8081 -e BLAZE_BASE_URL=http://
 The following environment variables are mandatory for the usage of Focus. If compiling and running Focus yourself, they are provided as command line options as well. See `focus  --help` for details.
 
 ```bash
-BEAM_BASE_URL = "http://localhost:8081" 
-BLAZE_BASE_URL = "http://localhost:8089/fhir"
+BEAM_PROXY_URL = "http://localhost:8081" 
+ENDPOINT_URL = "http://localhost:8089/fhir"
 PROXY_ID = "proxy1.broker"
 API_KEY = "App1Secret"
 BEAM_APP_ID_LONG = "app1.broker.example.com"
