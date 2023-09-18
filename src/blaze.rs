@@ -119,8 +119,8 @@ pub async fn run_cql_query(library: &Value, measure: &Value) -> Result<String, F
     };
     debug!("Evaluating the Measure with canonical URL: {}", url);
 
-    post_library(library.to_string()).await?;
-    post_measure(measure.to_string()).await?;
+    post_library(library.to_string()).await?; //TODO make it with into or could change the function signature to take the library
+    post_measure(measure.to_string()).await?; //ditto   &str
     let result_evaluation = evaluate_measure(url).await;
     return result_evaluation;
 }

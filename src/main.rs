@@ -84,9 +84,9 @@ async fn main_loop() -> ExitCode {
                 Err(_) => {
                     error!("The file {} cannot be opened", filename);
                     exit(2);
-                } 
+                }
             }
-        },
+        }
         None => {}
     }
 
@@ -141,6 +141,10 @@ async fn process_tasks(
 
     let tasks = beam::retrieve_tasks().await?;
     for task in tasks {
+        let task_cloned = task.clone();
+        let claiming = tokio::task::spawn(async move {
+            beam::claim_task(&task_cloned).await
+        });
         let res = process_task(&task, obf_cache, report_cache).await;
         let error_msg = match res {
             Err(FocusError::DecodeError(_)) | Err(FocusError::ParsingError(_)) => {
@@ -153,6 +157,21 @@ async fn process_tasks(
 
         let res = res.ok();
         let res = res.as_ref();
+
+        // Make sure that claiming the task is done before we update it again.
+        match claiming.await.unwrap() {
+            Ok(_) => break,
+            Err(FocusError::ConfigurationError(s)) => {
+                error!("FATAL: Unable to report back to Beam due to a configuration issue: {s}");
+                return Err(FocusError::ConfigurationError(s));
+            }
+            Err(FocusError::UnableToAnswerTask(e)) => {
+                warn!("Unable to report claimed task to Beam: {e}");
+            }
+            Err(e) => {
+                warn!("Unknown error reporting claimed task back to Beam: {e}");
+            }
+        }
 
         const MAX_TRIES: u32 = 3600;
         for attempt in 0..MAX_TRIES {
