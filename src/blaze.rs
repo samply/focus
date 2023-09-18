@@ -2,7 +2,7 @@ use http::StatusCode;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_json::Value;
-use tracing::{debug, info, warn};
+use tracing::{debug, warn};
 
 use crate::errors::FocusError;
 use crate::util::get_json_field;
