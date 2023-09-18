@@ -35,6 +35,7 @@ BEAM_APP_ID_LONG = "app1.broker.example.com"
 
 ```bash
 RETRY_COUNT = "32" # The maximum number of retries for beam and blaze healthchecks, default value: 32
+ENDPOINT_TYPE = "blaze" # Type of the endpoint, allowed values: "blaze", "omop", default value: "blaze"
 OBFUSCATE = "yes" # Should the results be obfuscated - the "master switch", allowed values: "yes", "no", default value: "yes"
 OBFUSCATE-BELOW-10 = "1" # The mode of obfuscating values below 10: 0 - return zero, 1 - return ten, 2 - obfuscate using Laplace distribution and rounding, has no effect if OBFUSCATE = "no", default value: 1
 DELTA-PATIENT = "1." # Sensitivity parameter for obfuscating the counts in the Patient stratifier, has no effect if OBFUSCATE = "no", default value: 1

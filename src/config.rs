@@ -69,7 +69,7 @@ struct CliArgs {
     #[clap(long, env, value_parser)]
     endpoint_url: Uri,
 
-    /// type of the endpoint, e.g. "blaze", "omop"
+    /// Type of the endpoint, e.g. "blaze", "omop"
     #[clap(long, env, value_parser = clap::value_parser!(EndpointType), default_value = "blaze")]
     endpoint_type: EndpointType,
 
