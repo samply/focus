@@ -14,6 +14,21 @@ pub enum Obfuscate {
     Yes,
 }
 
+#[derive(clap::ValueEnum, Clone, Debug, PartialEq)]
+pub enum EndpointType {
+    Blaze,
+    Omop,
+}
+
+impl ToString for EndpointType {
+    fn to_string(&self) -> String {
+        match self {
+            EndpointType::Blaze => "blaze".to_string(), 
+            EndpointType::Omop => "omop".to_string(),
+        }
+    }
+}
+
 
 #[dynamic(lazy)]
 pub(crate) static CONFIG: Config = {
@@ -55,8 +70,8 @@ struct CliArgs {
     endpoint_url: Uri,
 
     /// type of the endpoint, e.g. "blaze", "omop"
-    #[clap(long, env, value_parser, default_value = "blaze")]
-    endpoint_type: String,
+    #[clap(long, env, value_parser = clap::value_parser!(EndpointType), default_value = "blaze")]
+    endpoint_type: EndpointType,
 
     /// Should the results be obfuscated
     #[clap(long, env, value_parser = clap::value_parser!(Obfuscate), default_value = "yes")]
@@ -105,7 +120,7 @@ pub(crate) struct Config {
     pub api_key: String,
     pub retry_count: usize,
     pub endpoint_url: Uri,
-    pub endpoint_type: String,
+    pub endpoint_type: EndpointType,
     pub obfuscate: Obfuscate,
     pub obfuscate_zero: bool,
     pub obfuscate_below_10_mode: usize,

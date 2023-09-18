@@ -48,6 +48,8 @@ pub async fn main() -> ExitCode {
 
     let _ = CONFIG.api_key; // Initialize config
 
+    dbg!(CONFIG.endpoint_type.to_string());
+
     tokio::select! {
         _ = graceful_shutdown::wait_for_signal() => {
             ExitCode::SUCCESS
@@ -220,7 +222,7 @@ async fn run_query(
 ) -> Result<BeamResult, FocusError> {
     debug!("Run");
 
-    if query.lang == "cql" && CONFIG.endpoint_type == "blaze" {
+    if query.lang == "cql" && CONFIG.endpoint_type == config::EndpointType::Blaze {
         // TODO: Change query.lang to an enum
         return Ok(run_cql_query(task, query, obf_cache, report_cache).await)?;
     } else {
@@ -228,7 +230,7 @@ async fn run_query(
             CONFIG.beam_app_id_long.clone(),
             vec![task.from.clone()],
             task.id,
-            format!("Can't run inqueries with language {} and/or endpoint type {}", query.lang, CONFIG.endpoint_type),
+            format!("Can't run inqueries with language {} and/or endpoint type {}", query.lang, CONFIG.endpoint_type.to_string()),
         ));
     }
 }
