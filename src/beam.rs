@@ -117,8 +117,8 @@ pub struct BeamResult {
     pub to: Vec<AppId>,
     pub task: Uuid,
     pub status: Status,
-    pub metadata: String,
-    pub body: String,
+    pub metadata: Option<String>,
+    pub body: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
@@ -137,8 +137,8 @@ impl BeamResult {
             to,
             task,
             status: Status::Claimed,
-            metadata: "unused".to_owned(),
-            body: "unused".to_owned(),
+            metadata: None,
+            body: None,
         }
     }
     pub fn succeeded(from: AppId, to: Vec<AppId>, task: Uuid, body: String) -> Self {
@@ -147,8 +147,8 @@ impl BeamResult {
             to,
             task,
             status: Status::Succeeded,
-            metadata: "unused".to_owned(),
-            body,
+            metadata: None,
+            body: Some(body),
         }
     }
 
@@ -158,8 +158,8 @@ impl BeamResult {
             to,
             task,
             status: Status::PermFailed,
-            metadata: "unused".to_owned(),
-            body,
+            metadata: None,
+            body: Some(body),
         }
     }
 }
