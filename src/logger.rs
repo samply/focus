@@ -15,7 +15,7 @@ pub fn init_logger() -> Result<(), SetGlobalDefaultError> {
         }
     };
 
-    let subscriber = subscriber.with_env_filter("debug".to_string()).finish();
+    let subscriber = subscriber.with_env_filter(env_filter.clone()).finish();
     tracing::subscriber::set_global_default(subscriber)?;
 
     debug!("Logging initialized with env_filter {env_filter}.");
