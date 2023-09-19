@@ -59,6 +59,11 @@ pub async fn main() -> ExitCode {
 }
 
 async fn main_loop() -> ExitCode {
+    warn!("asdfasdfafd");
+    warn!("asdfasdfafd");
+    warn!("asdfasdfafd");
+    warn!("asdfasdfafd");
+    warn!("asdfasdfafd");
     let mut obf_cache: ObfCache = ObfCache {
         cache: HashMap::new(),
     };

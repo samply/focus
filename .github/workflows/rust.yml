@@ -111,7 +111,7 @@ jobs:
       # Define the build context of your image, typically default '.' will be enough
       # build-context: '.'
       # Define the Dockerfile of your image, typically default './Dockerfile' will be enough
-      build-file: './Dockerfile.ci'
+      build-file: './Dockerfile'
       # NOTE: This doesn't work currently
       # A list of build arguments, passed to the docker build
 #      build-args: |
