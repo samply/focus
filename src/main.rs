@@ -162,7 +162,7 @@ async fn process_tasks(
 
         // Make sure that claiming the task is done before we update it again.
         match claiming.await.unwrap() {
-            Ok(_) => break,
+            Ok(_) => {},
             Err(FocusError::ConfigurationError(s)) => {
                 error!("FATAL: Unable to report back to Beam due to a configuration issue: {s}");
                 return Err(FocusError::ConfigurationError(s));
