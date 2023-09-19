@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::fmt;
 
 use clap::Parser;
 use http::{HeaderValue, Uri};
@@ -14,20 +15,13 @@ pub enum Obfuscate {
     Yes,
 }
 
-#[derive(clap::ValueEnum, Clone, Debug, PartialEq)]
+#[derive(clap::ValueEnum, Clone, Debug, PartialEq, Copy)]
 pub enum EndpointType {
     Blaze,
     Omop,
 }
 
-impl ToString for EndpointType {
-    fn to_string(&self) -> String {
-        match self {
-            EndpointType::Blaze => "blaze".to_string(), 
-            EndpointType::Omop => "omop".to_string(),
-        }
-    }
-}
+
 
 
 #[dynamic(lazy)]
