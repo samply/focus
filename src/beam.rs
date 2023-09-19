@@ -350,7 +350,7 @@ pub async fn claim_task(task: &BeamTask) -> Result<(), FocusError> {
         .map_err(|e| FocusError::UnableToAnswerTask(e))?;
 
     match resp.status() {
-        StatusCode::NO_CONTENT => {
+        StatusCode::CREATED | StatusCode::NO_CONTENT => {
             info!("Task {} claimed", task.id);
             Ok(())
         },
