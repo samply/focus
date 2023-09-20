@@ -22,7 +22,7 @@ jobs:
 
   build-rust:
     name: Build (Rust)
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
 
     strategy:
       matrix:
@@ -86,7 +86,7 @@ jobs:
   test:
     name: Run tests
     needs: [ build-rust ]
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
   
     steps:
       - uses: actions/checkout@v3
