@@ -244,7 +244,7 @@ async fn run_query(
             CONFIG.beam_app_id_long.clone(),
             vec![task.from.clone()],
             task.id,
-            format!("Can't run queries with language {} and/or endpoint type {:?}", query.lang, CONFIG.endpoint_type),
+            format!("Can't run queries with language {} and/or endpoint type {}", query.lang, CONFIG.endpoint_type),
         ));
     }
 }
