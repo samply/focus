@@ -239,7 +239,7 @@ async fn run_query(
         // TODO: Change query.lang to an enum
         return Ok(run_cql_query(task, query, obf_cache, report_cache).await)?;
     } else {
-        warn!("Can't run queries with language {} and/or endpoint type {:?}", query.lang, CONFIG.endpoint_type);
+        warn!("Can't run queries with language {} and/or endpoint type {}", query.lang, CONFIG.endpoint_type);
         return Ok(beam::BeamResult::perm_failed(
             CONFIG.beam_app_id_long.clone(),
             vec![task.from.clone()],

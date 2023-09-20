@@ -21,6 +21,15 @@ pub enum EndpointType {
     Omop,
 }
 
+impl fmt::Display for EndpointType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            EndpointType::Blaze => write!(f, "blaze"), 
+            EndpointType::Omop => write!(f, "omop"),
+        }
+    }
+}
+
 
 
 
