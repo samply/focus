@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::fmt;
 
 use clap::Parser;
 use http::{HeaderValue, Uri};
@@ -13,6 +14,23 @@ pub enum Obfuscate {
     No,
     Yes,
 }
+
+#[derive(clap::ValueEnum, Clone, Debug, PartialEq, Copy)]
+pub enum EndpointType {
+    Blaze,
+    Omop,
+}
+
+impl fmt::Display for EndpointType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            EndpointType::Blaze => write!(f, "blaze"), 
+            EndpointType::Omop => write!(f, "omop"),
+        }
+    }
+}
+
+
 
 
 #[dynamic(lazy)]
@@ -50,9 +68,13 @@ struct CliArgs {
     #[clap(long, env, value_parser, default_value = "32")]
     retry_count: usize,
 
-    /// The FHIR servers base URL, e.g. https://blaze.site/fhir
+    /// The endpoint base URL, e.g. https://blaze.site/fhir
     #[clap(long, env, value_parser)]
-    blaze_url: Uri,
+    endpoint_url: Uri,
+
+    /// Type of the endpoint, e.g. "blaze", "omop"
+    #[clap(long, env, value_parser = clap::value_parser!(EndpointType), default_value = "blaze")]
+    endpoint_type: EndpointType,
 
     /// Should the results be obfuscated
     #[clap(long, env, value_parser = clap::value_parser!(Obfuscate), default_value = "yes")]
@@ -100,7 +122,8 @@ pub(crate) struct Config {
     pub beam_app_id_long: AppId,
     pub api_key: String,
     pub retry_count: usize,
-    pub blaze_url: Uri,
+    pub endpoint_url: Uri,
+    pub endpoint_type: EndpointType,
     pub obfuscate: Obfuscate,
     pub obfuscate_zero: bool,
     pub obfuscate_below_10_mode: usize,
@@ -132,7 +155,8 @@ impl Config {
             beam_app_id_long: AppId::new(cli_args.beam_app_id_long)?,
             api_key: cli_args.api_key,
             retry_count: cli_args.retry_count,
-            blaze_url: cli_args.blaze_url,
+            endpoint_url: cli_args.endpoint_url,
+            endpoint_type: cli_args.endpoint_type,
             obfuscate: cli_args.obfuscate,
             obfuscate_zero: cli_args.obfuscate_zero,
             obfuscate_below_10_mode: cli_args.obfuscate_below_10_mode,

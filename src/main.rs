@@ -100,9 +100,20 @@ async fn main_loop() -> ExitCode {
             );
             tokio::time::sleep(Duration::from_secs(2)).await;
         }
-        if !(beam::check_availability().await && blaze::check_availability().await) {
+        if !(beam::check_availability().await) {
             failures += 1;
         }
+        if (CONFIG.endpoint_type == config::EndpointType::Blaze){
+            if !(blaze::check_availability().await) {
+                failures += 1;
+            }
+        } else if (CONFIG.endpoint_type == config::EndpointType::Omop){
+
+            //TODO OMOP check
+
+        }
+        
+
         if let Err(e) = process_tasks(&mut obf_cache, &mut report_cache).await {
             warn!("Encountered the following error, while processing tasks: {e}");
             //failures += 1;
@@ -128,7 +139,11 @@ async fn process_task(
 
     let run_result = run_query(task, &query, obf_cache, report_cache).await?;
 
-    info!("Reported successful execution of task {} to Beam.", task.id);
+    if run_result.status == beam::Status::Succeeded {
+        info!("Reported successful execution of task {} to Beam.", task.id); 
+    } else if run_result.status == beam::Status::PermFailed {
+        info!("Reported failed execution of task {} to Beam.", task.id);
+    }
 
     Ok(run_result)
 }
@@ -160,7 +175,7 @@ async fn process_tasks(
 
         // Make sure that claiming the task is done before we update it again.
         match claiming.await.unwrap() {
-            Ok(_) => break,
+            Ok(_) => {},
             Err(FocusError::ConfigurationError(s)) => {
                 error!("FATAL: Unable to report back to Beam due to a configuration issue: {s}");
                 return Err(FocusError::ConfigurationError(s));
@@ -220,15 +235,16 @@ async fn run_query(
 ) -> Result<BeamResult, FocusError> {
     debug!("Run");
 
-    if query.lang == "cql" {
+    if query.lang == "cql" && CONFIG.endpoint_type == config::EndpointType::Blaze { 
         // TODO: Change query.lang to an enum
         return Ok(run_cql_query(task, query, obf_cache, report_cache).await)?;
     } else {
+        warn!("Can't run queries with language {} and/or endpoint type {}", query.lang, CONFIG.endpoint_type);
         return Ok(beam::BeamResult::perm_failed(
             CONFIG.beam_app_id_long.clone(),
             vec![task.from.clone()],
             task.id,
-            format!("Can't run inqueries with language {}", query.lang),
+            format!("Can't run queries with language {} and/or endpoint type {:?}", query.lang, CONFIG.endpoint_type),
         ));
     }
 }
