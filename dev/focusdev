@@ -34,18 +34,6 @@ export P2="http://localhost:8082" # for scripts
 
 export ARCH=$(docker version --format "{{.Server.Arch}}")
 
-function image_for_docker() {
-     # Pick the correct Ubuntu version for the Docker image,
-     # so the locally-built rust binary works regarding libssl
-     if [[ "$(pkg-config --modversion libssl)" =~ ^3.* ]]; then
-          echo "ubuntu:latest" # Use libssl3
-     else
-          echo -n "" # Don't change (uses libssl1.1)
-     fi
-}
-
-export IMGNAME="$(image_for_docker)"
-
 function check_prereqs() {
      set +e
      if [[ "$(curl --version)" != *" libcurl/"* ]]; then
@@ -67,7 +55,7 @@ function build() {
     BUILD_DOCKER=0
     BACK=$(pwd)
     cd $SD/..
-    FOCUS=./target/debug/focus
+    FOCUS=./target/release/focus
     if [ ! -x ./artifacts/binaries-$ARCH ]; then
         echo "Binaries missing -- building ..."
         BUILD="$(cargo build $@ --message-format=json)"
@@ -98,11 +86,7 @@ function build() {
 function build_docker() {
     BACK2=$(pwd)
     cd $SD
-    if [ -z "$IMGNAME" ]; then
-        docker-compose build --build-arg TARGETARCH=$ARCH
-    else
-        docker-compose build --build-arg TARGETARCH=$ARCH --build-arg IMGNAME=$IMGNAME
-    fi
+    docker-compose build --build-arg TARGETARCH=$ARCH
     cd $BACK2
 }
 
