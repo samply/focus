@@ -128,10 +128,11 @@ case "$1" in
         start $@
         ;;
     restart)
-        docker compose build --build-arg TARGETARCH=$ARCH --build-arg IMGNAME=$IMGNAME focus
+        shift
+        build $@
         docker compose up --no-deps --no-build focus
         ;;
     *)
-        echo "Usage: $0 build|start"
+        echo "Usage: $0 build|start|restart"
         ;;
 esac
