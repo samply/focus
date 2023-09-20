@@ -4,6 +4,7 @@ mod blaze;
 mod config;
 mod logger;
 mod util;
+mod omop;
 
 use std::collections::HashMap;
 use std::process::ExitCode;
