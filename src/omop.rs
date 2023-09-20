@@ -8,16 +8,22 @@ use crate::errors::FocusError;
 use crate::util::get_json_field;
 use crate::config::CONFIG;
 
+#[derive(Serialize, Deserialize)]
+#[serde(tag = "type")]
 enum ChildType {
     Operation(Operation),
     Condition(Condition),
 }
 
+#[derive(Serialize, Deserialize)]
+#[serde(tag = "type")]
 enum Operand {
     And,
     Or,
 }
 
+#[derive(Serialize, Deserialize)]
+#[serde(tag = "type")]
 enum ConditionType {
     Equals,
     NotEquals,
@@ -28,6 +34,8 @@ enum ConditionType {
     Contains,
 }
 
+#[derive(Serialize, Deserialize)]
+#[serde(tag = "type")]
 enum ConditionValue{
     String(String),
     StringArray(Vec<String>),
