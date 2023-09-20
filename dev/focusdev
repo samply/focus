@@ -116,7 +116,10 @@ case "$1" in
         build $@
         docker compose up --no-deps --no-build focus
         ;;
+    stop)
+        docker compose down
+        ;;
     *)
-        echo "Usage: $0 build|start|restart"
+        echo "Usage: $0 build|start|restart|stop"
         ;;
 esac
