@@ -1,12 +1,10 @@
 # This assumes binaries are present, see COPY directive.
-ARG IMGNAME=gcr.io/distroless/cc-debian12
-
 FROM alpine AS chmodder
 ARG TARGETARCH
 COPY /artifacts/binaries-$TARGETARCH/focus /app/
 RUN chmod +x /app/*
 
-FROM ${IMGNAME}
+FROM gcr.io/distroless/cc-debian12
 COPY --from=chmodder /app/* /usr/local/bin/
 ENTRYPOINT [ "/usr/local/bin/focus" ]
 
