@@ -98,16 +98,16 @@ mod test {
                     "children": [
                         {
                             "type": "Condition",
-                            "key": "key1",
+                            "key": "gender",
                             "type": "Equals",
                             "value": {
                                 "type": "String",
-                                "String": "value1"
+                                "String": "male"
                             }
                         },
                         {
                             "type": "Condition",
-                            "key": "key2",
+                            "key": "age",
                             "type": "GreaterThan",
                             "value": {
                                 "type": "Number",
@@ -118,11 +118,11 @@ mod test {
                 },
                 {
                     "type": "Condition",
-                    "key": "key3",
+                    "key": "diagnosis",
                     "type": "In",
                     "value": {
                         "type": "StringArray",
-                        "StringArray": ["value2", "value3"]
+                        "StringArray": ["C61", "C34.0"]
                     }
                 }
             ]
