@@ -33,7 +33,7 @@ enum ConditionType {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde()]
+#[serde(untagged)]
 enum ConditionValue {
     String(String),
     StringArray(Vec<String>),
@@ -85,7 +85,7 @@ pub async fn post_ast(ast: Ast) -> Result<(), FocusError> {
 mod test {
     use super::*;
 
-    const EQUALS_AST: &str = r#"{"ast":{"operand":"AND","children":[{"Condition":{"key":"age","type":"EQUALS","value":{"Number":5.0}}}]},"id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
+    const EQUALS_AST: &str = r#"{"ast":{"operand":"AND","children":[{"Condition":{"key":"age","type":"EQUALS","value":5.0}}]},"id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
 
 
     #[test]
