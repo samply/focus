@@ -40,4 +40,8 @@ pub enum FocusError {
     DeserializationError(String),
     #[error("Serialization error: {0}")]
     SerializationError(String),
+    #[error("Unable to post AST")]
+    UnableToPostAst(reqwest::Error),
+    #[error("AST Posting error in Reqwest")]
+    AstPostingErrorReqwest(String),
 }
