@@ -8,8 +8,8 @@ use crate::config::CONFIG;
 use crate::errors::FocusError;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde()]
-enum Child {
+#[serde(untagged)]
+pub enum Child {
     Operation(Operation),
     Condition(Condition),
 }
@@ -117,11 +117,54 @@ pub async fn post_ast(ast: Ast) -> Result<String, FocusError> {
     Ok(text)
 }
 
+pub fn from_children(children: Vec<Child>) -> Ast {
+
+    let ast: Ast = Ast{
+        ast: Operation {
+            operand: Operand::And,
+            children: children
+        },
+        id: Uuid::new_v4()
+
+    };
+
+    ast
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
 
-    const EQUALS_AST: &str = r#"{"ast":{"operand":"AND","children":[{"Condition":{"key":"age","type":"EQUALS","value":5.0}}]},"id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
+    const EQUALS_AST: &str = r#"{"ast":{"operand":"AND","children":[{"key":"age","type":"EQUALS","value":5.0}]},"id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
+    const LENS_AST: &str = r#"[{"key":"gender","system":"","type":"IN","value":["M","SCTID:261665006"]},{"key":"age_group","system":"","type":"BETWEEN","value":{"max":70,"min":40}},{"key":"diagnosis","system":"http://fhir.de/CodeSystem/dimdi/icd-10-gm","type":"EQUALS","value":"C61"},{"key":"modality","system":"urn:oid:2.16.840.1.113883.6.256","type":"IN","value":["RID10312"]}]"#;
+    const LENS_AST_TRANS: &str = r#"{"ast":{"operand":"AND","children":[{"key":"gender","type":"IN","value":["M","SCTID:261665006"]},{"key":"age_group","type":"BETWEEN","value":{"min":40.0,"max":70.0}},{"key":"diagnosis","type":"EQUALS","value":"C61"},{"key":"modality","type":"IN","value":["RID10312"]}]},"id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
+
+
+    #[test]
+    fn test_deserialize_lens_ast_vec() {
+
+        let children: Vec<Child> = serde_json::from_str(LENS_AST).expect("Failed to deserialize JSON");
+
+        //dbg!(lens_children.clone());
+
+        let ast: Ast = Ast{
+            ast: Operation {
+                operand: Operand::And,
+                children: children
+            },
+            id: uuid::uuid!("a6f1ccf3-ebf1-424f-9d69-4e5d135f2340")
+
+        };
+
+        //dbg!(ast.clone());
+
+        let ast_string = serde_json::to_string(&ast).expect("Failed to serialize JSON");
+
+        //dbg!(ast_string);
+
+        assert_eq!(LENS_AST_TRANS, ast_string);
+    }
+
 
     #[test]
     fn test_deserialize_ast() {
@@ -132,4 +175,14 @@ mod test {
 
         assert_eq!(EQUALS_AST, ast_string);
     }
+
+    fn replace_uuid_test(trans_ast: String) -> Result<String, FocusError>{
+
+        let mut uuid_ast = trans_ast.replace("uuid", "a6f1ccf3-ebf1-424f-9d69-4e5d135f2340");
+    
+        Ok(uuid_ast)
+    
+    }
+
+
 }

@@ -158,10 +158,12 @@ async fn process_task(
 
         //dbg!(decoded.clone());
 
-        let ast: omop::Ast = from_slice(&decoded).map_err(|e| FocusError::ParsingError(e.to_string()))?;
-        
+        let children: Vec<omop::Child> = from_slice(&decoded).map_err(|e| FocusError::ParsingError(e.to_string()))?;
 
+        let ast: omop::Ast = omop::from_children(children);
+        
         return Ok(run_omop_query(task, ast).await)?;
+        
     } else {
         warn!("Can't run queries with endpoint type {}", CONFIG.endpoint_type);
         return Ok(beam::BeamResult::perm_failed(
