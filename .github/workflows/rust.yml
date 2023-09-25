@@ -2,6 +2,7 @@ name: Build with rust and docker
 
 on:
   push:
+  workflow_dispatch:
   pull_request:
   schedule:
     # Fetch new base image updates every night at 1am
@@ -14,7 +15,7 @@ env:
 jobs:
   pre-check:
     name: Security, License Check
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
     - uses: actions/checkout@v3
@@ -70,18 +71,34 @@ jobs:
         with:
           key: ${{ matrix.arch }}-${{ env.PROFILE }}
           prefix-key: "v1-rust" # Increase to invalidate old caches.
-      - name: Build (${{ matrix.arch }})
+      - name: Build (cross to ${{ matrix.arch }})
+        if: env.is_cross == 'true'
         uses: actions-rs/cargo@v1
         with:
           use-cross: ${{ env.is_cross }}
           command: build
-          args: --target ${{ env.rustarch }} ${{ env.profilestr }}
-      - name: Upload Artifact
+          args: --target ${{ env.rustarch }} ${{ matrix.features && format('--features {0}', matrix.features) }} ${{ env.profilestr }}
+      - name: Build (native)
+        if: env.is_cross == 'false'
+        run: |
+          BINS=$(cargo build --tests --bins --message-format=json --target ${{ env.rustarch }} ${{ matrix.features && format('--features {0}', matrix.features) }} ${{ env.profilestr }} | jq -r 'select(.profile.test == true) | .executable | select(. != null)')
+          mkdir -p testbinaries/
+          for testbin in $BINS; do
+            mv -v $testbin testbinaries/
+          done
+      - name: Upload (bins)
         uses: actions/upload-artifact@v3
         with:
           name: binaries-${{ matrix.arch }}
           path: |
             target/${{ env.rustarch }}/${{ env.PROFILE }}/focus
+      - name: Upload (test, native only)
+        if: matrix.arch == 'amd64'
+        uses: actions/upload-artifact@v3
+        with:
+          name: testbinaries-${{ matrix.arch }}
+          path: |
+            testbinaries/*
 
   test:
     name: Run tests
@@ -92,13 +109,17 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/download-artifact@v3
         with:
-          name: binaries-amd64
-          path: artifacts/binaries-amd64/
-      - run: cargo test
+          name: testbinaries-amd64
+          path: testbinaries/
+      - run: |
+          for testbin in testbinaries/*; do
+            chmod +x $testbin
+            $testbin
+          done
 
   docker-focus:
     needs: [ build-rust, pre-check, test ]
-    if: github.ref_protected == true
+    if: github.ref_protected == true || github.event_name == 'workflow_dispatch'
     
     # This workflow defines how a maven package is built, tested and published.
     # Visit: https://github.com/samply/github-workflows/blob/develop/.github/workflows/docker-ci.yml, for more information
