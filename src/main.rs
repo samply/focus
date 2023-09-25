@@ -347,7 +347,7 @@ async fn run_omop_query(task: &BeamTask, ast: omop::Ast) -> Result<BeamResult, F
 
     let mut omop_result = omop::post_ast(ast).await?;
 
-    omop_result = omop_result.replacen("{", format!(r#""provider":"{}", "provider_icon":"{}","#, CONFIG.provider, CONFIG.provider_icon).as_str(), 1);
+    omop_result = omop_result.replacen("{", format!(r#"{{"provider":"{}", "provider_icon":"{}","#, CONFIG.provider, CONFIG.provider_icon).as_str(), 1);
 
     dbg!(omop_result.clone());
 
