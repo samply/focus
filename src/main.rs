@@ -158,27 +158,12 @@ async fn process_task(
         
         let omop_query: omop::OmopQuery = from_slice(&decoded).map_err(|e| FocusError::ParsingError(e.to_string()))?;
 
-        dbg!(omop_query.clone().query);
-
-        //check that the language is ast 
+        //TODO check that the language is ast 
 
         let query_decoded = general_purpose::STANDARD.decode(omop_query.query).map_err(|e| FocusError::DecodeError(e))?;
 
-        //let query: String = from_slice(&query_decoded).map_err(|e| FocusError::ParsingError(e.to_string()))?;
-
-        //dbg!(query.clone());
-
         let ast: omop::Ast = from_slice(&query_decoded).map_err(|e| FocusError::ParsingError(e.to_string()))?;
 
-        //let ast: omop::Ast = omop::from_children(children);
-
-        //let ast: omop::Ast = serde_json::from_str(query.as_str()).expect("Failed to deserialize JSON");
-        
-        
-       // from_slice(&query_str).map_err(|e| FocusError::ParsingError(e.to_string()))?;
-
-        dbg!(ast.clone());
-        
         return Ok(run_omop_query(task, ast).await)?;
         
     } else {
@@ -365,8 +350,6 @@ async fn run_omop_query(task: &BeamTask, ast: omop::Ast) -> Result<BeamResult, F
     let mut omop_result = omop::post_ast(ast).await?;
 
     omop_result = omop_result.replacen("{", format!(r#"{{"provider":"{}", "provider_icon":"{}","#, CONFIG.provider, CONFIG.provider_icon).as_str(), 1);
-
-    dbg!(omop_result.clone());
 
     let result = beam_result(task.to_owned(), omop_result).unwrap_or_else(|e| {
         err.body = e.to_string();

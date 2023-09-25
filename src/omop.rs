@@ -103,8 +103,6 @@ pub async fn post_ast(ast: Ast) -> Result<String, FocusError> {
 
     debug!("Posted AST...");
 
-    dbg!(resp.status().clone());
-
     let text = match resp.status() {
         StatusCode::OK => {
             resp
@@ -120,8 +118,6 @@ pub async fn post_ast(ast: Ast) -> Result<String, FocusError> {
             )));
         }
     };
-
-    dbg!(text.clone());
 
     Ok(text)
 }
