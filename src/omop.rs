@@ -79,8 +79,6 @@ pub struct Ast {
 pub async fn post_ast(ast: Ast) -> Result<String, FocusError> {
     debug!("Posting AST...");
 
-    let mut text: String = String::new();
-
     let ast_string = serde_json::to_string_pretty(&ast)
         .map_err(|e| FocusError::SerializationError(e.to_string()))?;
 
@@ -99,18 +97,21 @@ pub async fn post_ast(ast: Ast) -> Result<String, FocusError> {
 
     dbg!(resp.status().clone());
 
-    if resp.status() == StatusCode::OK {
-        text = resp
+    let text = match resp.status() {
+        StatusCode::OK => {
+            resp
             .text()
             .await
-            .map_err(|e| FocusError::UnableToPostAst(e))?;
-    } else {
-        warn!("Error while posting ast `{}`: {:?}", ast_string, resp);
-        return Err(FocusError::AstPostingErrorReqwest(format!(
-            "Error while posting AST `{}`: {:?}",
-            ast_string, resp
-        )));
-    }
+            .map_err(|e| FocusError::UnableToPostAst(e))?
+        },
+        code => {
+            warn!("Got unexpected code {code} while posting AST; reply was `{}`, debug info: {:?}", ast_string, resp);
+            return Err(FocusError::AstPostingErrorReqwest(format!(
+                "Error while posting AST `{}`: {:?}",
+                ast_string, resp
+            )));
+        }
+    };
 
     dbg!(text.clone());
 
