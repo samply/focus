@@ -220,16 +220,19 @@ async fn run_query(
 ) -> Result<BeamResult, FocusError> {
     debug!("Run");
 
-    if query.lang == "cql" {
-        // TODO: Change query.lang to an enum
-        return Ok(run_cql_query(task, query, obf_cache, report_cache).await)?;
-    } else {
-        return Ok(beam::BeamResult::perm_failed(
-            CONFIG.beam_app_id_long.clone(),
-            vec![task.from.clone()],
-            task.id,
-            Some(format!("Can't run inquiries with language {}", query.lang)),
-        ));
+    match query.lang.as_str() {
+        "cql" => {
+            // TODO: Change query.lang to an enum
+            Ok(run_cql_query(task, query, obf_cache, report_cache).await)?
+        },
+        unsupported_lang => {
+            Ok(beam::BeamResult::perm_failed(
+                CONFIG.beam_app_id_long.clone(),
+                vec![task.from.clone()],
+                task.id,
+                Some(format!("Can't run queries with language {unsupported_lang}")),
+            ))
+        }
     }
 }
 
