@@ -152,9 +152,9 @@ async fn process_task(
                 ),
             ));
         }
-    } else if CONFIG.endpoint_type == config::EndpointType::Omop {
+    } else if CONFIG.endpoint_type == config::EndpointType::Omop { 
 
-        let decoded = decode_body(task)?;
+        let decoded = decode_body(task)?; //check that the language is
 
         //dbg!(decoded.clone());
 
@@ -345,7 +345,9 @@ async fn run_omop_query(task: &BeamTask, ast: omop::Ast) -> Result<BeamResult, F
         String::new(),
     );
 
-    let omop_result = omop::post_ast(ast).await?;
+    let mut omop_result = omop::post_ast(ast).await?;
+
+    omop_result = omop_result.replacen("{", format!(r#""provider":"{}", "provider_icon":"{}","#, CONFIG.provider, CONFIG.provider_icon).as_str(), 1);
 
     dbg!(omop_result.clone());
 

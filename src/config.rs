@@ -115,6 +115,18 @@ struct CliArgs {
     /// Outgoing HTTP proxy: Directory with CA certificates to trust for TLS connections (e.g. /etc/samply/cacerts/)
     #[clap(long, env, value_parser)]
     tls_ca_certificates_dir: Option<PathBuf>,
+
+    //FIXME make this optional before merge to develop/main
+    /// OMOP provider name
+    #[clap(long, env, value_parser)]
+    provider: String,
+
+
+    //FIXME make this optional before merge to develop/main    
+    /// Base64 encoded OMOP provider icon
+    #[clap(long, env, value_parser)]
+    provider_icon: String,
+
 }
 
 pub(crate) struct Config {
@@ -135,6 +147,8 @@ pub(crate) struct Config {
     pub queries_to_cache_file_path: Option<String>,
     tls_ca_certificates: Vec<Certificate>,
     pub client: Client,
+    pub provider: String,
+    pub provider_icon: String,
 }
 
 impl Config {
@@ -167,6 +181,8 @@ impl Config {
             rounding_step: cli_args.rounding_step,
             queries_to_cache_file_path: cli_args.queries_to_cache_file_path,
             tls_ca_certificates,
+            provider: cli_args.provider,
+            provider_icon: cli_args.provider_icon,
             client,
         };
         Ok(config)
