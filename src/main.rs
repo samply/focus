@@ -154,13 +154,30 @@ async fn process_task(
         }
     } else if CONFIG.endpoint_type == config::EndpointType::Omop { 
 
-        let decoded = decode_body(task)?; //check that the language is
+        let decoded = decode_body(task)?; 
+        
+        let omop_query: omop::OmopQuery = from_slice(&decoded).map_err(|e| FocusError::ParsingError(e.to_string()))?;
 
-        //dbg!(decoded.clone());
+        dbg!(omop_query.clone().query);
 
-        let children: Vec<omop::Child> = from_slice(&decoded).map_err(|e| FocusError::ParsingError(e.to_string()))?;
+        //check that the language is ast 
 
-        let ast: omop::Ast = omop::from_children(children);
+        let query_decoded = general_purpose::STANDARD.decode(omop_query.query).map_err(|e| FocusError::DecodeError(e))?;
+
+        //let query: String = from_slice(&query_decoded).map_err(|e| FocusError::ParsingError(e.to_string()))?;
+
+        //dbg!(query.clone());
+
+        let ast: omop::Ast = from_slice(&query_decoded).map_err(|e| FocusError::ParsingError(e.to_string()))?;
+
+        //let ast: omop::Ast = omop::from_children(children);
+
+        //let ast: omop::Ast = serde_json::from_str(query.as_str()).expect("Failed to deserialize JSON");
+        
+        
+       // from_slice(&query_str).map_err(|e| FocusError::ParsingError(e.to_string()))?;
+
+        dbg!(ast.clone());
         
         return Ok(run_omop_query(task, ast).await)?;
         
