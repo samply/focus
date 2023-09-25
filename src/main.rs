@@ -368,9 +368,7 @@ async fn run_omop_query(task: &BeamTask, ast: omop::Ast) -> Result<BeamResult, F
 
     dbg!(omop_result.clone());
 
-    let omop_result_encoded = general_purpose::STANDARD.encode(omop_result);
-
-    let result = beam_result(task.to_owned(), omop_result_encoded).unwrap_or_else(|e| {
+    let result = beam_result(task.to_owned(), omop_result).unwrap_or_else(|e| {
         err.body = e.to_string();
         return err;
     });
