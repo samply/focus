@@ -2,6 +2,7 @@ name: Build with rust and docker
 
 on:
   push:
+  workflow_dispatch:
   pull_request:
   schedule:
     # Fetch new base image updates every night at 1am
@@ -98,7 +99,7 @@ jobs:
 
   docker-focus:
     needs: [ build-rust, pre-check, test ]
-    if: github.ref_protected == true
+    if: github.ref_protected == true || github.event_name == 'workflow_dispatch'
     
     # This workflow defines how a maven package is built, tested and published.
     # Visit: https://github.com/samply/github-workflows/blob/develop/.github/workflows/docker-ci.yml, for more information
