@@ -117,8 +117,8 @@ pub struct BeamResult {
     pub to: Vec<AppId>,
     pub task: Uuid,
     pub status: Status,
-    pub metadata: String,
-    pub body: String,
+    pub metadata: Option<String>,
+    pub body: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Eq, PartialEq)]
@@ -137,28 +137,28 @@ impl BeamResult {
             to,
             task,
             status: Status::Claimed,
-            metadata: "unused".to_owned(),
-            body: "unused".to_owned(),
+            metadata: None,
+            body: None,
         }
     }
-    pub fn succeeded(from: AppId, to: Vec<AppId>, task: Uuid, body: String) -> Self {
+    pub fn succeeded(from: AppId, to: Vec<AppId>, task: Uuid, body: Option<String>) -> Self {
         Self {
             from,
             to,
             task,
             status: Status::Succeeded,
-            metadata: "unused".to_owned(),
+            metadata: None,
             body,
         }
     }
 
-    pub fn perm_failed(from: AppId, to: Vec<AppId>, task: Uuid, body: String) -> Self {
+    pub fn perm_failed(from: AppId, to: Vec<AppId>, task: Uuid, body: Option<String>) -> Self {
         Self {
             from,
             to,
             task,
             status: Status::PermFailed,
-            metadata: "unused".to_owned(),
+            metadata: None,
             body,
         }
     }
@@ -279,7 +279,7 @@ pub async fn answer_task(task: &BeamTask, result: &BeamResult) -> Result<(), Foc
 pub async fn fail_task(task: &BeamTask, body: impl Into<String>) -> Result<(), FocusError> {
     let body = body.into();
     warn!("Reporting failed task with id {}: {}", task.id, body);
-    let result = BeamResult::perm_failed(CONFIG.beam_app_id_long.clone(), vec![task.from.clone()], task.id, body);
+    let result = BeamResult::perm_failed(CONFIG.beam_app_id_long.clone(), vec![task.from.clone()], task.id, Some(body));
     let url = format!(
         "{}v1/tasks/{}/results/{}",
         CONFIG.beam_proxy_url, task.id, CONFIG.beam_app_id_long

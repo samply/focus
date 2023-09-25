@@ -230,7 +230,7 @@ async fn run_query(
                 CONFIG.beam_app_id_long.clone(),
                 vec![task.from.clone()],
                 task.id,
-                format!("Can't run queries with language {unsupported_lang}"),
+                Some(format!("Can't run queries with language {unsupported_lang}")),
             ))
         }
     }
@@ -242,13 +242,6 @@ async fn run_cql_query(
     obf_cache: &mut ObfCache,
     report_cache: &mut ReportCache,
 ) -> Result<BeamResult, FocusError> {
-    let mut err = beam::BeamResult::perm_failed(
-        CONFIG.beam_app_id_long.clone(),
-        vec![task.to_owned().from],
-        task.to_owned().id,
-        String::new(),
-    );
-
     let encoded_query =
         query.lib["content"][0]["data"]
             .as_str()
@@ -305,8 +298,12 @@ async fn run_cql_query(
     };
 
     let result = beam_result(task.to_owned(), cql_result_new).unwrap_or_else(|e| {
-        err.body = e.to_string();
-        return err;
+        beam::BeamResult::perm_failed(
+            CONFIG.beam_app_id_long.clone(),
+            vec![task.to_owned().from],
+            task.to_owned().id,
+            Some(e.to_string())
+        )
     });
 
     Ok(result)
@@ -359,6 +356,6 @@ fn beam_result(
         CONFIG.beam_app_id_long.clone(),
         vec![task.from],
         task.id,
-        data,
+        Some(data)
     ));
 }
