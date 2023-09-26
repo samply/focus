@@ -32,12 +32,16 @@ pub enum FocusError {
     InvalidBeamId(String),
     #[error("Parsing error")]
     ParsingError(String),
-    #[error("CQL tempered with")]
+    #[error("CQL tampered with: {0}")]
     CQLTemperedWithError(String),
-    #[error("Laplace error")]
+    #[error("Laplace error: {0}")]
     LaplaceError(laplace_rs::errors::LaplaceError),
     #[error("Deserialization error: {0}")]
     DeserializationError(String),
     #[error("Serialization error: {0}")]
     SerializationError(String),
+    #[error("Unable to post AST: {0}")]
+    UnableToPostAst(reqwest::Error),
+    #[error("AST Posting error in Reqwest: {0}")]
+    AstPostingErrorReqwest(String),
 }

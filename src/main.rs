@@ -3,6 +3,7 @@ mod beam;
 mod blaze;
 mod config;
 mod logger;
+mod omop;
 mod util;
 
 use std::collections::HashMap;
@@ -14,6 +15,7 @@ use std::{process::exit, time::Duration};
 use base64::{engine::general_purpose, Engine as _};
 use beam::{BeamResult, BeamTask};
 use blaze::Query;
+use omop::Ast;
 use serde_json::from_slice;
 
 use tracing::{debug, error, info, warn};
@@ -74,7 +76,7 @@ async fn main_loop() -> ExitCode {
             match lines {
                 Ok(ok_lines) => {
                     for line in ok_lines {
-                        let Ok(ok_line) = line else{
+                        let Ok(ok_line) = line else {
                             warn!("A line in the file {} is not readable", filename);
                             continue;
                         };
@@ -103,16 +105,14 @@ async fn main_loop() -> ExitCode {
         if !(beam::check_availability().await) {
             failures += 1;
         }
-        if (CONFIG.endpoint_type == config::EndpointType::Blaze){
+        if (CONFIG.endpoint_type == config::EndpointType::Blaze) {
             if !(blaze::check_availability().await) {
                 failures += 1;
             }
-        } else if (CONFIG.endpoint_type == config::EndpointType::Omop){
+        } else if (CONFIG.endpoint_type == config::EndpointType::Omop) {
 
             //TODO OMOP check
-
         }
-        
 
         if let Err(e) = process_tasks(&mut obf_cache, &mut report_cache).await {
             warn!("Encountered the following error, while processing tasks: {e}");
@@ -135,17 +135,49 @@ async fn process_task(
 ) -> Result<BeamResult, FocusError> {
     debug!("Processing task {}", task.id);
 
-    let query = parse_query(task)?;
+    if CONFIG.endpoint_type == config::EndpointType::Blaze {
+        let query = parse_query(task)?;
+        if query.lang == "cql" {
+            // TODO: Change query.lang to an enum
+            return Ok(run_cql_query(task, &query, obf_cache, report_cache).await)?;
+        } else {
+            warn!("Can't run queries with language {} in Blaze", query.lang);
+            return Ok(beam::BeamResult::perm_failed(
+                CONFIG.beam_app_id_long.clone(),
+                vec![task.from.clone()],
+                task.id,
+                format!(
+                    "Can't run queries with language {} and/or endpoint type {}",
+                    query.lang, CONFIG.endpoint_type
+                ),
+            ));
+        }
+    } else if CONFIG.endpoint_type == config::EndpointType::Omop { 
 
-    let run_result = run_query(task, &query, obf_cache, report_cache).await?;
+        let decoded = decode_body(task)?; 
+        
+        let omop_query: omop::OmopQuery = from_slice(&decoded).map_err(|e| FocusError::ParsingError(e.to_string()))?;
 
-    if run_result.status == beam::Status::Succeeded {
-        info!("Reported successful execution of task {} to Beam.", task.id); 
-    } else if run_result.status == beam::Status::PermFailed {
-        info!("Reported failed execution of task {} to Beam.", task.id);
+        //TODO check that the language is ast 
+
+        let query_decoded = general_purpose::STANDARD.decode(omop_query.query).map_err(|e| FocusError::DecodeError(e))?;
+
+        let ast: omop::Ast = from_slice(&query_decoded).map_err(|e| FocusError::ParsingError(e.to_string()))?;
+
+        return Ok(run_omop_query(task, ast).await)?;
+        
+    } else {
+        warn!("Can't run queries with endpoint type {}", CONFIG.endpoint_type);
+        return Ok(beam::BeamResult::perm_failed(
+            CONFIG.beam_app_id_long.clone(),
+            vec![task.from.clone()],
+            task.id,
+            format!(
+                "Can't run queries with endpoint type {}",
+                CONFIG.endpoint_type
+            ),
+        ));
     }
-
-    Ok(run_result)
 }
 
 async fn process_tasks(
@@ -157,9 +189,7 @@ async fn process_tasks(
     let tasks = beam::retrieve_tasks().await?;
     for task in tasks {
         let task_cloned = task.clone();
-        let claiming = tokio::task::spawn(async move {
-            beam::claim_task(&task_cloned).await
-        });
+        let claiming = tokio::task::spawn(async move { beam::claim_task(&task_cloned).await });
         let res = process_task(&task, obf_cache, report_cache).await;
         let error_msg = match res {
             Err(FocusError::DecodeError(_)) | Err(FocusError::ParsingError(_)) => {
@@ -175,7 +205,7 @@ async fn process_tasks(
 
         // Make sure that claiming the task is done before we update it again.
         match claiming.await.unwrap() {
-            Ok(_) => {},
+            Ok(_) => {}
             Err(FocusError::ConfigurationError(s)) => {
                 error!("FATAL: Unable to report back to Beam due to a configuration issue: {s}");
                 return Err(FocusError::ConfigurationError(s));
@@ -216,37 +246,21 @@ async fn process_tasks(
     Ok(())
 }
 
-fn parse_query(task: &BeamTask) -> Result<blaze::Query, FocusError> {
+fn decode_body(task: &BeamTask) -> Result<Vec<u8>, FocusError> {
     let decoded = general_purpose::STANDARD
         .decode(task.body.to_owned())
         .map_err(|e| FocusError::DecodeError(e))?;
+
+    Ok(decoded)
+}
+
+fn parse_query(task: &BeamTask) -> Result<blaze::Query, FocusError> {
+    let decoded = decode_body(task)?;
 
     let query: blaze::Query =
         from_slice(&decoded).map_err(|e| FocusError::ParsingError(e.to_string()))?;
 
     Ok(query)
-}
-
-async fn run_query(
-    task: &BeamTask,
-    query: &Query,
-    obf_cache: &mut ObfCache,
-    report_cache: &mut ReportCache,
-) -> Result<BeamResult, FocusError> {
-    debug!("Run");
-
-    if query.lang == "cql" && CONFIG.endpoint_type == config::EndpointType::Blaze { 
-        // TODO: Change query.lang to an enum
-        return Ok(run_cql_query(task, query, obf_cache, report_cache).await)?;
-    } else {
-        warn!("Can't run queries with language {} and/or endpoint type {}", query.lang, CONFIG.endpoint_type);
-        return Ok(beam::BeamResult::perm_failed(
-            CONFIG.beam_app_id_long.clone(),
-            vec![task.from.clone()],
-            task.id,
-            format!("Can't run queries with language {} and/or endpoint type {:?}", query.lang, CONFIG.endpoint_type),
-        ));
-    }
 }
 
 async fn run_cql_query(
@@ -318,6 +332,26 @@ async fn run_cql_query(
     };
 
     let result = beam_result(task.to_owned(), cql_result_new).unwrap_or_else(|e| {
+        err.body = e.to_string();
+        return err;
+    });
+
+    Ok(result)
+}
+
+async fn run_omop_query(task: &BeamTask, ast: omop::Ast) -> Result<BeamResult, FocusError> {
+    let mut err = beam::BeamResult::perm_failed(
+        CONFIG.beam_app_id_long.clone(),
+        vec![task.to_owned().from],
+        task.to_owned().id,
+        String::new(),
+    );
+
+    let mut omop_result = omop::post_ast(ast).await?;
+
+    omop_result = omop_result.replacen("{", format!(r#"{{"provider":"{}", "provider_icon":"{}","#, CONFIG.provider, CONFIG.provider_icon).as_str(), 1);
+
+    let result = beam_result(task.to_owned(), omop_result).unwrap_or_else(|e| {
         err.body = e.to_string();
         return err;
     });
