@@ -162,7 +162,7 @@ async fn process_tasks(
 
         // Make sure that claiming the task is done before we update it again.
         match claiming.await.unwrap() {
-            Ok(_) => break,
+            Ok(_) => {},
             Err(FocusError::ConfigurationError(s)) => {
                 error!("FATAL: Unable to report back to Beam due to a configuration issue: {s}");
                 return Err(FocusError::ConfigurationError(s));
@@ -304,8 +304,12 @@ async fn run_cql_query(
     };
 
     let result = beam_result(task.to_owned(), cql_result_new).unwrap_or_else(|e| {
-        err.body = e.to_string();
-        return err;
+        beam::beam_result::perm_failed(
+            CONFIG.beam_app_id_long.clone(),
+            vec![task.to_owned().from],
+            task.to_owned().id,
+            e.to_string()
+        )
     });
 
     Ok(result)
@@ -358,6 +362,6 @@ fn beam_result(
         CONFIG.beam_app_id_long.clone(),
         vec![task.from],
         task.id,
-        data,
+        data
     ));
 }

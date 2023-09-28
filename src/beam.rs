@@ -84,14 +84,14 @@ pub async fn retrieve_tasks<T: DeserializeOwned>() -> Result<Vec<TaskRequest<T>>
         .map_err(FocusError::UnableToRetrieveTasksHttp)
 }
 
-pub async fn answer_task<T: Serialize>(task_id: MsgId, result: &TaskResult<T>) -> Result<(), FocusError> {
+pub async fn answer_task<T: Serialize>(task_id: MsgId, result: &TaskResult<T>) -> Result<bool, FocusError> {
     debug!("Answer task with id: {task_id}");
     BEAM_CLIENT.put_result(result, &task_id)
         .await
         .map_err(FocusError::UnableToAnswerTask)
 }
 
-pub async fn fail_task<T>(task: &TaskRequest<T>, body: impl Into<String>) -> Result<(), FocusError> {
+pub async fn fail_task<T>(task: &TaskRequest<T>, body: impl Into<String>) -> Result<bool, FocusError> {
     let body = body.into();
     warn!("Reporting failed task with id {}: {}", task.id, body);
     let result = beam_result::perm_failed(CONFIG.beam_app_id_long.clone(), vec![task.from.clone()], task.id, body);
@@ -100,7 +100,7 @@ pub async fn fail_task<T>(task: &TaskRequest<T>, body: impl Into<String>) -> Res
         .map_err(FocusError::UnableToAnswerTask)
 }
 
-pub async fn claim_task<T>(task: &TaskRequest<T>) -> Result<(), FocusError> {
+pub async fn claim_task<T>(task: &TaskRequest<T>) -> Result<bool, FocusError> {
     let result = beam_result::claimed(CONFIG.beam_app_id_long.clone(), vec![task.from.clone()], task.id);
     BEAM_CLIENT.put_result(&result, &task.id)
         .await
