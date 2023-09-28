@@ -12,7 +12,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use std::{process::exit, time::Duration};
 
 use base64::{engine::general_purpose, Engine as _};
-use beam::{BeamResult, BeamTask};
+use beam_lib::{TaskRequest, TaskResult};
 use blaze::Query;
 use serde_json::from_slice;
 
@@ -30,6 +30,8 @@ mod graceful_shutdown;
 type SearchQuery = String;
 type Report = String;
 type Created = std::time::SystemTime; //epoch
+type BeamTask = TaskRequest<String>;
+type BeamResult = TaskResult<String>;
 
 #[derive(Debug, Clone)]
 struct ReportCache {
@@ -178,7 +180,7 @@ async fn process_tasks(
             let comm_result = if let Some(ref err_msg) = error_msg {
                 beam::fail_task(&task, err_msg).await
             } else {
-                beam::answer_task(&task, res.unwrap()).await
+                beam::answer_task(task.id, res.unwrap()).await
             };
             match comm_result {
                 Ok(_) => break,
@@ -220,19 +222,16 @@ async fn run_query(
 ) -> Result<BeamResult, FocusError> {
     debug!("Run");
 
-    match query.lang.as_str() {
-        "cql" => {
-            // TODO: Change query.lang to an enum
-            Ok(run_cql_query(task, query, obf_cache, report_cache).await)?
-        },
-        unsupported_lang => {
-            Ok(beam::BeamResult::perm_failed(
-                CONFIG.beam_app_id_long.clone(),
-                vec![task.from.clone()],
-                task.id,
-                Some(format!("Can't run queries with language {unsupported_lang}")),
-            ))
-        }
+    if query.lang == "cql" {
+        // TODO: Change query.lang to an enum
+        return Ok(run_cql_query(task, query, obf_cache, report_cache).await)?;
+    } else {
+        return Ok(beam::beam_result::perm_failed(
+            CONFIG.beam_app_id_long.clone(),
+            vec![task.from.clone()],
+            task.id,
+            format!("Can't run inqueries with language {}", query.lang),
+        ));
     }
 }
 
@@ -242,6 +241,13 @@ async fn run_cql_query(
     obf_cache: &mut ObfCache,
     report_cache: &mut ReportCache,
 ) -> Result<BeamResult, FocusError> {
+    let mut err = beam::beam_result::perm_failed(
+        CONFIG.beam_app_id_long.clone(),
+        vec![task.to_owned().from],
+        task.to_owned().id,
+        String::new(),
+    );
+
     let encoded_query =
         query.lib["content"][0]["data"]
             .as_str()
@@ -298,11 +304,11 @@ async fn run_cql_query(
     };
 
     let result = beam_result(task.to_owned(), cql_result_new).unwrap_or_else(|e| {
-        beam::BeamResult::perm_failed(
+        beam::beam_result::perm_failed(
             CONFIG.beam_app_id_long.clone(),
             vec![task.to_owned().from],
             task.to_owned().id,
-            Some(e.to_string())
+            e.to_string()
         )
     });
 
@@ -348,14 +354,14 @@ fn replace_cql_library(mut query: Query) -> Result<Query, FocusError> {
 }
 
 fn beam_result(
-    task: beam::BeamTask,
+    task: BeamTask,
     measure_report: String,
-) -> Result<beam::BeamResult, FocusError> {
+) -> Result<BeamResult, FocusError> {
     let data = general_purpose::STANDARD.encode(measure_report.as_bytes());
-    return Ok(beam::BeamResult::succeeded(
+    return Ok(beam::beam_result::succeeded(
         CONFIG.beam_app_id_long.clone(),
         vec![task.from],
         task.id,
-        Some(data)
+        data
     ));
 }

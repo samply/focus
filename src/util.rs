@@ -6,7 +6,7 @@ use rand::thread_rng;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::HashMap;
-use tracing::{debug, info, warn};
+use tracing::warn;
 
 #[derive(Debug, Deserialize, Serialize)]
 struct Period {
