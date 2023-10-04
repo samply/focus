@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use beam_lib::{TaskResult, BeamClient, BlockingOptions, MsgId, TaskRequest};
+use beam_lib::{TaskResult, BeamClient, BlockingOptions, MsgId, TaskRequest, RawString};
 use once_cell::sync::Lazy;
 use serde::{de::DeserializeOwned, Serialize};
 use tracing::{debug, warn};
@@ -8,9 +8,9 @@ use tracing::{debug, warn};
 use crate::{config::CONFIG, errors::FocusError};
 
 pub mod beam_result {
-    use beam_lib::{AppId, TaskResult, WorkStatus, MsgId};
-    use serde::Serialize;
+    use super::*;
     use serde_json::Value;
+    use beam_lib::{WorkStatus, AppId};
 
     pub fn claimed(from: AppId, to: Vec<AppId>, task_id: MsgId) -> TaskResult<()> {
         TaskResult {
@@ -22,25 +22,25 @@ pub mod beam_result {
             body: (),
         }
     }
-    pub fn succeeded<T: Serialize>(from: AppId, to: Vec<AppId>, task_id: MsgId, body: T) -> TaskResult<T> {
+    pub fn succeeded(from: AppId, to: Vec<AppId>, task_id: MsgId, body: String) -> TaskResult<RawString> {
         TaskResult {
             from,
             to,
             task: task_id,
             status: WorkStatus::Succeeded,
             metadata: Value::Null,
-            body,
+            body: body.into(),
         }
     }
 
-    pub fn perm_failed<T: Serialize>(from: AppId, to: Vec<AppId>, task_id: MsgId, body: T) -> TaskResult<T> {
+    pub fn perm_failed(from: AppId, to: Vec<AppId>, task_id: MsgId, body: String) -> TaskResult<RawString> {
         TaskResult {
             from,
             to,
             task: task_id,
             status: WorkStatus::PermFailed,
             metadata: Value::Null,
-            body,
+            body: body.into(),
         }
     }
 }
@@ -73,18 +73,19 @@ static BEAM_CLIENT: Lazy<BeamClient> = Lazy::new(|| BeamClient::new(
     CONFIG.beam_proxy_url.to_string().parse().expect("Uri always converts to url")
 ));
 
-pub async fn retrieve_tasks<T: DeserializeOwned>() -> Result<Vec<TaskRequest<T>>, FocusError> {
+pub async fn retrieve_tasks() -> Result<Vec<TaskRequest<String>>, FocusError> {
     debug!("Retrieving tasks...");
     let block = BlockingOptions {
         wait_time: Some(Duration::from_secs(10)),
         wait_count: Some(1)
     };
-    BEAM_CLIENT.poll_pending_tasks(&block)
+    BEAM_CLIENT.poll_pending_tasks::<RawString>(&block)
         .await
+        .map(|v| v.into_iter().map(|TaskRequest { id, body, from, to, metadata, ttl, failure_strategy }| TaskRequest { body: body.into_string(), id, from, to, metadata, ttl, failure_strategy }).collect())
         .map_err(FocusError::UnableToRetrieveTasksHttp)
 }
 
-pub async fn answer_task<T: Serialize>(task_id: MsgId, result: &TaskResult<T>) -> Result<bool, FocusError> {
+pub async fn answer_task<T: Serialize + 'static>(task_id: MsgId, result: &TaskResult<T>) -> Result<bool, FocusError> {
     debug!("Answer task with id: {task_id}");
     BEAM_CLIENT.put_result(result, &task_id)
         .await
