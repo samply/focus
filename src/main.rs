@@ -31,7 +31,7 @@ type SearchQuery = String;
 type Report = String;
 type Created = std::time::SystemTime; //epoch
 type BeamTask = TaskRequest<String>;
-type BeamResult = TaskResult<String>;
+type BeamResult = TaskResult<beam_lib::RawString>;
 
 #[derive(Debug, Clone)]
 struct ReportCache {
