@@ -111,6 +111,7 @@ pub(crate) fn replace_cql(decoded_library: impl Into<String>) -> String {
             ("DKTK_STRAT_PROCEDURE_STRATIFIER", "define Procedure:\nif InInitialPopulation then [Procedure] else {} as List <Procedure>\n\ndefine function ProcedureType(procedure FHIR.Procedure):\nprocedure.category.coding.where(system = 'http://dktk.dkfz.de/fhir/onco/core/CodeSystem/SYSTTherapieartCS').code.first()"),
             ("DKTK_STRAT_MEDICATION_STRATIFIER", "define MedicationStatement:\nif InInitialPopulation then [MedicationStatement] else {} as List <MedicationStatement>"),
             ("DKTK_STRAT_ENCOUNTER_STRATIFIER", "define Encounter:\nif InInitialPopulation then [Encounter] else {} as List<Encounter>\n\ndefine function Departments(encounter FHIR.Encounter):\nencounter.identifier.where(system = 'http://dktk.dkfz.de/fhir/sid/hki-department').value.first()"),
+            ("DKTK_STRAT_HISTOLOGY_STRATIFIER", "define Histo:\nif InInitialPopulation then [Observation] else {} as List <Observation>\n\ndefine function Histlogoy(histo FHIR.Observation):\n if histo.code.coding.where(code = '59847-4').code.first() is null then 0 else 1"),
             ("DKTK_STRAT_DEF_IN_INITIAL_POPULATION", "define InInitialPopulation:"),
             ("EXLIQUID_STRAT_DEF_IN_INITIAL_POPULATION", "define InInitialPopulation:\n   exists ExliquidSpecimen\n"),        
             ("EXLIQUID_STRAT_W_ALIQUOTS", "define InInitialPopulation: exists ExliquidSpecimenWithAliquot")
@@ -427,6 +428,10 @@ mod test {
 
         let decoded_library = "EXLIQUID_STRAT_W_ALIQUOTS";
         let expected_result = "define InInitialPopulation: exists ExliquidSpecimenWithAliquot\n";
+        assert_eq!(replace_cql(decoded_library), expected_result);
+
+        let decoded_library = "DKTK_STRAT_HISTOLOGY_STRATIFIER";
+        let expected_result = "define Histo:\nif InInitialPopulation then [Observation] else {} as List <Observation>\n\ndefine function Histlogoy(histo FHIR.Observation):\n if histo.code.coding.where(code = '59847-4').code.first() is null then 0 else 1\n";
         assert_eq!(replace_cql(decoded_library), expected_result);
 
         let decoded_library = "INVALID_KEY";
