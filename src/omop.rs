@@ -2,7 +2,6 @@ use http::StatusCode;
 use serde::Deserialize;
 use serde::Serialize;
 use tracing::{debug, warn};
-use uuid::Uuid;
 
 use crate::config::CONFIG;
 use crate::errors::FocusError;

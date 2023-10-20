@@ -80,7 +80,6 @@ pub async fn post_measure(measure: String) -> Result<(), FocusError> {
 
 pub async fn evaluate_measure(url: String) -> Result<String, FocusError> {
     debug!("Evaluating the Measure with canonical URL: {}", url);
-    let mut text: String = String::new();
     let resp = CONFIG.client
         .get(format!(
         "{}Measure/$evaluate-measure?measure={}&periodStart=2000&periodEnd=2030",
@@ -96,19 +95,17 @@ pub async fn evaluate_measure(url: String) -> Result<String, FocusError> {
             "Successfully evaluated the Measure with canonical URL: {}",
             url
         );
-        text = resp
+        resp
             .text()
             .await
-            .map_err(|e| FocusError::MeasureEvaluationErrorReqwest(e))?;
+            .map_err(|e| FocusError::MeasureEvaluationErrorReqwest(e))
     } else {
         warn!(
             "Error while evaluating the Measure with canonical URL `{}`: {:?}",
             url, resp
         );
-        return Err(FocusError::MeasureEvaluationErrorBlaze(format!( "Error while evaluating the Measure with canonical URL `{}`: {:?}", url, resp)));
+        Err(FocusError::MeasureEvaluationErrorBlaze(format!( "Error while evaluating the Measure with canonical URL `{}`: {:?}", url, resp)))
     }
-
-    Ok(text)
 }
 
 pub async fn run_cql_query(library: &Value, measure: &Value) -> Result<String, FocusError> {

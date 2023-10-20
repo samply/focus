@@ -13,9 +13,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use std::{process::exit, time::Duration};
 
 use base64::{engine::general_purpose, Engine as _};
-use beam::{BeamResult, BeamTask};
+use beam_lib::{TaskRequest, TaskResult};
 use blaze::Query;
-use omop::Ast;
 use serde_json::from_slice;
 
 use tracing::{debug, error, info, warn};
@@ -32,6 +31,8 @@ mod graceful_shutdown;
 type SearchQuery = String;
 type Report = String;
 type Created = std::time::SystemTime; //epoch
+type BeamTask = TaskRequest<String>;
+type BeamResult = TaskResult<beam_lib::RawString>;
 
 #[derive(Debug, Clone)]
 struct ReportCache {
@@ -105,11 +106,11 @@ async fn main_loop() -> ExitCode {
         if !(beam::check_availability().await) {
             failures += 1;
         }
-        if (CONFIG.endpoint_type == config::EndpointType::Blaze) {
+        if CONFIG.endpoint_type == config::EndpointType::Blaze {
             if !(blaze::check_availability().await) {
                 failures += 1;
             }
-        } else if (CONFIG.endpoint_type == config::EndpointType::Omop) {
+        } else if CONFIG.endpoint_type == config::EndpointType::Omop {
 
             //TODO OMOP check
         }
@@ -142,7 +143,7 @@ async fn process_task(
             return Ok(run_cql_query(task, &query, obf_cache, report_cache).await)?;
         } else {
             warn!("Can't run queries with language {} in Blaze", query.lang);
-            return Ok(beam::BeamResult::perm_failed(
+            return Ok(beam::beam_result::perm_failed(
                 CONFIG.beam_app_id_long.clone(),
                 vec![task.from.clone()],
                 task.id,
@@ -168,7 +169,7 @@ async fn process_task(
         
     } else {
         warn!("Can't run queries with endpoint type {}", CONFIG.endpoint_type);
-        return Ok(beam::BeamResult::perm_failed(
+        return Ok(beam::beam_result::perm_failed(
             CONFIG.beam_app_id_long.clone(),
             vec![task.from.clone()],
             task.id,
@@ -223,7 +224,7 @@ async fn process_tasks(
             let comm_result = if let Some(ref err_msg) = error_msg {
                 beam::fail_task(&task, err_msg).await
             } else {
-                beam::answer_task(&task, res.unwrap()).await
+                beam::answer_task(task.id, res.unwrap()).await
             };
             match comm_result {
                 Ok(_) => break,
@@ -269,12 +270,6 @@ async fn run_cql_query(
     obf_cache: &mut ObfCache,
     report_cache: &mut ReportCache,
 ) -> Result<BeamResult, FocusError> {
-    let mut err = beam::BeamResult::perm_failed(
-        CONFIG.beam_app_id_long.clone(),
-        vec![task.to_owned().from],
-        task.to_owned().id,
-        String::new(),
-    );
 
     let encoded_query =
         query.lib["content"][0]["data"]
@@ -332,15 +327,19 @@ async fn run_cql_query(
     };
 
     let result = beam_result(task.to_owned(), cql_result_new).unwrap_or_else(|e| {
-        err.body = e.to_string();
-        return err;
+        beam::beam_result::perm_failed(
+            CONFIG.beam_app_id_long.clone(),
+            vec![task.to_owned().from],
+            task.to_owned().id,
+            e.to_string()
+        )
     });
 
     Ok(result)
 }
 
 async fn run_omop_query(task: &BeamTask, ast: omop::Ast) -> Result<BeamResult, FocusError> {
-    let mut err = beam::BeamResult::perm_failed(
+    let mut err = beam::beam_result::perm_failed(
         CONFIG.beam_app_id_long.clone(),
         vec![task.to_owned().from],
         task.to_owned().id,
@@ -349,10 +348,23 @@ async fn run_omop_query(task: &BeamTask, ast: omop::Ast) -> Result<BeamResult, F
 
     let mut omop_result = omop::post_ast(ast).await?;
 
-    omop_result = omop_result.replacen("{", format!(r#"{{"provider":"{}", "provider_icon":"{}","#, CONFIG.provider, CONFIG.provider_icon).as_str(), 1);
+    match CONFIG.provider_icon.clone() {
+        Some(provider_icon) => {
+            omop_result = omop_result.replacen("{", format!(r#"{{"provider_icon":"{}","#, provider_icon).as_str(), 1);
+        }
+        None => {}
+    }
+
+    match CONFIG.provider.clone() {
+        Some(provider) => {
+            omop_result = omop_result.replacen("{", format!(r#"{{"provider":"{}","#, provider).as_str(), 1);
+        }
+        None => {}
+    }
+
 
     let result = beam_result(task.to_owned(), omop_result).unwrap_or_else(|e| {
-        err.body = e.to_string();
+        err.body = beam_lib::RawString(e.to_string());
         return err;
     });
 
@@ -398,14 +410,14 @@ fn replace_cql_library(mut query: Query) -> Result<Query, FocusError> {
 }
 
 fn beam_result(
-    task: beam::BeamTask,
+    task: BeamTask,
     measure_report: String,
-) -> Result<beam::BeamResult, FocusError> {
+) -> Result<BeamResult, FocusError> {
     let data = general_purpose::STANDARD.encode(measure_report.as_bytes());
-    return Ok(beam::BeamResult::succeeded(
+    return Ok(beam::beam_result::succeeded(
         CONFIG.beam_app_id_long.clone(),
         vec![task.from],
         task.id,
-        data,
+        data
     ));
 }

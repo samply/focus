@@ -1,0 +1,125 @@
+#!/bin/bash -e
+
+# https://stackoverflow.com/questions/59895/
+SOURCE=${BASH_SOURCE[0]}
+while [ -L "$SOURCE" ]; do # resolve $SOURCE until the file is no longer a symlink
+  DIR=$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )
+  SOURCE=$(readlink "$SOURCE")
+  [[ $SOURCE != /* ]] && SOURCE=$DIR/$SOURCE # if $SOURCE was a relative symlink, we need to resolve it relative to the path where the symlink file was located
+done
+SD=$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )
+
+cd $SD
+
+export PROXY1_ID=${PROXY1_ID:-proxy1.broker}
+export PROXY2_ID=${PROXY2_ID:-proxy2.broker}
+export PROXY1_ID_SHORT=$(echo $PROXY1_ID | cut -d '.' -f 1)
+export PROXY2_ID_SHORT=$(echo $PROXY2_ID | cut -d '.' -f 1)
+export BROKER_ID=$(echo $PROXY1_ID | cut -d '.' -f 2-)
+export BROKER_URL=http://broker:8080
+export APP1_ID_SHORT=app1
+export APP2_ID_SHORT=app2
+export APP1_P1=${APP1_ID_SHORT}.$PROXY1_ID
+export APP2_P1=${APP2_ID_SHORT}.$PROXY1_ID
+export APP1_P2=${APP1_ID_SHORT}.$PROXY2_ID
+export APP2_P2=${APP2_ID_SHORT}.$PROXY2_ID
+export APP_KEY=App1Secret
+export BROKER_MONITORING_KEY=SuperSecretKey
+export RUST_LOG=${RUST_LOG:-info}
+
+export VAULT_TOKEN=$(echo "ABCDEFGHIJ" | md5sum | head -c 20; echo;)
+
+export P1="http://localhost:8081" # for scripts
+export P2="http://localhost:8082" # for scripts
+
+export ARCH=$(docker version --format "{{.Server.Arch}}")
+
+function check_prereqs() {
+     set +e
+     if [[ "$(curl --version)" != *" libcurl/"* ]]; then
+          echo "curl not found -- please install curl >= 7.7.0 and put into PATH."
+          exit 1
+     fi
+     if [[ "$(jq --version)" != *"jq-"* ]]; then
+          echo "jq not found -- please install and put into PATH."
+          exit 1
+     fi
+     if [[ "$(rsync --version)" != *"rsync  version"* ]]; then
+          echo "rsync not found -- please install and put into PATH."
+          exit 1
+     fi
+     set -e
+}
+
+function build() {
+    BUILD_DOCKER=0
+    BACK=$(pwd)
+    cd $SD/..
+    FOCUS=./target/debug/focus
+    if [ ! -x ./artifacts/binaries-$ARCH ]; then
+        echo "Binaries missing -- building ..."
+        BUILD="$(cargo build $@ --message-format=json)"
+        echo "Will rebuild docker image since binaries had not been there."
+        mkdir -p artifacts/binaries-$ARCH
+        rsync "$FOCUS" artifacts/binaries-$ARCH/
+        BUILD_DOCKER=1
+    elif [ -z "$(docker images -q samply/focus:$TAG)" ]; then
+        echo "Will rebuild docker image since it is missing."
+        BUILD_DOCKER=1
+    elif [ -x ./target ]; then
+        echo "Checking for changed Rust source code ..."
+        BUILD="$(cargo build $@ --message-format=json)"
+        if echo $BUILD | jq 'select(.fresh==false)' | grep -q 'fresh'; then
+            echo "Will rebuild docker image due to changes in rust binaries."
+            rsync "$FOCUS" artifacts/binaries-$ARCH/
+            BUILD_DOCKER=1
+        fi
+    fi
+    if [ $BUILD_DOCKER -eq 1 ]; then
+        build_docker
+    else
+        echo "Not rebuilding docker image since nothing has changed."
+    fi
+    cd $BACK
+}
+
+function build_docker() {
+    BACK2=$(pwd)
+    cd $SD
+    docker-compose build --build-arg TARGETARCH=$ARCH
+    cd $BACK2
+}
+
+function start {
+    echo "$VAULT_TOKEN" > pki/pki.secret
+    pki/pki setup
+    build $@
+    docker compose up --no-build --no-recreate -d
+    docker compose logs focus -f
+}
+
+check_prereqs
+
+export TAG=${TAG:-localbuild}
+
+case "$1" in
+    build)
+        shift
+        build $@
+        ;;
+    start)
+        shift
+        start $@
+        ;;
+    restart)
+        shift
+        build $@
+        docker compose up --no-deps --no-build focus
+        ;;
+    stop)
+        docker compose down
+        ;;
+    *)
+        echo "Usage: $0 build|start|restart|stop"
+        ;;
+esac
