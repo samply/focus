@@ -16,7 +16,7 @@ To run a standalone Focus, you need at least one running [Samply.Beam.Proxy](htt
 You can compile and run this application via Cargo, however, we encourage the usage of the pre-compiled [docker images](https://hub.docker.com/r/samply/focus):
 
 ```bash
-docker run --rm -e BEAM_BASE_URL=http://localhost:8081 -e BLAZE_BASE_URL=http://localhost:8089/fhir -e PROXY_ID=proxy1.broker -e API_KEY=App1Secret -e BEAM_APP_ID_LONG=app1.broker.example.com samply/focus:latest
+docker run --rm -e BEAM_PROXY_URL=http://localhost:8081 -e BLAZE_URL=http://localhost:8089/fhir -e PROXY_ID=proxy1.broker -e API_KEY=App1Secret -e BEAM_APP_ID_LONG=app1.broker.example.com samply/focus:latest
 ```
 
 ## Configuration
@@ -24,8 +24,8 @@ docker run --rm -e BEAM_BASE_URL=http://localhost:8081 -e BLAZE_BASE_URL=http://
 The following environment variables are mandatory for the usage of Focus. If compiling and running Focus yourself, they are provided as command line options as well. See `focus  --help` for details.
 
 ```bash
-BEAM_BASE_URL = "http://localhost:8081" 
-BLAZE_BASE_URL = "http://localhost:8089/fhir"
+BEAM_PROXY_URL = "http://localhost:8081" 
+BLAZE_URL = "http://localhost:8089/fhir"
 PROXY_ID = "proxy1.broker"
 API_KEY = "App1Secret"
 BEAM_APP_ID_LONG = "app1.broker.example.com"
@@ -36,16 +36,16 @@ BEAM_APP_ID_LONG = "app1.broker.example.com"
 ```bash
 RETRY_COUNT = "32" # The maximum number of retries for beam and blaze healthchecks, default value: 32
 OBFUSCATE = "yes" # Should the results be obfuscated - the "master switch", allowed values: "yes", "no", default value: "yes"
-OBFUSCATE-BELOW-10 = "1" # The mode of obfuscating values below 10: 0 - return zero, 1 - return ten, 2 - obfuscate using Laplace distribution and rounding, has no effect if OBFUSCATE = "no", default value: 1
-DELTA-PATIENT = "1." # Sensitivity parameter for obfuscating the counts in the Patient stratifier, has no effect if OBFUSCATE = "no", default value: 1
-DELTA-SPECIMEN = "20." # Sensitivity parameter for obfuscating the counts in the Specimen stratifier, has no effect if OBFUSCATE = "no", default value: 20
-DELTA-DIAGNOSIS = "3." # Sensitivity parameter for obfuscating the counts in the Diagnosis stratifier, has no effect if OBFUSCATE = "no", default value: 3
+OBFUSCATE_BELOW_10_MODE = "1" # The mode of obfuscating values below 10: 0 - return zero, 1 - return ten, 2 - obfuscate using Laplace distribution and rounding, has no effect if OBFUSCATE = "no", default value: 1
+DELTA_PATIENT = "1." # Sensitivity parameter for obfuscating the counts in the Patient stratifier, has no effect if OBFUSCATE = "no", default value: 1
+DELTA_SPECIMEN = "20." # Sensitivity parameter for obfuscating the counts in the Specimen stratifier, has no effect if OBFUSCATE = "no", default value: 20
+DELTA_DIAGNOSIS = "3." # Sensitivity parameter for obfuscating the counts in the Diagnosis stratifier, has no effect if OBFUSCATE = "no", default value: 3
 EPSILON = "0.1" # Privacy budget parameter for obfuscating the counts in the stratifiers, has no effect if OBFUSCATE = "no", default value: 0.1
-ROUNDING-STEP = "10" # The granularity of the rounding of the obfuscated values, has no effect if OBFUSCATE = "no", default value: 10
+ROUNDING_STEP = "10" # The granularity of the rounding of the obfuscated values, has no effect if OBFUSCATE = "no", default value: 10
 QUERIES_TO_CACHE_FILE_PATH = "resources/bbmri" # The path to the file containing BASE64 encoded queries whose results are to be cached, if not set, no results are cached
 ```
 
-Obfuscating zero counts is by default switched off. To enable obfuscating zero counts, set the env. variable `OBFUSCATE-ZERO`. 
+Obfuscating zero counts is by default switched off. To enable obfuscating zero counts, set the env. variable `OBFUSCATE_ZERO`. 
 
 Optionally, you can provide the `TLS_CA_CERTIFICATES_DIR` environment variable to add additional trusted certificates, e.g., if you have a TLS-terminating proxy server in place. The application respects the `HTTP_PROXY`, `HTTPS_PROXY`, `ALL_PROXY`, `NO_PROXY`, and their respective lowercase equivalents.
 
