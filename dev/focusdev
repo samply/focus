@@ -95,7 +95,7 @@ function start {
     pki/pki setup
     build $@
     docker compose up --no-build --no-recreate -d
-    docker compose logs -f
+    docker compose logs focus -f
 }
 
 check_prereqs
