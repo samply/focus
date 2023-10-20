@@ -55,7 +55,7 @@ function build() {
     BUILD_DOCKER=0
     BACK=$(pwd)
     cd $SD/..
-    FOCUS=./target/release/focus
+    FOCUS=./target/debug/focus
     if [ ! -x ./artifacts/binaries-$ARCH ]; then
         echo "Binaries missing -- building ..."
         BUILD="$(cargo build $@ --message-format=json)"
@@ -95,7 +95,7 @@ function start {
     pki/pki setup
     build $@
     docker compose up --no-build --no-recreate -d
-    docker compose logs focus -f
+    docker compose logs -f
 }
 
 check_prereqs
