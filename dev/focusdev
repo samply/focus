@@ -55,7 +55,7 @@ function build() {
     BUILD_DOCKER=0
     BACK=$(pwd)
     cd $SD/..
-    FOCUS=./target/release/focus
+    FOCUS=./target/debug/focus
     if [ ! -x ./artifacts/binaries-$ARCH ]; then
         echo "Binaries missing -- building ..."
         BUILD="$(cargo build $@ --message-format=json)"
