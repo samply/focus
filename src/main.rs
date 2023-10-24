@@ -5,6 +5,7 @@ mod config;
 mod logger;
 mod omop;
 mod util;
+mod ast;
 
 use std::collections::HashMap;
 use std::process::ExitCode;
@@ -163,7 +164,7 @@ async fn process_task(
 
         let query_decoded = general_purpose::STANDARD.decode(omop_query.query).map_err(|e| FocusError::DecodeError(e))?;
 
-        let ast: omop::Ast = from_slice(&query_decoded).map_err(|e| FocusError::ParsingError(e.to_string()))?;
+        let ast: ast::Ast = from_slice(&query_decoded).map_err(|e| FocusError::ParsingError(e.to_string()))?;
 
         return Ok(run_omop_query(task, ast).await)?;
         
@@ -338,7 +339,7 @@ async fn run_cql_query(
     Ok(result)
 }
 
-async fn run_omop_query(task: &BeamTask, ast: omop::Ast) -> Result<BeamResult, FocusError> {
+async fn run_omop_query(task: &BeamTask, ast: ast::Ast) -> Result<BeamResult, FocusError> {
     let mut err = beam::beam_result::perm_failed(
         CONFIG.beam_app_id_long.clone(),
         vec![task.to_owned().from],
@@ -361,7 +362,6 @@ async fn run_omop_query(task: &BeamTask, ast: omop::Ast) -> Result<BeamResult, F
         }
         None => {}
     }
-
 
     let result = beam_result(task.to_owned(), omop_result).unwrap_or_else(|e| {
         err.body = beam_lib::RawString(e.to_string());
