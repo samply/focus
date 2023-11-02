@@ -41,34 +41,34 @@ pub enum ConditionValue {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct NumRange {
-    min: f64,
-    max: f64,
+    pub min: f64,
+    pub max: f64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DateRange {
-    min: String, //we don't parse dates yet
-    max: String,
+    pub min: String, //we don't parse dates yet
+    pub max: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Operation {
-    operand: Operand,
-    children: Vec<Child>,
+    pub operand: Operand,
+    pub children: Vec<Child>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Condition {
-    key: String,
-    type_: ConditionType,
-    value: ConditionValue,
+    pub key: String,
+    pub type_: ConditionType,
+    pub value: ConditionValue,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Ast {
-    ast: Operation,
-    id: String,
+    pub ast: Operation,
+    pub id: String,
 }
 
 

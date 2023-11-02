@@ -6,6 +6,9 @@ mod logger;
 mod omop;
 mod util;
 mod ast;
+mod errors;
+mod graceful_shutdown;
+mod cql;
 
 use std::collections::HashMap;
 use std::process::ExitCode;
@@ -25,8 +28,7 @@ use crate::{config::CONFIG, errors::FocusError};
 
 use laplace_rs::ObfCache;
 
-mod errors;
-mod graceful_shutdown;
+
 
 // result cache
 type SearchQuery = String;
