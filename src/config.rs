@@ -78,6 +78,14 @@ struct CliArgs {
     #[clap(long, env, value_parser, default_value = "3.")]
     delta_diagnosis: f64,
 
+    /// Sensitivity parameter for obfuscating the counts in the Procedure stratifier
+    #[clap(long, env, value_parser, default_value = "1.7")]
+    delta_procedures: f64,
+
+    /// Sensitivity parameter for obfuscating the counts in the Medication Statements stratifier
+    #[clap(long, env, value_parser, default_value = "2.1")]
+    delta_medication_statements: f64,
+
     /// Privacy budget parameter for obfuscating the counts in the stratifiers
     #[clap(long, env, value_parser, default_value = "0.1")]
     epsilon: f64,
@@ -107,6 +115,8 @@ pub(crate) struct Config {
     pub delta_patient: f64,
     pub delta_specimen: f64,
     pub delta_diagnosis: f64,
+    pub delta_procedures: f64,
+    pub delta_medication_statements: f64,
     pub epsilon: f64,
     pub rounding_step: usize,
     pub queries_to_cache_file_path: Option<String>,
@@ -139,6 +149,8 @@ impl Config {
             delta_patient: cli_args.delta_patient,
             delta_specimen: cli_args.delta_specimen,
             delta_diagnosis: cli_args.delta_diagnosis,
+            delta_procedures: cli_args.delta_procedures,
+            delta_medication_statements: cli_args.delta_medication_statements,
             epsilon: cli_args.epsilon,
             rounding_step: cli_args.rounding_step,
             queries_to_cache_file_path: cli_args.queries_to_cache_file_path,
