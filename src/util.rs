@@ -1,11 +1,11 @@
 use crate::errors::FocusError;
-use std::fs::File;
-use std::io::{ self, BufRead, BufReader };
 use laplace_rs::{get_from_cache_or_privatize, Bin, ObfCache, ObfuscateBelow10Mode};
 use rand::thread_rng;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::HashMap;
+use std::fs::File;
+use std::io::{self, BufRead, BufReader};
 use tracing::warn;
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -78,12 +78,8 @@ pub(crate) fn get_json_field(json_string: &str, field: &str) -> Result<Value, se
 
 pub(crate) fn read_lines(filename: String) -> Result<io::Lines<BufReader<File>>, FocusError> {
     let file = File::open(filename.clone()).map_err(|e| {
-        FocusError::FileOpeningError(format!(
-            "Cannot open file {}: {} ", 
-            filename,
-            e
-        ))
-    })?; 
+        FocusError::FileOpeningError(format!("Cannot open file {}: {} ", filename, e))
+    })?;
     Ok(io::BufReader::new(file).lines())
 }
 
@@ -176,7 +172,7 @@ pub fn obfuscate_counts_mr(
                     obf_10.clone(),
                     rounding_step,
                 )?;
-            },
+            }
             "diagnosis" => {
                 obfuscate_counts_recursive(
                     &mut g.population,
@@ -200,7 +196,7 @@ pub fn obfuscate_counts_mr(
                     obf_10.clone(),
                     rounding_step,
                 )?;
-            },
+            }
             "specimen" => {
                 obfuscate_counts_recursive(
                     &mut g.population,
@@ -224,31 +220,31 @@ pub fn obfuscate_counts_mr(
                     obf_10.clone(),
                     rounding_step,
                 )?;
-            },
-                "procedures" => {
-                    obfuscate_counts_recursive(
-                        &mut g.population,
-                        MU,
-                        delta_procedures,
-                        epsilon,
-                        1,
-                        obf_cache,
-                        obfuscate_zero,
-                        obf_10.clone(),
-                        rounding_step,
-                    )?;
-                    obfuscate_counts_recursive(
-                        &mut g.stratifier,
-                        MU,
-                        delta_procedures,
-                        epsilon,
-                        2,
-                        obf_cache,
-                        obfuscate_zero,
-                        obf_10.clone(),
-                        rounding_step,
-                    )?;
-            },
+            }
+            "procedures" => {
+                obfuscate_counts_recursive(
+                    &mut g.population,
+                    MU,
+                    delta_procedures,
+                    epsilon,
+                    1,
+                    obf_cache,
+                    obfuscate_zero,
+                    obf_10.clone(),
+                    rounding_step,
+                )?;
+                obfuscate_counts_recursive(
+                    &mut g.stratifier,
+                    MU,
+                    delta_procedures,
+                    epsilon,
+                    2,
+                    obf_cache,
+                    obfuscate_zero,
+                    obf_10.clone(),
+                    rounding_step,
+                )?;
+            }
             "medicationStatements" => {
                 obfuscate_counts_recursive(
                     &mut g.population,
@@ -272,7 +268,7 @@ pub fn obfuscate_counts_mr(
                     obf_10.clone(),
                     rounding_step,
                 )?;
-        }
+            }
             _ => {
                 warn!("Focus is not aware of {} type of stratifier, therefore it will not obfuscate the values.", &g.code.text[..])
             }
@@ -479,7 +475,8 @@ mod test {
         assert_eq!(replace_cql(decoded_library), expected_result);
 
         let decoded_library = "EXLIQUID_STRAT_W_ALIQUOTS";
-        let expected_result = "define InInitialPopulation: exists ExliquidSpecimenWithAliquot and \n\n";
+        let expected_result =
+            "define InInitialPopulation: exists ExliquidSpecimenWithAliquot and \n\n";
         assert_eq!(replace_cql(decoded_library), expected_result);
 
         let decoded_library = "INVALID_KEY";
@@ -514,7 +511,10 @@ mod test {
         assert_ne!(obfuscated_json, EXAMPLE_MEASURE_REPORT_BBMRI);
 
         // Check that obfuscating the same JSON twice with the same obfuscation cache gives the same result
-        let obfuscated_json_2 = obfuscate_counts_mr(EXAMPLE_MEASURE_REPORT_BBMRI, &mut obf_cache, false,
+        let obfuscated_json_2 = obfuscate_counts_mr(
+            EXAMPLE_MEASURE_REPORT_BBMRI,
+            &mut obf_cache,
+            false,
             1,
             DELTA_PATIENT,
             DELTA_SPECIMEN,
@@ -522,7 +522,9 @@ mod test {
             DELTA_PROCEDURES,
             DELTA_MEDICATION_STATEMENTS,
             EPSILON,
-            ROUNDING_STEP,).unwrap();
+            ROUNDING_STEP,
+        )
+        .unwrap();
         assert_eq!(obfuscated_json, obfuscated_json_2);
     }
 
@@ -555,7 +557,10 @@ mod test {
         assert_ne!(obfuscated_json, EXAMPLE_MEASURE_REPORT_DKTK);
 
         // Check that obfuscating the same JSON twice with the same obfuscation cache gives the same result
-        let obfuscated_json_2 = obfuscate_counts_mr(EXAMPLE_MEASURE_REPORT_DKTK, &mut obf_cache, false,
+        let obfuscated_json_2 = obfuscate_counts_mr(
+            EXAMPLE_MEASURE_REPORT_DKTK,
+            &mut obf_cache,
+            false,
             1,
             DELTA_PATIENT,
             DELTA_SPECIMEN,
@@ -563,8 +568,9 @@ mod test {
             DELTA_PROCEDURES,
             DELTA_MEDICATION_STATEMENTS,
             EPSILON,
-            ROUNDING_STEP,).unwrap();
+            ROUNDING_STEP,
+        )
+        .unwrap();
         assert_eq!(obfuscated_json, obfuscated_json_2);
     }
-
 }
