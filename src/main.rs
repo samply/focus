@@ -287,6 +287,8 @@ async fn run_cql_query(
                     CONFIG.delta_patient,
                     CONFIG.delta_specimen,
                     CONFIG.delta_diagnosis,
+                    CONFIG.delta_procedures,
+                    CONFIG.delta_medication_statements,
                     CONFIG.epsilon,
                     CONFIG.rounding_step,
                 )?,
