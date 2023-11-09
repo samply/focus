@@ -1,11 +1,11 @@
 use crate::errors::FocusError;
-use std::fs::File;
-use std::io::{ self, BufRead, BufReader };
 use laplace_rs::{get_from_cache_or_privatize, Bin, ObfCache, ObfuscateBelow10Mode};
 use rand::thread_rng;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::HashMap;
+use std::fs::File;
+use std::io::{self, BufRead, BufReader};
 use tracing::warn;
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -78,12 +78,8 @@ pub(crate) fn get_json_field(json_string: &str, field: &str) -> Result<Value, se
 
 pub(crate) fn read_lines(filename: String) -> Result<io::Lines<BufReader<File>>, FocusError> {
     let file = File::open(filename.clone()).map_err(|e| {
-        FocusError::FileOpeningError(format!(
-            "Cannot open file {}: {} ", 
-            filename,
-            e
-        ))
-    })?; 
+        FocusError::FileOpeningError(format!("Cannot open file {}: {} ", filename, e))
+    })?;
     Ok(io::BufReader::new(file).lines())
 }
 
@@ -105,7 +101,7 @@ pub(crate) fn replace_cql(decoded_library: impl Into<String>) -> String {
             ("EXLIQUID_ALIQUOTS_CQL_DIAGNOSIS", "define retrieveCondition: First(from [Condition] C return C.code.coding.where(system = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm').code.first())\ndefine Diagnosis: if (retrieveCondition is null) then 'unknown' else retrieveCondition\n"),
             ("EXLIQUID_ALIQUOTS_CQL_SPECIMEN", "define Specimen:\nif InInitialPopulation then [Specimen] else {} as List<Specimen>\n define Aliquot:\n [Specimen] S\n where exists S.collection.quantity.value and exists S.parent.reference and S.container.specimenQuantity.value > 0 define AliquotGroupReferences: flatten Aliquot S return S.parent.reference define AliquotGroupWithAliquot: [Specimen] S where not (S.identifier.system contains 'http://dktk.dkfz.de/fhir/sid/exliquid-specimen') and not exists S.collection.quantity.value and not exists S.container.specimenQuantity.value and AliquotGroupReferences contains 'Specimen/' + S.id define PrimarySampleReferences: flatten AliquotGroupWithAliquot S return S.parent.reference define ExliquidSpecimenWithAliquot: from [Specimen] PrimarySample where PrimarySample.identifier.system contains 'http://dktk.dkfz.de/fhir/sid/exliquid-specimen'   and PrimarySampleReferences contains 'Specimen/' + PrimarySample.id \n define function SampleType(specimen FHIR.Specimen): specimen.type.coding.where(system = 'https://fhir.bbmri.de/CodeSystem/SampleMaterialType').code.first()"),
             ("DKTK_STRAT_GENDER_STRATIFIER", "define Gender:\nif (Patient.gender is null) then 'unknown' else Patient.gender"),
-            ("DKTK_STRAT_AGE_STRATIFIER", "define AgeClass:\nif (Patient.birthDate is null) then 'unknown' else ToString((AgeInYears() div 10) * 10)"),
+            ("DKTK_STRAT_AGE_STRATIFIER", "define PrimaryDiagnosis:\nFirst(\nfrom [Condition] C\nwhere C.extension.where(url='http://hl7.org/fhir/StructureDefinition/condition-related').empty()\nsort by date from onset asc)\n\ndefine AgeClass:\nif (PrimaryDiagnosis.onset is null) then 'unknown' else ToString((AgeInYearsAt(FHIRHelpers.ToDateTime(PrimaryDiagnosis.onset)) div 10) * 10)"),
             ("DKTK_STRAT_DECEASED_STRATIFIER", "define PatientDeceased:\nFirst (from [Observation: Code '75186-7' from loinc] O return O.value.coding.where(system = 'http://dktk.dkfz.de/fhir/onco/core/CodeSystem/VitalstatusCS').code.first())\ndefine Deceased:\nif (PatientDeceased is null) then 'unbekannt' else PatientDeceased"),
             ("DKTK_STRAT_DIAGNOSIS_STRATIFIER", "define Diagnosis:\nif InInitialPopulation then [Condition] else {} as List<Condition>\n\ndefine function DiagnosisCode(condition FHIR.Condition):\ncondition.code.coding.where(system = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm').code.first()"),
             ("DKTK_STRAT_SPECIMEN_STRATIFIER", "define Specimen:\nif InInitialPopulation then [Specimen] else {} as List<Specimen>\n\ndefine function SampleType(specimen FHIR.Specimen):\nspecimen.type.coding.where(system = 'https://fhir.bbmri.de/CodeSystem/SampleMaterialType').code.first()"),
@@ -140,6 +136,8 @@ pub fn obfuscate_counts_mr(
     delta_patient: f64,
     delta_specimen: f64,
     delta_diagnosis: f64,
+    delta_procedures: f64,
+    delta_medication_statements: f64,
     epsilon: f64,
     rounding_step: usize,
 ) -> Result<String, FocusError> {
@@ -225,8 +223,56 @@ pub fn obfuscate_counts_mr(
                     rounding_step,
                 )?;
             }
+            "procedures" => {
+                obfuscate_counts_recursive(
+                    &mut g.population,
+                    MU,
+                    delta_procedures,
+                    epsilon,
+                    1,
+                    obf_cache,
+                    obfuscate_zero,
+                    obf_10.clone(),
+                    rounding_step,
+                )?;
+                obfuscate_counts_recursive(
+                    &mut g.stratifier,
+                    MU,
+                    delta_procedures,
+                    epsilon,
+                    2,
+                    obf_cache,
+                    obfuscate_zero,
+                    obf_10.clone(),
+                    rounding_step,
+                )?;
+            }
+            "medicationStatements" => {
+                obfuscate_counts_recursive(
+                    &mut g.population,
+                    MU,
+                    delta_medication_statements,
+                    epsilon,
+                    1,
+                    obf_cache,
+                    obfuscate_zero,
+                    obf_10.clone(),
+                    rounding_step,
+                )?;
+                obfuscate_counts_recursive(
+                    &mut g.stratifier,
+                    MU,
+                    delta_medication_statements,
+                    epsilon,
+                    2,
+                    obf_cache,
+                    obfuscate_zero,
+                    obf_10.clone(),
+                    rounding_step,
+                )?;
+            }
             _ => {
-                warn!("Focus is not aware of {} type of stratifier, hence it will not obfuscate the values.", &g.code.text[..])
+                warn!("Focus is not aware of {} type of stratifier, therefore it will not obfuscate the values.", &g.code.text[..])
             }
         }
     }
@@ -311,11 +357,14 @@ mod test {
     use super::*;
     use serde_json::json;
 
-    const EXAMPLE_JSON: &str = r#"{"date": "2023-03-03T15:54:21.740195064Z", "extension": [{"url": "https://samply.github.io/blaze/fhir/StructureDefinition/eval-duration", "valueQuantity": {"code": "s", "system": "http://unitsofmeasure.org", "unit": "s", "value": 0.050495759}}], "group": [{"code": {"text": "patients"}, "population": [{"code": {"coding": [{"code": "initial-population", "system": "http://terminology.hl7.org/CodeSystem/measure-population"}]}, "count": 74}], "stratifier": [{"code": [{"text": "Gender"}], "stratum": [{"population": [{"code": {"coding": [{"code": "initial-population", "system": "http://terminology.hl7.org/CodeSystem/measure-population"}]}, "count": 31}], "value": {"text": "female"}}, {"population": [{"code": {"coding": [{"code": "initial-population", "system": "http://terminology.hl7.org/CodeSystem/measure-population"}]}, "count": 43}], "value": {"text": "male"}}]}, {"code": [{"text": "Age"}], "stratum": [{"population": [{"code": {"coding": [{"code": "initial-population", "system": "http://terminology.hl7.org/CodeSystem/measure-population"}]}, "count": 5}], "value": {"text": "40"}}, {"population": [{"code": {"coding": [{"code": "initial-population", "system": "http://terminology.hl7.org/CodeSystem/measure-population"}]}, "count": 4}], "value": {"text": "50"}}, {"population": [{"code": {"coding": [{"code": "initial-population", "system": "http://terminology.hl7.org/CodeSystem/measure-population"}]}, "count": 14}], "value": {"text": "60"}}, {"population": [{"code": {"coding": [{"code": "initial-population", "system": "http://terminology.hl7.org/CodeSystem/measure-population"}]}, "count": 4}], "value": {"text": "80"}}]}, {"code": [{"text": "Custodian"}], "stratum": [{"population": [{"code": {"coding": [{"code": "initial-population", "system": "http://terminology.hl7.org/CodeSystem/measure-population"}]}, "count": 31}], "value": {"text": "bbmri-eric:ID:CZ_CUNI_PILS:collection:serum_plasma"}}, {"population": [{"code": {"coding": [{"code": "initial-population", "system": "http://terminology.hl7.org/CodeSystem/measure-population"}]}, "count": 43}], "value": {"text": "null"}}]}]}, {"code": {"text": "diagnosis"}, "population": [{"code": {"coding": [{"code": "initial-population", "system": "http://terminology.hl7.org/CodeSystem/measure-population"}]}, "count": 324}], "stratifier": [{"code": [{"text": "diagnosis"}], "stratum": [{"population": [{"code": {"coding": [{"code": "initial-population", "system": "http://terminology.hl7.org/CodeSystem/measure-population"}]}, "count": 26}], "value": {"text": "C34.0"}}, {"population": [{"code": {"coding": [{"code": "initial-population", "system": "http://terminology.hl7.org/CodeSystem/measure-population"}]}, "count": 28}], "value": {"text": "C34.2"}}, {"population": [{"code": {"coding": [{"code": "initial-population", "system": "http://terminology.hl7.org/CodeSystem/measure-population"}]}, "count": 25}], "value": {"text": "C34.8"}}, {"population": [{"code": {"coding": [{"code": "initial-population", "system": "http://terminology.hl7.org/CodeSystem/measure-population"}]}, "count": 27}], "value": {"text": "C78.0"}}, {"population": [{"code": {"coding": [{"code": "initial-population", "system": "http://terminology.hl7.org/CodeSystem/measure-population"}]}, "count": 25}], "value": {"text": "D38.6"}}, {"population": [{"code": {"coding": [{"code": "initial-population", "system": "http://terminology.hl7.org/CodeSystem/measure-population"}]}, "count": 25}], "value": {"text": "R91"}}]}]}, {"code": {"text": "specimen"}, "population": [{"code": {"coding": [{"code": "initial-population", "system": "http://terminology.hl7.org/CodeSystem/measure-population"}]}, "count": 124}], "stratifier": [{"code": [{"text": "sample_kind"}], "stratum": [{"population": [{"code": {"coding": [{"code": "initial-population", "system": "http://terminology.hl7.org/CodeSystem/measure-population"}]}, "count": 62}], "value": {"text": "blood-plasma"}}, {"population": [{"code": {"coding": [{"code": "initial-population", "system": "http://terminology.hl7.org/CodeSystem/measure-population"}]}, "count": 62}], "value": {"text": "blood-serum"}}]}]}], "measure": "urn:uuid:fe7e5bf7-d792-4368-b1d2-5798930db13e", "period": {"end": "2030", "start": "2000"}, "resourceType": "MeasureReport", "status": "complete", "type": "summary", "meta": {"lastUpdated": "2023-06-27T13:12:56.719Z", "versionId": "11"}, "id": "DCH47RNHPKH6TC3W"}"#;
+    const EXAMPLE_MEASURE_REPORT_BBMRI: &str = include_str!("../resources/measure_report_bbmri.json");
+    const EXAMPLE_MEASURE_REPORT_DKTK: &str = include_str!("../resources/measure_report_dktk.json");
 
     const DELTA_PATIENT: f64 = 1.;
     const DELTA_SPECIMEN: f64 = 20.;
     const DELTA_DIAGNOSIS: f64 = 3.;
+    const DELTA_PROCEDURES: f64 = 1.7;
+    const DELTA_MEDICATION_STATEMENTS: f64 = 2.1;
     const EPSILON: f64 = 0.1;
     const ROUNDING_STEP: usize = 10;
 
@@ -437,6 +486,7 @@ mod test {
 
         let decoded_library = "EXLIQUID_STRAT_W_ALIQUOTS";
         let expected_result = "define InInitialPopulation: exists ExliquidSpecimenWithAliquot and \n\n";
+
         assert_eq!(replace_cql(decoded_library), expected_result);
 
         let decoded_library = "INVALID_KEY";
@@ -445,18 +495,20 @@ mod test {
     }
 
     #[test]
-    fn test_obfuscate_counts() {
+    fn test_obfuscate_counts_bbmri() {
         let mut obf_cache = ObfCache {
             cache: HashMap::new(),
         };
         let obfuscated_json = obfuscate_counts_mr(
-            EXAMPLE_JSON,
+            EXAMPLE_MEASURE_REPORT_BBMRI,
             &mut obf_cache,
             false,
             1,
             DELTA_PATIENT,
             DELTA_SPECIMEN,
             DELTA_DIAGNOSIS,
+            DELTA_PROCEDURES,
+            DELTA_MEDICATION_STATEMENTS,
             EPSILON,
             ROUNDING_STEP,
         )
@@ -466,16 +518,69 @@ mod test {
         let _: MeasureReport = serde_json::from_str(&obfuscated_json).unwrap();
 
         // Check that the obfuscated JSON is different from the original JSON
-        assert_ne!(obfuscated_json, EXAMPLE_JSON);
+        assert_ne!(obfuscated_json, EXAMPLE_MEASURE_REPORT_BBMRI);
 
         // Check that obfuscating the same JSON twice with the same obfuscation cache gives the same result
-        let obfuscated_json_2 = obfuscate_counts_mr(EXAMPLE_JSON, &mut obf_cache, false,
+        let obfuscated_json_2 = obfuscate_counts_mr(
+            EXAMPLE_MEASURE_REPORT_BBMRI,
+            &mut obf_cache,
+            false,
             1,
             DELTA_PATIENT,
             DELTA_SPECIMEN,
             DELTA_DIAGNOSIS,
+            DELTA_PROCEDURES,
+            DELTA_MEDICATION_STATEMENTS,
             EPSILON,
-            ROUNDING_STEP,).unwrap();
+            ROUNDING_STEP,
+        )
+        .unwrap();
+        assert_eq!(obfuscated_json, obfuscated_json_2);
+    }
+
+    #[test]
+    fn test_obfuscate_counts_dktk() {
+        let mut obf_cache = ObfCache {
+            cache: HashMap::new(),
+        };
+        let obfuscated_json = obfuscate_counts_mr(
+            EXAMPLE_MEASURE_REPORT_DKTK,
+            &mut obf_cache,
+            false,
+            1,
+            DELTA_PATIENT,
+            DELTA_SPECIMEN,
+            DELTA_DIAGNOSIS,
+            DELTA_PROCEDURES,
+            DELTA_MEDICATION_STATEMENTS,
+            EPSILON,
+            ROUNDING_STEP,
+        )
+        .unwrap();
+
+        // Check that the obfuscated JSON can be parsed and has the same structure as the original JSON
+        let _: MeasureReport = serde_json::from_str(&obfuscated_json).unwrap();
+
+        dbg!(&obfuscated_json);
+
+        // Check that the obfuscated JSON is different from the original JSON
+        assert_ne!(obfuscated_json, EXAMPLE_MEASURE_REPORT_DKTK);
+
+        // Check that obfuscating the same JSON twice with the same obfuscation cache gives the same result
+        let obfuscated_json_2 = obfuscate_counts_mr(
+            EXAMPLE_MEASURE_REPORT_DKTK,
+            &mut obf_cache,
+            false,
+            1,
+            DELTA_PATIENT,
+            DELTA_SPECIMEN,
+            DELTA_DIAGNOSIS,
+            DELTA_PROCEDURES,
+            DELTA_MEDICATION_STATEMENTS,
+            EPSILON,
+            ROUNDING_STEP,
+        )
+        .unwrap();
         assert_eq!(obfuscated_json, obfuscated_json_2);
     }
 }
