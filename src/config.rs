@@ -101,6 +101,14 @@ struct CliArgs {
     #[clap(long, env, value_parser, default_value = "3.")]
     delta_diagnosis: f64,
 
+    /// Sensitivity parameter for obfuscating the counts in the Procedure stratifier
+    #[clap(long, env, value_parser, default_value = "1.7")]
+    delta_procedures: f64,
+
+    /// Sensitivity parameter for obfuscating the counts in the Medication Statements stratifier
+    #[clap(long, env, value_parser, default_value = "2.1")]
+    delta_medication_statements: f64,
+
     /// Privacy budget parameter for obfuscating the counts in the stratifiers
     #[clap(long, env, value_parser, default_value = "0.1")]
     epsilon: f64,
@@ -108,6 +116,10 @@ struct CliArgs {
     /// The granularity of the rounding of the obfuscated values
     #[clap(long, env, value_parser, default_value = "10")]
     rounding_step: usize,
+
+    /// Projects for which the results are not to be obfuscated, separated by ;
+    #[clap(long, env, value_parser, default_value = "exliquid;dktk_supervisors")]
+    projects_no_obfuscation: String,
 
     /// The path to the file containing BASE64 encoded queries whose results are to be cached
     #[clap(long, env, value_parser)]
@@ -140,8 +152,11 @@ pub(crate) struct Config {
     pub delta_patient: f64,
     pub delta_specimen: f64,
     pub delta_diagnosis: f64,
+    pub delta_procedures: f64,
+    pub delta_medication_statements: f64,
     pub epsilon: f64,
     pub rounding_step: usize,
+    pub unobfuscated: Vec<String>,
     pub queries_to_cache_file_path: Option<String>,
     tls_ca_certificates: Vec<Certificate>,
     pub client: Client,
@@ -175,8 +190,11 @@ impl Config {
             delta_patient: cli_args.delta_patient,
             delta_specimen: cli_args.delta_specimen,
             delta_diagnosis: cli_args.delta_diagnosis,
+            delta_procedures: cli_args.delta_procedures,
+            delta_medication_statements: cli_args.delta_medication_statements,
             epsilon: cli_args.epsilon,
             rounding_step: cli_args.rounding_step,
+            unobfuscated: cli_args.projects_no_obfuscation.split(";").map(|s| s.to_string()).collect(),
             queries_to_cache_file_path: cli_args.queries_to_cache_file_path,
             tls_ca_certificates,
             provider: cli_args.provider,
