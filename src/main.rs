@@ -138,8 +138,6 @@ async fn process_task(
 
     let metadata: Metadata = serde_json::from_value(task.metadata.clone()).unwrap_or(Metadata {project: "obfuscate_me_please".to_string()});
 
-    dbg!(metadata.clone().project);
-
     let run_result = run_query(task, &query, obf_cache, report_cache, metadata.project).await?;
 
     info!("Reported successful execution of task {} to Beam.", task.id);
@@ -298,7 +296,6 @@ async fn run_cql_query(
             let cql_result_new: String = match CONFIG.obfuscate {
                 config::Obfuscate::Yes => {
                     if !unobfuscated.contains(&project){
-                        dbg!("obfuscated");
                         obfuscate_counts_mr(
                             &cql_result,
                             obf_cache,
@@ -313,7 +310,6 @@ async fn run_cql_query(
                             CONFIG.rounding_step,
                         )?
                     } else {
-                        dbg!("not obfuscated");
                         cql_result
                     }
                 },
