@@ -69,6 +69,7 @@ pub async fn main() -> ExitCode {
 }
 
 async fn main_loop() -> ExitCode {
+    
     let mut obf_cache: ObfCache = ObfCache {
         cache: HashMap::new(),
     };
@@ -136,7 +137,7 @@ async fn process_task(
 
     let query = parse_query(task)?;
 
-    let metadata: Metadata = serde_json::from_value(task.metadata.clone()).unwrap_or(Metadata {project: "obfuscate_me_please".to_string()});
+    let metadata: Metadata = serde_json::from_value(task.metadata.clone()).unwrap_or(Metadata {project: "default_obfuscation".to_string()});
 
     let run_result = run_query(task, &query, obf_cache, report_cache, metadata.project).await?;
 
@@ -254,8 +255,6 @@ async fn run_cql_query(
     project: String
 ) -> Result<BeamResult, FocusError> {
 
-    let unobfuscated: Vec<String> = vec!["exliquid".to_string(), "dktk_supervisors".to_string()];
-
     let mut err = beam::beam_result::perm_failed(
         CONFIG.beam_app_id_long.clone(),
         vec![task.to_owned().from],
@@ -295,7 +294,7 @@ async fn run_cql_query(
 
             let cql_result_new: String = match CONFIG.obfuscate {
                 config::Obfuscate::Yes => {
-                    if !unobfuscated.contains(&project){
+                    if !CONFIG.unobfuscated.contains(&project){
                         obfuscate_counts_mr(
                             &cql_result,
                             obf_cache,
