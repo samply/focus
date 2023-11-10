@@ -387,7 +387,7 @@ mod test {
     #[test]
     fn test_replace_cql() {
         let decoded_library = "BBMRI_STRAT_GENDER_STRATIFIER";
-        let expected_result = "define Gender:\n             if (Patient.gender is null) then 'unknown' else Patient.gender\n";
+        let expected_result = "define Gender:\nif (Patient.gender is null) then 'unknown' else Patient.gender\n";
         assert_eq!(replace_cql(decoded_library), expected_result);
 
         let decoded_library = "BBMRI_STRAT_CUSTODIAN_STRATIFIER";

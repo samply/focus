@@ -2,8 +2,9 @@ use crate::ast;
 
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
+use std::collections::HashSet;
 
-static ALIAS: Lazy<HashMap<&str, &str>> = Lazy::new(|| {
+static ALIAS_BBMRI: Lazy<HashMap<&str, &str>> = Lazy::new(|| {
     let map = [
         ("icd10", "http://hl7.org/fhir/sid/icd-10"),
         ("icd10gm", "http://fhir.de/CodeSystem/dimdi/icd-10-gm"),
@@ -35,7 +36,9 @@ pub fn bbmri(ast: ast::Ast) -> String {
 
     let mut query: String = "(".to_string();
 
-    let mut filter: String = "".to_string();
+    let mut filter: String = "(".to_string();
+
+    let mut code_systems: HashSet<String> = HashSet::new();;
 
     let mut lists: String = "".to_string();
 
@@ -51,18 +54,24 @@ pub fn bbmri(ast: ast::Ast) -> String {
 
     for grandchild in ast.ast.children {
 
-        process(grandchild, &mut query, &mut filter, &mut lists);
+        process(grandchild, &mut query, &mut filter, &mut code_systems);
 
     }
     
     query += ")";
+
+    
+    
+    for code_system in code_systems {
+        lists = lists + format!("codesystem {}: '{}'", code_system.as_str(), ALIAS_BBMRI.get(code_system.as_str()).unwrap_or(&(""))).as_str();
+    } 
 
 
     query + filter.as_str() + lists.as_str()
     
 }
 
-pub fn process(child: ast::Child, query: &mut String, filter: &mut String, lists: &mut String ) {
+pub fn process(child: ast::Child, query: &mut String, filter: &mut String, code_systems: &mut HashSet<String> ) {
 
     let mut query_cond: String = "(".to_string();
     let mut filter_cond: String = "(".to_string();
@@ -71,36 +80,29 @@ pub fn process(child: ast::Child, query: &mut String, filter: &mut String, lists
        
         ast::Child::Condition(condition) => {
 
-            query_cond += condition.key.as_str();
+            let condition_key_trans = condition.key.as_str();
+
+            query_cond += condition_key_trans;
+
+            match condition_key_trans {
+
+                _ => {}
+            }
+
             filter_cond += condition.key.as_str();
 
 
-            match condition.type_ {
-                ast::ConditionType::Between => {
-                    query_cond += " between ";
-                },
-                ast::ConditionType::In => {
-                    query_cond += " in ";
-                },
-                ast::ConditionType::Equals => {
-                    query_cond += " equals ";
-                },
-                ast::ConditionType::NotEquals => {
-                    query_cond += " not_equals ";
-                },
-                ast::ConditionType::Contains => {
-                    query_cond += " contains ";
-                },
-                ast::ConditionType::GreaterThan => {
-                    query_cond += " greater than ";
-                },
-                ast::ConditionType::LowerThan => {
-                    query_cond += " lower than ";
-                }
+            let condition_type_trans = match condition.type_ {
+                ast::ConditionType::Between => "between",
+                ast::ConditionType::In => "in",
+                ast::ConditionType::Equals => "equals",
+                ast::ConditionType::NotEquals => "not_equals",
+                ast::ConditionType::Contains => "contains",
+                ast::ConditionType::GreaterThan => "greater than",
+                ast::ConditionType::LowerThan => "lower than"
+            };
 
-            } 
-
-            query_cond += " ";
+            query_cond = query_cond + " " + condition_type_trans + " ";
 
             match condition.value {
                 ast::ConditionValue::Boolean(value) => {
@@ -108,12 +110,12 @@ pub fn process(child: ast::Child, query: &mut String, filter: &mut String, lists
                 },
                 ast::ConditionValue::DateRange(date_range) => {
                     query_cond += date_range.min.as_str();
-                    query_cond += ",";
+                    query_cond += ", ";
                     query_cond += date_range.max.as_str();
                 },
                 ast::ConditionValue::NumRange(num_range) => {
                     query_cond += num_range.min.to_string().as_str();
-                    query_cond += ",";
+                    query_cond += ", ";
                     query_cond += num_range.max.to_string().as_str();
                 },
                 ast::ConditionValue::Number(value) => {
@@ -125,9 +127,9 @@ pub fn process(child: ast::Child, query: &mut String, filter: &mut String, lists
                 ast::ConditionValue::StringArray(string_array) => {
                     for value in &string_array {
                         query_cond += value;
-                        query_cond += ",";
+                        query_cond += ", ";
                     }
-                    query_cond += " greater than ";
+                    
                 }
 
             } 
@@ -149,7 +151,7 @@ pub fn process(child: ast::Child, query: &mut String, filter: &mut String, lists
             }
 
             for grandchild in operation.children {
-                process(grandchild, &mut query_cond, &mut filter_cond, lists);
+                process(grandchild, &mut query_cond, &mut filter_cond, code_systems);
 
             }
 
@@ -158,6 +160,7 @@ pub fn process(child: ast::Child, query: &mut String, filter: &mut String, lists
     }
     
     query_cond += ")";
+    filter_cond += ")";
 
     *query += query_cond.as_str();
     *filter += filter_cond.as_str();
