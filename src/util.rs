@@ -561,8 +561,6 @@ mod test {
         // Check that the obfuscated JSON can be parsed and has the same structure as the original JSON
         let _: MeasureReport = serde_json::from_str(&obfuscated_json).unwrap();
 
-        dbg!(&obfuscated_json);
-
         // Check that the obfuscated JSON is different from the original JSON
         assert_ne!(obfuscated_json, EXAMPLE_MEASURE_REPORT_DKTK);
 
