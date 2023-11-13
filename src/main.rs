@@ -10,6 +10,13 @@ mod errors;
 mod graceful_shutdown;
 mod cql;
 
+use beam_lib::{TaskRequest, TaskResult};
+use laplace_rs::ObfCache;
+
+use crate::util::{is_cql_tampered_with, obfuscate_counts_mr};
+use crate::{config::CONFIG, errors::FocusError};
+use blaze::Query;
+
 use std::collections::HashMap;
 use std::process::ExitCode;
 use std::str;
@@ -17,16 +24,11 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use std::{process::exit, time::Duration};
 
 use base64::{engine::general_purpose, Engine as _};
-use beam_lib::{TaskRequest, TaskResult};
-use blaze::Query;
+
 use serde_json::from_slice;
+use serde::{Deserialize, Serialize};
 
 use tracing::{debug, error, info, warn};
-
-use crate::util::{is_cql_tampered_with, obfuscate_counts_mr};
-use crate::{config::CONFIG, errors::FocusError};
-
-use laplace_rs::ObfCache;
 
 
 
@@ -36,6 +38,11 @@ type Report = String;
 type Created = std::time::SystemTime; //epoch
 type BeamTask = TaskRequest<String>;
 type BeamResult = TaskResult<beam_lib::RawString>;
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+struct Metadata {
+    project: String,
+}
 
 #[derive(Debug, Clone)]
 struct ReportCache {
@@ -65,6 +72,7 @@ pub async fn main() -> ExitCode {
 }
 
 async fn main_loop() -> ExitCode {
+    
     let mut obf_cache: ObfCache = ObfCache {
         cache: HashMap::new(),
     };
@@ -139,11 +147,13 @@ async fn process_task(
 ) -> Result<BeamResult, FocusError> {
     debug!("Processing task {}", task.id);
 
+    let metadata: Metadata = serde_json::from_value(task.metadata.clone()).unwrap_or(Metadata {project: "default_obfuscation".to_string()});
+
     if CONFIG.endpoint_type == config::EndpointType::Blaze {
         let query = parse_query(task)?;
         if query.lang == "cql" {
             // TODO: Change query.lang to an enum
-            return Ok(run_cql_query(task, &query, obf_cache, report_cache).await)?;
+            return Ok(run_cql_query(task, &query, obf_cache, report_cache, metadata.project).await)?;
         } else {
             warn!("Can't run queries with language {} in Blaze", query.lang);
             return Ok(beam::beam_result::perm_failed(
@@ -159,13 +169,9 @@ async fn process_task(
     } else if CONFIG.endpoint_type == config::EndpointType::Omop { 
 
         let decoded = decode_body(task)?; 
-        
         let omop_query: omop::OmopQuery = from_slice(&decoded).map_err(|e| FocusError::ParsingError(e.to_string()))?;
-
         //TODO check that the language is ast 
-
         let query_decoded = general_purpose::STANDARD.decode(omop_query.query).map_err(|e| FocusError::DecodeError(e))?;
-
         let ast: ast::Ast = from_slice(&query_decoded).map_err(|e| FocusError::ParsingError(e.to_string()))?;
 
         return Ok(run_omop_query(task, ast).await)?;
@@ -272,6 +278,7 @@ async fn run_cql_query(
     query: &Query,
     obf_cache: &mut ObfCache,
     report_cache: &mut ReportCache,
+    project: String
 ) -> Result<BeamResult, FocusError> {
 
     let encoded_query =
@@ -305,17 +312,25 @@ async fn run_cql_query(
             let cql_result = blaze::run_cql_query(&query.lib, &query.measure).await?;
 
             let cql_result_new: String = match CONFIG.obfuscate {
-                config::Obfuscate::Yes => obfuscate_counts_mr(
-                    &cql_result,
-                    obf_cache,
-                    CONFIG.obfuscate_zero,
-                    CONFIG.obfuscate_below_10_mode,
-                    CONFIG.delta_patient,
-                    CONFIG.delta_specimen,
-                    CONFIG.delta_diagnosis,
-                    CONFIG.epsilon,
-                    CONFIG.rounding_step,
-                )?,
+                config::Obfuscate::Yes => {
+                    if !CONFIG.unobfuscated.contains(&project){
+                        obfuscate_counts_mr(
+                            &cql_result,
+                            obf_cache,
+                            CONFIG.obfuscate_zero,
+                            CONFIG.obfuscate_below_10_mode,
+                            CONFIG.delta_patient,
+                            CONFIG.delta_specimen,
+                            CONFIG.delta_diagnosis,
+                            CONFIG.delta_procedures,
+                            CONFIG.delta_medication_statements,
+                            CONFIG.epsilon,
+                            CONFIG.rounding_step,
+                        )?
+                    } else {
+                        cql_result
+                    }
+                },
                 config::Obfuscate::No => cql_result,
             };
 
