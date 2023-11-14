@@ -111,7 +111,8 @@ pub(crate) fn replace_cql(decoded_library: impl Into<String>) -> String {
             ("DKTK_STRAT_ENCOUNTER_STRATIFIER", "define Encounter:\nif InInitialPopulation then [Encounter] else {} as List<Encounter>\n\ndefine function Departments(encounter FHIR.Encounter):\nencounter.identifier.where(system = 'http://dktk.dkfz.de/fhir/sid/hki-department').value.first()"),
             ("DKTK_STRAT_DEF_IN_INITIAL_POPULATION", "define InInitialPopulation:"),
             ("EXLIQUID_STRAT_DEF_IN_INITIAL_POPULATION", "define InInitialPopulation:\n   exists ExliquidSpecimen and\n"),        
-            ("EXLIQUID_STRAT_W_ALIQUOTS", "define InInitialPopulation: exists ExliquidSpecimenWithAliquot and \n")
+            ("EXLIQUID_STRAT_W_ALIQUOTS", "define InInitialPopulation: exists ExliquidSpecimenWithAliquot and \n"),
+            ("MTBA_STRAT_GENETIC_VARIANT", "define GeneticVariantCode:\nFirst (from [Observation: Code '69548-6' from loinc] O return O.component.where(code.coding contains Code '48018-6' from loinc).value.coding.code.first())")
         ].into();
 
     let mut decoded_library = decoded_library.into();
@@ -486,6 +487,11 @@ mod test {
 
         let decoded_library = "EXLIQUID_STRAT_W_ALIQUOTS";
         let expected_result = "define InInitialPopulation: exists ExliquidSpecimenWithAliquot and \n\n";
+
+        assert_eq!(replace_cql(decoded_library), expected_result);
+
+        let decoded_library = "MTBA_STRAT_GENETIC_VARIANT";
+        let expected_result = "define GeneticVariantCode:\nFirst (from [Observation: Code '69548-6' from loinc] O return O.component.where(code.coding contains Code '48018-6' from loinc).value.coding.code.first())\n";
 
         assert_eq!(replace_cql(decoded_library), expected_result);
 
