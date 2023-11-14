@@ -38,7 +38,7 @@ pub fn bbmri(ast: ast::Ast) -> String {
 
     let mut filter: String = "(".to_string();
 
-    let mut code_systems: HashSet<String> = HashSet::new();;
+    let mut code_systems: HashSet<String> = HashSet::new();
 
     let mut lists: String = "".to_string();
 
@@ -67,7 +67,7 @@ pub fn bbmri(ast: ast::Ast) -> String {
     } 
 
 
-    query + filter.as_str() + lists.as_str()
+    lists + query.as_str() + filter.as_str()
     
 }
 
