@@ -38,4 +38,7 @@ pub enum FocusError {
     UnableToPostAst(reqwest::Error),
     #[error("AST Posting error in Reqwest: {0}")]
     AstPostingErrorReqwest(String),
+    #[error("Invalid Header Value: {0}")]
+    InvalidHeaderValue(http::header::InvalidHeaderValue),
+
 }
