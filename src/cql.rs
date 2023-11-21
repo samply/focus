@@ -4,6 +4,14 @@ use once_cell::sync::Lazy;
 use std::collections::HashMap;
 use std::collections::HashSet;
 
+enum CriterionRole {
+    Query,
+    Filter,
+}
+
+const OBSERVATION_BMI: &str = "39156-5";
+const OBSERVATION_BODY_WEIGHT: &str = "29463-7";
+
 static ALIAS_BBMRI: Lazy<HashMap<&str, &str>> = Lazy::new(|| {
     let map = [
         ("icd10", "http://hl7.org/fhir/sid/icd-10"),
@@ -30,6 +38,158 @@ static ALIAS_BBMRI: Lazy<HashMap<&str, &str>> = Lazy::new(|| {
 
     map
 });
+
+static CQL_TEMPLATE_BBMRI: Lazy<HashMap<&str, &str>> = Lazy::new(|| {
+    let map = [
+        ("gender", "Patient.gender"),
+        (
+            "conditionSampleDiagnosis",
+            "((exists[Condition: Code '{{C}}' from {{A1}}]) or (exists[Condition: Code '{{C}}' from {{A2}}])) or (exists from [Specimen] S where (S.extension.where(url='https://fhir.bbmri.de/StructureDefinition/SampleDiagnosis').value.coding.code contains '{{C}}'))",
+        ),
+        ("conditionValue", "exists [Condition: Code '{{C}}' from {{A1}}]"),
+        (
+            "conditionRangeDate",
+            "exists from [Condition] C\nwhere FHIRHelpers.ToDateTime(C.onset) between {{D1}} and {{D2}}",
+        ),
+        (
+            "conditionRangeAge",
+            "exists from [Condition] C\nwhere AgeInYearsAt(FHIRHelpers.ToDateTime(C.onset)) between Ceiling({{D1}}) and Ceiling({{D2}})",
+        ),
+        ("age", "AgeInYears() between Ceiling({{D1}}) and Ceiling({{D2}})"),
+        (
+            "observation",
+            "exists from [Observation: Code '{{K}}' from {{A1}}] O\nwhere O.value.coding.code contains '{{C}}'",
+        ),
+        (
+            "observationRange",
+            "exists from [Observation: Code '{{K}}' from {{A1}}] O\nwhere O.value between {{D1}} and {{D2}}",
+        ),
+        (
+            "observationBodyWeight",
+            "exists from [Observation: Code '{{K}}' from {{A1}}] O\nwhere ((O.value as Quantity) < {{D1}} 'kg' and (O.value as Quantity) > {{D2}} 'kg')",
+        ),
+        (
+            "observationBMI",
+            "exists from [Observation: Code '{{K}}' from {{A1}}] O\nwhere ((O.value as Quantity) < {{D1}} 'kg/m2' and (O.value as Quantity) > {{D2}} 'kg/m2')",
+        ),
+        ("hasSpecimen", "exists [Specimen]"),
+        ("specimen", "exists [Specimen: Code '{{C}}' from {{A1}}]"),
+        ("retrieveSpecimenByType", "(S.type.coding.code contains '{{C}}')"),
+        (
+            "retrieveSpecimenByTemperature",
+            "(S.extension.where(url='https://fhir.bbmri.de/StructureDefinition/StorageTemperature').value.coding.code contains '{{C}}')",
+        ),
+        (
+            "retrieveSpecimenBySamplingDate",
+            "(FHIRHelpers.ToDateTime(S.collection.collected) between {{D1}} and {{D2}})",
+        ),
+        (
+            "retrieveSpecimenByFastingStatus",
+            "(S.collection.fastingStatus.coding.code contains '{{C}}')",
+        ),
+        (
+            "samplingDate",
+            "exists from [Specimen] S\nwhere FHIRHelpers.ToDateTime(S.collection.collected) between {{D1}} and {{D2}}",
+        ),
+        (
+            "fastingStatus",
+            "exists from [Specimen] S\nwhere S.collection.fastingStatus.coding.code contains '{{C}}'",
+        ),
+        (
+            "storageTemperature",
+            "exists from [Specimen] S where (S.extension.where(url='https://fhir.bbmri.de/StructureDefinition/StorageTemperature').value.coding contains Code '{{C}}' from {{A1}})",
+        ),
+    ]
+    .into();
+
+    map
+});
+
+
+static CRITERION_MAP: Lazy<HashMap<&str, Option<HashMap<&str, Vec<&str>>>>> = Lazy::new(|| {
+    let map = [
+        ("gender", Some([("type", vec!["gender"])].into())),
+        (
+            "diagnosis",
+            Some(
+                [
+                    ("type", vec!["conditionSampleDiagnosis"]),
+                    ("alias", vec!["icd10", "icd10gm"]),
+                ]
+                .into(),
+            ),
+        ),
+        (
+            "29463-7",
+            Some(
+                [
+                    ("type", vec!["observationBodyWeight"]),
+                    ("alias", vec!["loinc"]),
+                ]
+                .into(),
+            ),
+        ),
+        (
+            "39156-5",
+            Some([("type", vec!["observationBMI"]), ("alias", vec!["loinc"])].into()),
+        ),
+        (
+            "72166-2",
+            Some([("type", vec!["observation"]), ("alias", vec!["loinc"])].into()),
+        ),
+        ("donor_age", Some([("type", vec!["age"])].into())),
+        (
+            "date_of_diagnosis",
+            Some([("type", vec!["conditionRangeDate"])].into()),
+        ),
+        (
+            "sample_kind",
+            Some(
+                [
+                    ("type", vec!["specimen"]),
+                    ("alias", vec!["SampleMaterialType"]),
+                ]
+                .into(),
+            ),
+        ),
+        (
+            "storage_temperature",
+            Some(
+                [
+                    ("type", vec!["storageTemperature"]),
+                    ("alias", vec!["StorageTemperature"]),
+                ]
+                .into(),
+            ),
+        ),
+        (
+            "pat_with_samples",
+            Some([("type", vec!["hasSpecimen"])].into()),
+        ),
+        (
+            "diagnosis_age_donor",
+            Some([("type", vec!["conditionRangeAge"])].into()),
+        ),
+        (
+            "fasting_status",
+            Some(
+                [
+                    ("type", vec!["fastingStatus"]),
+                    ("alias", vec!["FastingStatus"]),
+                ]
+                .into(),
+            ),
+        ),
+        (
+            "sampling_date",
+            Some([("type", vec!["samplingDate"])].into()),
+        ),
+    ]
+    .into();
+
+    map
+});
+
 
 
 pub fn bbmri(ast: ast::Ast) -> String {

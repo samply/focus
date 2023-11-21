@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use beam_lib::{TaskResult, BeamClient, BlockingOptions, MsgId, TaskRequest, RawString};
 use once_cell::sync::Lazy;
-use serde::{de::DeserializeOwned, Serialize};
+use serde::Serialize;
 use tracing::{debug, warn};
 
 use crate::{config::CONFIG, errors::FocusError};

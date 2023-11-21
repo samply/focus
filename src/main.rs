@@ -28,7 +28,7 @@ use base64::{engine::general_purpose, Engine as _};
 use serde_json::from_slice;
 use serde::{Deserialize, Serialize};
 
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, warn};
 
 
 
