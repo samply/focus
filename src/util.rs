@@ -69,8 +69,6 @@ struct MeasureReport {
     type_: String, //because "type" is a reserved keyword
 }
 
-const MU: f64 = 0.;
-
 pub(crate) fn get_json_field(json_string: &str, field: &str) -> Result<Value, serde_json::Error> {
     let json: Value = serde_json::from_str(json_string)?;
     Ok(json[field].clone())
@@ -155,7 +153,6 @@ pub fn obfuscate_counts_mr(
             "patients" => {
                 obfuscate_counts_recursive(
                     &mut g.population,
-                    MU,
                     delta_patient,
                     epsilon,
                     1,
@@ -166,7 +163,6 @@ pub fn obfuscate_counts_mr(
                 )?;
                 obfuscate_counts_recursive(
                     &mut g.stratifier,
-                    MU,
                     delta_patient,
                     epsilon,
                     2,
@@ -179,7 +175,6 @@ pub fn obfuscate_counts_mr(
             "diagnosis" => {
                 obfuscate_counts_recursive(
                     &mut g.population,
-                    MU,
                     delta_diagnosis,
                     epsilon,
                     1,
@@ -190,7 +185,6 @@ pub fn obfuscate_counts_mr(
                 )?;
                 obfuscate_counts_recursive(
                     &mut g.stratifier,
-                    MU,
                     delta_diagnosis,
                     epsilon,
                     2,
@@ -203,7 +197,6 @@ pub fn obfuscate_counts_mr(
             "specimen" => {
                 obfuscate_counts_recursive(
                     &mut g.population,
-                    MU,
                     delta_specimen,
                     epsilon,
                     1,
@@ -214,7 +207,6 @@ pub fn obfuscate_counts_mr(
                 )?;
                 obfuscate_counts_recursive(
                     &mut g.stratifier,
-                    MU,
                     delta_specimen,
                     epsilon,
                     2,
@@ -227,7 +219,6 @@ pub fn obfuscate_counts_mr(
             "procedures" => {
                 obfuscate_counts_recursive(
                     &mut g.population,
-                    MU,
                     delta_procedures,
                     epsilon,
                     1,
@@ -238,7 +229,6 @@ pub fn obfuscate_counts_mr(
                 )?;
                 obfuscate_counts_recursive(
                     &mut g.stratifier,
-                    MU,
                     delta_procedures,
                     epsilon,
                     2,
@@ -251,7 +241,6 @@ pub fn obfuscate_counts_mr(
             "medicationStatements" => {
                 obfuscate_counts_recursive(
                     &mut g.population,
-                    MU,
                     delta_medication_statements,
                     epsilon,
                     1,
@@ -262,7 +251,6 @@ pub fn obfuscate_counts_mr(
                 )?;
                 obfuscate_counts_recursive(
                     &mut g.stratifier,
-                    MU,
                     delta_medication_statements,
                     epsilon,
                     2,
@@ -285,7 +273,6 @@ pub fn obfuscate_counts_mr(
 
 fn obfuscate_counts_recursive(
     val: &mut Value,
-    mu: f64,
     delta: f64,
     epsilon: f64,
     bin: Bin,
@@ -299,7 +286,7 @@ fn obfuscate_counts_recursive(
         Value::Object(map) => {
             if let Some(count_val) = map.get_mut("count") {
                 if let Some(count) = count_val.as_u64() {
-                    if count >= 1 && count <= 10 {
+                    if (1..=10).contains(&count) {
                         *count_val = json!(10);
                     } else {
                         let obfuscated = get_from_cache_or_privatize(
@@ -313,7 +300,7 @@ fn obfuscate_counts_recursive(
                             rounding_step,
                             &mut rng,
                         )
-                        .map_err(|e| FocusError::LaplaceError(e));
+                        .map_err(FocusError::LaplaceError);
 
                         *count_val = json!(obfuscated?);
                     }
@@ -322,7 +309,6 @@ fn obfuscate_counts_recursive(
             for (_, sub_val) in map.iter_mut() {
                 obfuscate_counts_recursive(
                     sub_val,
-                    mu,
                     delta,
                     epsilon,
                     bin,
@@ -337,7 +323,6 @@ fn obfuscate_counts_recursive(
             for sub_val in vec.iter_mut() {
                 obfuscate_counts_recursive(
                     sub_val,
-                    mu,
                     delta,
                     epsilon,
                     bin,
