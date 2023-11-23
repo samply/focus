@@ -77,28 +77,26 @@ async fn main_loop() -> ExitCode {
     let mut report_cache: ReportCache = ReportCache {
         cache: HashMap::new(),
     };
+    
 
-    match CONFIG.queries_to_cache_file_path.clone() {
-        Some(filename) => {
-            let lines = util::read_lines(filename.clone().to_string());
-
-            match lines {
-                Ok(ok_lines) => {
-                    for line in ok_lines {
-                        let Ok(ok_line) = line else{
-                            warn!("A line in the file {} is not readable", filename);
-                            continue;
-                        };
-                        report_cache.cache.insert(ok_line, ("".into(), UNIX_EPOCH));
-                    }
-                }
-                Err(_) => {
-                    error!("The file {} cannot be opened", filename);
-                    exit(2);
+    if let Some(filename) = CONFIG.queries_to_cache_file_path.clone() {
+  
+        let lines = util::read_lines(filename.clone().to_string());
+        match lines {
+            Ok(ok_lines) => {
+                for line in ok_lines {
+                    let Ok(ok_line) = line else{
+                        warn!("A line in the file {} is not readable", filename);
+                        continue;
+                    };
+                    report_cache.cache.insert(ok_line, ("".into(), UNIX_EPOCH));
                 }
             }
+            Err(_) => {
+                error!("The file {} cannot be opened", filename);
+                exit(2);
+            }
         }
-        None => {}
     }
 
     let mut failures = 0;
@@ -216,8 +214,8 @@ async fn process_tasks(
 
 fn parse_query(task: &BeamTask) -> Result<blaze::Query, FocusError> {
     let decoded = general_purpose::STANDARD
-        .decode(task.body.to_owned())
-        .map_err(|e| FocusError::DecodeError(e))?;
+        .decode(&task.body)
+        .map_err(FocusError::DecodeError)?;
 
     let query: blaze::Query =
         from_slice(&decoded).map_err(|e| FocusError::ParsingError(e.to_string()))?;
@@ -236,14 +234,14 @@ async fn run_query(
 
     if query.lang == "cql" {
         // TODO: Change query.lang to an enum
-        return Ok(run_cql_query(task, query, obf_cache, report_cache, project).await)?;
+        Ok(run_cql_query(task, query, obf_cache, report_cache, project).await)?
     } else {
-        return Ok(beam::beam_result::perm_failed(
+        Ok(beam::beam_result::perm_failed(
             CONFIG.beam_app_id_long.clone(),
             vec![task.from.clone()],
             task.id,
             format!("Can't run inqueries with language {}", query.lang),
-        ));
+        ))
     }
 }
 
@@ -255,19 +253,12 @@ async fn run_cql_query(
     project: String
 ) -> Result<BeamResult, FocusError> {
 
-    let mut err = beam::beam_result::perm_failed(
-        CONFIG.beam_app_id_long.clone(),
-        vec![task.to_owned().from],
-        task.to_owned().id,
-        String::new(),
-    );
-
     let encoded_query =
         query.lib["content"][0]["data"]
             .as_str()
             .ok_or(FocusError::ParsingError(format!(
                 "Not a valid library: Field .content[0].data not found. Library: {}",
-                query.lib.to_string()
+                query.lib
             )))?;
 
     let mut key_exists = false;
@@ -344,12 +335,12 @@ fn replace_cql_library(mut query: Query) -> Result<Query, FocusError> {
         .as_str()
         .ok_or(FocusError::ParsingError(format!(
             "{} is not a valid library: Field .content[0].data not found.",
-            query.lib.to_string()
+            query.lib
         )))?;
 
     let decoded_cql = general_purpose::STANDARD
         .decode(old_data_string)
-        .map_err(|e| FocusError::DecodeError(e))?;
+        .map_err(FocusError::DecodeError)?;
 
     let decoded_string = str::from_utf8(&decoded_cql)
         .map_err(|_| FocusError::ParsingError("CQL query was invalid".into()))?;
@@ -380,10 +371,10 @@ fn beam_result(
     measure_report: String,
 ) -> Result<BeamResult, FocusError> {
     let data = general_purpose::STANDARD.encode(measure_report.as_bytes());
-    return Ok(beam::beam_result::succeeded(
+    Ok(beam::beam_result::succeeded(
         CONFIG.beam_app_id_long.clone(),
         vec![task.from],
         task.id,
         data
-    ));
+    ))
 }
