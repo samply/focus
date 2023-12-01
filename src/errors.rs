@@ -1,4 +1,5 @@
 use thiserror::Error;
+use crate::ast;
 
 #[derive(Error, Debug)]
 pub enum FocusError {
@@ -38,4 +39,12 @@ pub enum FocusError {
     UnableToPostAst(reqwest::Error),
     #[error("AST Posting error in Reqwest: {0}")]
     AstPostingErrorReqwest(String),
+    #[error("Unknown criterion in AST: {0}")]
+    AstUnknownCriterion(String),
+    #[error("Unknown option in AST: {0}")]
+    AstUnknownOption(String),
+    #[error("Mismatch between operator and value type")]
+    AstOperatorValueMismatch(),
+    #[error("Invalid date format: {0}")]
+    AstInvalidDateFormat(String),
 }

@@ -47,7 +47,7 @@ pub struct NumRange {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DateRange {
-    pub min: String, //we don't parse dates yet
+    pub min: String, // we don't parse dates yet
     pub max: String,
 }
 

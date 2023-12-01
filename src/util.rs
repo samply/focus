@@ -354,8 +354,8 @@ mod test {
     use super::*;
     use serde_json::json;
 
-    const EXAMPLE_MEASURE_REPORT_BBMRI: &str = include_str!("../resources/measure_report_bbmri.json");
-    const EXAMPLE_MEASURE_REPORT_DKTK: &str = include_str!("../resources/measure_report_dktk.json");
+    const EXAMPLE_MEASURE_REPORT_BBMRI: &str = include_str!("../resources/test/measure_report_bbmri.json");
+    const EXAMPLE_MEASURE_REPORT_DKTK: &str = include_str!("../resources/test/measure_report_dktk.json");
 
     const DELTA_PATIENT: f64 = 1.;
     const DELTA_SPECIMEN: f64 = 20.;

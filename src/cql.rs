@@ -1,18 +1,27 @@
 use crate::ast;
+use crate::errors::FocusError;
 
+use chrono::offset::Utc;
+use chrono::DateTime;
+use dateparser::DateTimeUtc;
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
 use std::collections::HashSet;
 
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
 enum CriterionRole {
     Query,
     Filter,
 }
 
-const OBSERVATION_BMI: &str = "39156-5";
-const OBSERVATION_BODY_WEIGHT: &str = "29463-7";
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
+pub enum Project {
+    BBMRI,
+    DKTK,
+}
 
-static ALIAS_BBMRI: Lazy<HashMap<&str, &str>> = Lazy::new(|| {
+static CODE_LISTS: Lazy<HashMap<&str, &str>> = Lazy::new(|| {
+    //code lists with their names
     let map = [
         ("icd10", "http://hl7.org/fhir/sid/icd-10"),
         ("icd10gm", "http://fhir.de/CodeSystem/dimdi/icd-10-gm"),
@@ -39,65 +48,96 @@ static ALIAS_BBMRI: Lazy<HashMap<&str, &str>> = Lazy::new(|| {
     map
 });
 
-static CQL_TEMPLATE_BBMRI: Lazy<HashMap<&str, &str>> = Lazy::new(|| {
+static OBSERVATION_LOINC_CODE: Lazy<HashMap<&str, &str>> = Lazy::new(|| {
     let map = [
-        ("gender", "Patient.gender"),
+        ("body_weight", "29463-7"),
+        ("bmi", "39156-5"),
+        ("smoking_status", "72166-2"),
+    ]
+    .into();
+
+    map
+});
+
+static CRITERION_CODE_LISTS: Lazy<HashMap<(&str, Project), Vec<&str>>> = Lazy::new(|| {
+    // code lists needed depending on the criteria selected
+    let map = [
+        (("diagnosis", Project::BBMRI), vec!["icd10", "icd10gm"]),
+        (("body_weight", Project::BBMRI), vec!["loinc"]),
+        (("bmi", Project::BBMRI), vec!["loinc"]),
+        (("smoking_status", Project::BBMRI), vec!["loinc"]),
+        (("sample_kind", Project::BBMRI), vec!["SampleMaterialType"]),
         (
-            "conditionSampleDiagnosis",
-            "((exists[Condition: Code '{{C}}' from {{A1}}]) or (exists[Condition: Code '{{C}}' from {{A2}}])) or (exists from [Specimen] S where (S.extension.where(url='https://fhir.bbmri.de/StructureDefinition/SampleDiagnosis').value.coding.code contains '{{C}}'))",
+            ("storage_temperature", Project::BBMRI),
+            vec!["StorageTemperature"],
         ),
-        ("conditionValue", "exists [Condition: Code '{{C}}' from {{A1}}]"),
+        (("fasting_status", Project::BBMRI), vec!["FastingStatus"]),
+    ]
+    .into();
+
+    map
+});
+
+static CQL_SNIPPETS_BBMRI: Lazy<HashMap<(&str, CriterionRole, Project), &str>> = Lazy::new(|| {
+    // CQL snippets depending on the criteria
+    let map = [
+        (("gender", CriterionRole::Query, Project::BBMRI), "Patient.gender = '{{D1}}'"),
         (
-            "conditionRangeDate",
-            "exists from [Condition] C\nwhere FHIRHelpers.ToDateTime(C.onset) between {{D1}} and {{D2}}",
+            ("conditionSampleDiagnosis", CriterionRole::Query, Project::BBMRI),
+            " ((exists[Condition: Code '{{C}}' from {{A1}}]) or (exists[Condition: Code '{{C}}' from {{A2}}])) or (exists from [Specimen] S where (S.extension.where(url='https://fhir.bbmri.de/StructureDefinition/SampleDiagnosis').value.coding.code contains '{{C}}')) ",
         ),
+        (("diagnosis", CriterionRole::Query, Project::BBMRI), " exists [Condition: Code '{{C}}' from {{A1}}] "),
         (
-            "conditionRangeAge",
-            "exists from [Condition] C\nwhere AgeInYearsAt(FHIRHelpers.ToDateTime(C.onset)) between Ceiling({{D1}}) and Ceiling({{D2}})",
-        ),
-        ("age", "AgeInYears() between Ceiling({{D1}}) and Ceiling({{D2}})"),
-        (
-            "observation",
-            "exists from [Observation: Code '{{K}}' from {{A1}}] O\nwhere O.value.coding.code contains '{{C}}'",
-        ),
-        (
-            "observationRange",
-            "exists from [Observation: Code '{{K}}' from {{A1}}] O\nwhere O.value between {{D1}} and {{D2}}",
-        ),
-        (
-            "observationBodyWeight",
-            "exists from [Observation: Code '{{K}}' from {{A1}}] O\nwhere ((O.value as Quantity) < {{D1}} 'kg' and (O.value as Quantity) > {{D2}} 'kg')",
-        ),
-        (
-            "observationBMI",
-            "exists from [Observation: Code '{{K}}' from {{A1}}] O\nwhere ((O.value as Quantity) < {{D1}} 'kg/m2' and (O.value as Quantity) > {{D2}} 'kg/m2')",
-        ),
-        ("hasSpecimen", "exists [Specimen]"),
-        ("specimen", "exists [Specimen: Code '{{C}}' from {{A1}}]"),
-        ("retrieveSpecimenByType", "(S.type.coding.code contains '{{C}}')"),
-        (
-            "retrieveSpecimenByTemperature",
-            "(S.extension.where(url='https://fhir.bbmri.de/StructureDefinition/StorageTemperature').value.coding.code contains '{{C}}')",
-        ),
-        (
-            "retrieveSpecimenBySamplingDate",
-            "(FHIRHelpers.ToDateTime(S.collection.collected) between {{D1}} and {{D2}})",
-        ),
-        (
-            "retrieveSpecimenByFastingStatus",
-            "(S.collection.fastingStatus.coding.code contains '{{C}}')",
+            ("date_of_diagnosis", CriterionRole::Query, Project::BBMRI),
+            " exists from [Condition] C\nwhere FHIRHelpers.ToDateTime(C.onset) between {{D1}} and {{D2}} ",
         ),
         (
-            "samplingDate",
-            "exists from [Specimen] S\nwhere FHIRHelpers.ToDateTime(S.collection.collected) between {{D1}} and {{D2}}",
+            ("diagnosis_age_donor", CriterionRole::Query, Project::BBMRI),
+            " exists from [Condition] C\nwhere AgeInYearsAt(FHIRHelpers.ToDateTime(C.onset)) between Ceiling({{D1}}) and Ceiling({{D2}}) ",
+        ),
+        (("donor_age", CriterionRole::Query, Project::BBMRI), " AgeInYears() between Ceiling({{D1}}) and Ceiling({{D2}}) "),
+        (
+            ("observationRange", CriterionRole::Query, Project::BBMRI),
+            " exists from [Observation: Code '{{K}}' from {{A1}}] O\nwhere O.value between {{D1}} and {{D2}} ",
         ),
         (
-            "fastingStatus",
-            "exists from [Specimen] S\nwhere S.collection.fastingStatus.coding.code contains '{{C}}'",
+            ("body_weight", CriterionRole::Query, Project::BBMRI),
+            " exists from [Observation: Code '{{K}}' from {{A1}}] O\nwhere ((O.value as Quantity) < {{D1}} 'kg' and (O.value as Quantity) > {{D2}} 'kg') ",
         ),
         (
-            "storageTemperature",
-            "exists from [Specimen] S where (S.extension.where(url='https://fhir.bbmri.de/StructureDefinition/StorageTemperature').value.coding contains Code '{{C}}' from {{A1}})",
+            ("bmi", CriterionRole::Query, Project::BBMRI),
+            " exists from [Observation: Code '{{K}}' from {{A1}}] O\nwhere ((O.value as Quantity) < {{D1}} 'kg/m2' and (O.value as Quantity) > {{D2}} 'kg/m2') ",
+        ),
+        (("pat_with_samples", CriterionRole::Query, Project::BBMRI), " exists [Specimen] "),
+        (("sample_kind", CriterionRole::Query, Project::BBMRI), " exists [Specimen: Code '{{C}}' from {{A1}}] "),
+        (("retrieveSpecimenByType", CriterionRole::Query, Project::BBMRI), " (S.type.coding.code contains '{{C}}') "),
+        (
+            ("retrieveSpecimenByTemperature", CriterionRole::Query, Project::BBMRI),
+            " (S.extension.where(url='https://fhir.bbmri.de/StructureDefinition/StorageTemperature').value.coding.code contains '{{C}}') ",
+        ),
+        (
+            ("retrieveSpecimenBySamplingDate", CriterionRole::Query, Project::BBMRI),
+            " (FHIRHelpers.ToDateTime(S.collection.collected) between {{D1}} and {{D2}}) ",
+        ),
+        (
+            ("retrieveSpecimenByFastingStatus", CriterionRole::Query, Project::BBMRI),
+            " (S.collection.fastingStatus.coding.code contains '{{C}}') ",
+        ),
+        (
+            ("sampling_date", CriterionRole::Query, Project::BBMRI),
+            " exists from [Specimen] S\nwhere FHIRHelpers.ToDateTime(S.collection.collected) between {{D1}} and {{D2}} ",
+        ),
+        (
+            ("fasting_status", CriterionRole::Query, Project::BBMRI),   
+            " exists from [Specimen] S\nwhere S.collection.fastingStatus.coding.code contains '{{C}}' ",
+        ),
+        (
+            ("storage_temperature", CriterionRole::Query, Project::BBMRI), 
+            " exists from [Specimen] S where (S.extension.where(url='https://fhir.bbmri.de/StructureDefinition/StorageTemperature').value.coding contains Code '{{C}}' from {{A1}}) ",
+        ),
+        (
+            ("smoking_status", CriterionRole::Query, Project::BBMRI), 
+            " exists from [Observation: Code '{{K}}' from {{A1}}] O\nwhere O.value.coding.code contains '{{C}}' ",
         ),
     ]
     .into();
@@ -105,233 +145,228 @@ static CQL_TEMPLATE_BBMRI: Lazy<HashMap<&str, &str>> = Lazy::new(|| {
     map
 });
 
+pub fn bbmri(ast: ast::Ast) -> Result<String, FocusError> {
+    let mut retrieval_criteria: String = "(".to_string(); // main selection criteria (Patient)
 
-static CRITERION_MAP: Lazy<HashMap<&str, Option<HashMap<&str, Vec<&str>>>>> = Lazy::new(|| {
-    let map = [
-        ("gender", Some([("type", vec!["gender"])].into())),
-        (
-            "diagnosis",
-            Some(
-                [
-                    ("type", vec!["conditionSampleDiagnosis"]),
-                    ("alias", vec!["icd10", "icd10gm"]),
-                ]
-                .into(),
-            ),
-        ),
-        (
-            "29463-7",
-            Some(
-                [
-                    ("type", vec!["observationBodyWeight"]),
-                    ("alias", vec!["loinc"]),
-                ]
-                .into(),
-            ),
-        ),
-        (
-            "39156-5",
-            Some([("type", vec!["observationBMI"]), ("alias", vec!["loinc"])].into()),
-        ),
-        (
-            "72166-2",
-            Some([("type", vec!["observation"]), ("alias", vec!["loinc"])].into()),
-        ),
-        ("donor_age", Some([("type", vec!["age"])].into())),
-        (
-            "date_of_diagnosis",
-            Some([("type", vec!["conditionRangeDate"])].into()),
-        ),
-        (
-            "sample_kind",
-            Some(
-                [
-                    ("type", vec!["specimen"]),
-                    ("alias", vec!["SampleMaterialType"]),
-                ]
-                .into(),
-            ),
-        ),
-        (
-            "storage_temperature",
-            Some(
-                [
-                    ("type", vec!["storageTemperature"]),
-                    ("alias", vec!["StorageTemperature"]),
-                ]
-                .into(),
-            ),
-        ),
-        (
-            "pat_with_samples",
-            Some([("type", vec!["hasSpecimen"])].into()),
-        ),
-        (
-            "diagnosis_age_donor",
-            Some([("type", vec!["conditionRangeAge"])].into()),
-        ),
-        (
-            "fasting_status",
-            Some(
-                [
-                    ("type", vec!["fastingStatus"]),
-                    ("alias", vec!["FastingStatus"]),
-                ]
-                .into(),
-            ),
-        ),
-        (
-            "sampling_date",
-            Some([("type", vec!["samplingDate"])].into()),
-        ),
-    ]
-    .into();
+    let mut filter_criteria: String = "(".to_string(); // criteria for filtering specimens
 
-    map
-});
+    let mut code_systems: HashSet<&str> = HashSet::new(); // code lists needed depending on the criteria
+    code_systems.insert("icd10"); //for diagnosis stratifier
+    code_systems.insert("SampleMaterialType"); //for sample type stratifier
 
+    let mut lists: String = "".to_string(); // needed code lists, defined
 
+    let mut cql: String = include_str!("../resources/template_bbmri.cql").to_string();
 
-pub fn bbmri(ast: ast::Ast) -> String {
+    let operator_str = match ast.ast.operand {
+        ast::Operand::And => " and ",
+        ast::Operand::Or => " or ",
+    };
 
-    let mut query: String = "(".to_string();
+    for (index, grandchild) in ast.ast.children.iter().enumerate() {
+        process(
+            grandchild.clone(),
+            &mut retrieval_criteria,
+            &mut filter_criteria,
+            &mut code_systems,
+            Project::BBMRI,
+        )?;
 
-    let mut filter: String = "(".to_string();
-
-    let mut code_systems: HashSet<String> = HashSet::new();
-
-    let mut lists: String = "".to_string();
-
-    match ast.ast.operand {
-        ast::Operand::And => {
-            query += " and ";
-
-        },
-        ast::Operand::Or => {
-            query += " or ";
-        },
+        // Only concatenate operator if it's not the last element
+        if index < ast.ast.children.len() - 1 {
+            retrieval_criteria += operator_str;
+        }
     }
 
-    for grandchild in ast.ast.children {
+    retrieval_criteria += ")";
 
-        process(grandchild, &mut query, &mut filter, &mut code_systems);
-
-    }
-    
-    query += ")";
-
-    
-    
     for code_system in code_systems {
-        lists = lists + format!("codesystem {}: '{}'", code_system.as_str(), ALIAS_BBMRI.get(code_system.as_str()).unwrap_or(&(""))).as_str();
-    } 
+        lists = lists
+            + format!(
+                "codesystem {}: '{}' \n",
+                code_system,
+                CODE_LISTS.get(code_system).unwrap_or(&(""))
+            )
+            .as_str();
+    }
 
+    cql = cql
+        .replace("{[lists}}", lists.as_str())
+        .replace("{{filter_criteria}}", filter_criteria.as_str())
+        .replace("{{retrieval_criteria}}", retrieval_criteria.as_str());
 
-    lists + query.as_str() + filter.as_str()
-    
+    Ok(retrieval_criteria)
 }
 
-pub fn process(child: ast::Child, query: &mut String, filter: &mut String, code_systems: &mut HashSet<String> ) {
-
-    let mut query_cond: String = "(".to_string();
+pub fn process(
+    child: ast::Child,
+    retrieval_criteria: &mut String,
+    filter_criteria: &mut String,
+    code_systems: &mut HashSet<&str>,
+    project: Project,
+) -> Result<(), FocusError> {
+    let mut retrieval_cond: String = "(".to_string();
     let mut filter_cond: String = "(".to_string();
 
     match child {
-       
         ast::Child::Condition(condition) => {
-
             let condition_key_trans = condition.key.as_str();
 
-            query_cond += condition_key_trans;
+            let condition_snippet = CQL_SNIPPETS_BBMRI.get(&(
+                condition_key_trans,
+                CriterionRole::Query,
+                project.clone(),
+            ));
 
-            match condition_key_trans {
+            if let Some(snippet) = condition_snippet {
+                let mut condition_string = (*snippet).to_string();
 
-                _ => {}
+                let code_lists_option = CRITERION_CODE_LISTS.get(&(condition_key_trans, project));
+                if let Some(code_lists_vec) = code_lists_option {
+                    for (index, code_list) in code_lists_vec.iter().enumerate() {
+                        code_systems.insert(code_list);
+                        let placeholder =
+                            "{{A".to_string() + (index + 1).to_string().as_str() + "}}"; //to keep compatibility with snippets in typescript
+                        condition_string =
+                            condition_string.replace(placeholder.as_str(), code_list);
+                    }
+                }           
+
+                if condition_string.contains("{{K}}") {
+                    //observation loinc code
+                    let observation_code_option = OBSERVATION_LOINC_CODE.get(&condition_key_trans);
+
+                    if let Some(observation_code) = observation_code_option {
+                        condition_string = condition_string.replace("{{K}}", observation_code);
+                    } else {
+                        return Err(FocusError::AstUnknownOption(
+                            condition_key_trans.to_string(),
+                        ));
+                    }
+                }
+
+                match condition.type_ {
+                    ast::ConditionType::Between => {
+                        //it has both min and max values stated
+                        match condition.value {
+                            ast::ConditionValue::DateRange(date_range) => {
+                                let datetime_str_min = date_range.min.as_str();
+                                let datetime_result_min: Result<DateTime<Utc>, _> =
+                                    datetime_str_min.parse();
+
+                                if let Ok(datetime_min) = datetime_result_min {
+                                    let date_str_min =
+                                        format!("@{}", datetime_min.format("%Y-%m-%d"));
+
+                                    condition_string =
+                                        condition_string.replace("{{D1}}", date_str_min.as_str());
+                                } else {
+                                    return Err(FocusError::AstInvalidDateFormat(date_range.min));
+                                }
+
+                                let datetime_str_max = date_range.max.as_str();
+                                let datetime_result_max: Result<DateTime<Utc>, _> =
+                                    datetime_str_max.parse();
+                                if let Ok(datetime_max) = datetime_result_max {
+                                    let date_str_max =
+                                        format!("@{}", datetime_max.format("%Y-%m-%d"));
+
+                                    condition_string =
+                                        condition_string.replace("{{D2}}", date_str_max.as_str());
+                                } else {
+                                    return Err(FocusError::AstInvalidDateFormat(date_range.max));
+                                }
+                            },
+                            ast::ConditionValue::NumRange(num_range) => {
+                                condition_string = condition_string
+                                    .replace("{{D1}}", num_range.min.to_string().as_str());
+                                condition_string = condition_string
+                                    .replace("{{D2}}", num_range.max.to_string().as_str());
+                            },
+                            _ => {
+                                return Err(FocusError::AstOperatorValueMismatch());
+                            }
+                        }
+
+                    } // deal with no lower or no upper value
+                    ast::ConditionType::In => {
+                        " in ";
+                    } // this becomes or of all - deal with clones
+                    ast::ConditionType::Equals => {
+                        match condition.value {
+                            ast::ConditionValue::String(string) => {
+                                condition_string = condition_string
+                                    .replace("{{C}}", string.as_str());
+
+                            },
+                            _ => {
+                                return Err(FocusError::AstOperatorValueMismatch());
+                            }
+
+                        }
+                    }
+                    ast::ConditionType::NotEquals => { //won't get it from Lens
+                    
+                    }
+                    ast::ConditionType::Contains => {
+                        "contains ";
+                    }
+                    ast::ConditionType::GreaterThan => { 
+                        " greater than ";
+                    } // guess Lens won't send me this, convert between to it
+                    ast::ConditionType::LowerThan => {
+                        " lower than ";
+                    } // guess Lens won't send me this, convert between to it
+                };
+
+                retrieval_cond += condition_string.as_str();
+            } else {
+                return Err(FocusError::AstUnknownCriterion(
+                    condition_key_trans.to_string(),
+                ));
             }
 
             filter_cond += condition.key.as_str();
 
-
-            let condition_type_trans = match condition.type_ {
-                ast::ConditionType::Between => "between",
-                ast::ConditionType::In => "in",
-                ast::ConditionType::Equals => "equals",
-                ast::ConditionType::NotEquals => "not_equals",
-                ast::ConditionType::Contains => "contains",
-                ast::ConditionType::GreaterThan => "greater than",
-                ast::ConditionType::LowerThan => "lower than"
-            };
-
-            query_cond = query_cond + " " + condition_type_trans + " ";
-
-            match condition.value {
-                ast::ConditionValue::Boolean(value) => {
-                    query_cond += value.to_string().as_str();
-                },
-                ast::ConditionValue::DateRange(date_range) => {
-                    query_cond += date_range.min.as_str();
-                    query_cond += ", ";
-                    query_cond += date_range.max.as_str();
-                },
-                ast::ConditionValue::NumRange(num_range) => {
-                    query_cond += num_range.min.to_string().as_str();
-                    query_cond += ", ";
-                    query_cond += num_range.max.to_string().as_str();
-                },
-                ast::ConditionValue::Number(value) => {
-                    query_cond += value.to_string().as_str();
-                },
-                ast::ConditionValue::String(value) => {
-                    query_cond += value.as_str();
-                },
-                ast::ConditionValue::StringArray(string_array) => {
-                    for value in &string_array {
-                        query_cond += value;
-                        query_cond += ", ";
-                    }
-                    
-                }
-
-            } 
-
-            
-            query_cond += " ";
-        },
-
+            retrieval_cond += " ";
+        }
 
         ast::Child::Operation(operation) => {
-            match operation.operand {
-                ast::Operand::And => {
-                    query_cond += " and ";
+            let operator_str = match operation.operand {
+                ast::Operand::And => " and ",
+                ast::Operand::Or => " or ",
+            };
 
-                },
-                ast::Operand::Or => {
-                    query_cond += " or ";
-                },
+            for (index, grandchild) in operation.children.iter().enumerate() {
+                process(
+                    grandchild.clone(),
+                    &mut retrieval_cond,
+                    &mut filter_cond,
+                    code_systems,
+                    project.clone(),
+                )?;
+
+                // Only concatenate operator if it's not the last element
+                if index < operation.children.len() - 1 {
+                    retrieval_cond += operator_str;
+                }
             }
-
-            for grandchild in operation.children {
-                process(grandchild, &mut query_cond, &mut filter_cond, code_systems);
-
-            }
-
-        },
-    
+        }
     }
-    
-    query_cond += ")";
+
+    retrieval_cond += ")";
     filter_cond += ")";
 
-    *query += query_cond.as_str();
-    *filter += filter_cond.as_str();
+    *retrieval_criteria += retrieval_cond.as_str();
+    *filter_criteria += filter_cond.as_str();
 
+    Ok(())
 }
-
-
 
 #[cfg(test)]
 mod test {
     use super::*;
+
     const AST: &str = r#"{"ast":{"operand":"AND","children":[{"key":"age","type":"EQUALS","value":5.0}]},"id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
 
     const MALE_OR_FEMALE: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"operand":"OR","children":[{"key":"gender","type":"EQUALS","system":"","value":"male"},{"key":"gender","type":"EQUALS","system":"","value":"female"}]}]}]},"id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
@@ -344,11 +379,11 @@ mod test {
 
     const C61_OR_MALE: &str = r#"{"ast": {"operand":"OR","children":[{"operand":"AND","children":[{"operand":"OR","children":[{"key":"diagnosis","type":"EQUALS","system":"http://fhir.de/CodeSystem/dimdi/icd-10-gm","value":"C61"}]},{"operand":"OR","children":[{"key":"gender","type":"EQUALS","system":"","value":"male"}]}]}]}, "id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
 
-    const ALL_GBN: &str = r#"{"ast":{"children":[{"key":"gender","system":"","type":"IN","value":["male","other"]},{"children":[{"key":"diagnosis","system":"http://fhir.de/CodeSystem/dimdi/icd-10-gm","type":"EQUALS","value":"C25"},{"key":"diagnosis","system":"http://fhir.de/CodeSystem/dimdi/icd-10-gm","type":"EQUALS","value":"C56"}],"de":"Diagnose ICD-10","en":"Diagnosis ICD-10","key":"diagnosis","operand":"OR"},{"key":"diagnosis_age_donor","system":"","type":"BETWEEN","value":{"max":100,"min":10}},{"key":"date_of_diagnosis","system":"","type":"BETWEEN","value":{"max":"2023-10-29T23:00:00.000Z","min":"2023-09-30T22:00:00.000Z"}},{"key":"BMI","system":"","type":"BETWEEN","value":{"max":100,"min":10}},{"key":"Body weight","system":"","type":"BETWEEN","value":{"max":1100,"min":10}},{"key":"fasting_status","system":"","type":"IN","value":["Sober","Other fasting status"]},{"key":"72166-2","system":"","type":"IN","value":["Smoker","Never smoked"]},{"key":"donor_age","system":"","type":"BETWEEN","value":{"max":10000,"min":100}},{"key":"sample_kind","system":"","type":"IN","value":["blood-serum","blood-plasma","buffy-coat"]},{"key":"sampling_date","system":"","type":"BETWEEN","value":{"max":"2023-10-29T23:00:00.000Z","min":"2023-10-03T22:00:00.000Z"}},{"key":"storage_temperature","system":"","type":"IN","value":["temperature-18to-35","temperature-60to-85"]}],"de":"haupt","en":"main","key":"main","operand":"AND"},"id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
+    const ALL_GBN: &str = r#"{"ast":{"children":[{"key":"gender","system":"","type":"IN","value":["male","other"]},{"children":[{"key":"diagnosis","system":"http://fhir.de/CodeSystem/dimdi/icd-10-gm","type":"EQUALS","value":"C25"},{"key":"diagnosis","system":"http://fhir.de/CodeSystem/dimdi/icd-10-gm","type":"EQUALS","value":"C56"}],"de":"Diagnose ICD-10","en":"Diagnosis ICD-10","key":"diagnosis","operand":"OR"},{"key":"diagnosis_age_donor","system":"","type":"BETWEEN","value":{"max":100,"min":10}},{"key":"date_of_diagnosis","system":"","type":"BETWEEN","value":{"max":"2023-10-29T23:00:00.000Z","min":"2023-09-30T22:00:00.000Z"}},{"key":"bmi","system":"","type":"BETWEEN","value":{"max":100,"min":10}},{"key":"body_weight","system":"","type":"BETWEEN","value":{"max":1100,"min":10}},{"key":"fasting_status","system":"","type":"IN","value":["Sober","Other fasting status"]},{"key":"smoking_status","system":"","type":"IN","value":["Smoker","Never smoked"]},{"key":"donor_age","system":"","type":"BETWEEN","value":{"max":10000,"min":100}},{"key":"sample_kind","system":"","type":"IN","value":["blood-serum","blood-plasma","buffy-coat"]},{"key":"sampling_date","system":"","type":"BETWEEN","value":{"max":"2023-10-29T23:00:00.000Z","min":"2023-10-03T22:00:00.000Z"}},{"key":"storage_temperature","system":"","type":"IN","value":["temperature-18to-35","temperature-60to-85"]}],"de":"haupt","en":"main","key":"main","operand":"AND"},"id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
 
     const SOME_GBN: &str = r#"{"ast":{"children":[{"key":"gender","system":"","type":"IN","value":["other","male"]},{"key":"diagnosis","system":"http://fhir.de/CodeSystem/dimdi/icd-10-gm","type":"EQUALS","value":"C24"},{"key":"diagnosis_age_donor","system":"","type":"BETWEEN","value":{"max":11,"min":1}},{"key":"date_of_diagnosis","system":"","type":"BETWEEN","value":{"max":"2023-10-30T23:00:00.000Z","min":"2023-10-29T23:00:00.000Z"}},{"key":"bmi","system":"","type":"BETWEEN","value":{"max":111,"min":1}},{"key":"body_weight","system":"","type":"BETWEEN","value":{"max":1111,"min":110}},{"key":"fasting_status","system":"","type":"IN","value":["Sober","Not sober"]},{"key":"smoking_status","system":"","type":"IN","value":["Smoker","Never smoked"]},{"key":"donor_age","system":"","type":"BETWEEN","value":{"max":123,"min":1}},{"key":"sample_kind","system":"","type":"IN","value":["blood-serum","tissue-other"]},{"key":"sampling_date","system":"","type":"BETWEEN","value":{"max":"2023-10-30T23:00:00.000Z","min":"2023-10-29T23:00:00.000Z"}},{"key":"storage_temperature","system":"","type":"IN","value":["temperature2to10","temperatureGN"]}],"de":"haupt","en":"main","key":"main","operand":"AND"},"id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
-    
-    const LENS2: &str = r#"{"ast":{"children":[{"children":[{"children":[{"key":"gender","system":"","type":"EQUALS","value":"male"},{"key":"gender","system":"","type":"EQUALS","value":"female"}],"operand":"OR"},{"children":[{"key":"diagnosis","system":"","type":"EQUALS","value":"C41"},{"key":"diagnosis","system":"","type":"EQUALS","value":"C50"}],"operand":"OR"},{"children":[{"key":"sample_kind","system":"","type":"EQUALS","value":"tissue-frozen"},{"key":"sample_kind","system":"","type":"EQUALS","value":"blood-serum"}],"operand":"OR"}],"operand":"AND"},{"children":[{"children":[{"key":"gender","system":"","type":"EQUALS","value":"male"}],"operand":"OR"},{"children":[{"key":"diagnosis","system":"","type":"EQUALS","value":"C41"},{"key":"diagnosis","system":"","type":"EQUALS","value":"C50"}],"operand":"OR"},{"children":[{"key":"sample_kind","system":"","type":"EQUALS","value":"liquid-other"},{"key":"sample_kind","system":"","type":"EQUALS","value":"rna"},{"key":"sample_kind","system":"","type":"EQUALS","value":"urine"}],"operand":"OR"},{"children":[{"key":"storage_temperature","system":"","type":"EQUALS","value":"temperatureRoom"},{"key":"storage_temperature","system":"","type":"EQUALS","value":"four_degrees"}],"operand":"OR"}],"operand":"AND"}],"operand":"OR"},"id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#; 
+
+    const LENS2: &str = r#"{"ast":{"children":[{"children":[{"children":[{"key":"gender","system":"","type":"EQUALS","value":"male"},{"key":"gender","system":"","type":"EQUALS","value":"female"}],"operand":"OR"},{"children":[{"key":"diagnosis","system":"","type":"EQUALS","value":"C41"},{"key":"diagnosis","system":"","type":"EQUALS","value":"C50"}],"operand":"OR"},{"children":[{"key":"sample_kind","system":"","type":"EQUALS","value":"tissue-frozen"},{"key":"sample_kind","system":"","type":"EQUALS","value":"blood-serum"}],"operand":"OR"}],"operand":"AND"},{"children":[{"children":[{"key":"gender","system":"","type":"EQUALS","value":"male"}],"operand":"OR"},{"children":[{"key":"diagnosis","system":"","type":"EQUALS","value":"C41"},{"key":"diagnosis","system":"","type":"EQUALS","value":"C50"}],"operand":"OR"},{"children":[{"key":"sample_kind","system":"","type":"EQUALS","value":"liquid-other"},{"key":"sample_kind","system":"","type":"EQUALS","value":"rna"},{"key":"sample_kind","system":"","type":"EQUALS","value":"urine"}],"operand":"OR"},{"children":[{"key":"storage_temperature","system":"","type":"EQUALS","value":"temperatureRoom"},{"key":"storage_temperature","system":"","type":"EQUALS","value":"four_degrees"}],"operand":"OR"}],"operand":"AND"}],"operand":"OR"},"id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
 
     #[test]
     fn test_just_print() {
@@ -400,9 +435,5 @@ mod test {
             "{:?}",
             bbmri(serde_json::from_str(LENS2).expect("Failed to deserialize JSON"))
         );
-
-        //println!("{:?}", CRITERION_MAP.get("gender"));
-
-        //println!("{:?}",CRITERION_MAP);
     }
 }
