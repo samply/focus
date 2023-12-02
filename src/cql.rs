@@ -71,7 +71,7 @@ static CRITERION_CODE_LISTS: Lazy<HashMap<(&str, Project), Vec<&str>>> = Lazy::n
     .into()
 });
 
-static CQL_SNIPPETS_BBMRI: Lazy<HashMap<(&str, CriterionRole, Project), &str>> = Lazy::new(|| {
+static CQL_SNIPPETS: Lazy<HashMap<(&str, CriterionRole, Project), &str>> = Lazy::new(|| {
     // CQL snippets depending on the criteria
     [
         (("gender", CriterionRole::Query, Project::Bbmri), "Patient.gender = '{{C}}'"),
@@ -208,7 +208,7 @@ pub fn process(
         ast::Child::Condition(condition) => {
             let condition_key_trans = condition.key.as_str();
 
-            let condition_snippet = CQL_SNIPPETS_BBMRI.get(&(
+            let condition_snippet = CQL_SNIPPETS.get(&(
                 condition_key_trans,
                 CriterionRole::Query,
                 project.clone(),
