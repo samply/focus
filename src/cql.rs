@@ -3,7 +3,6 @@ use crate::errors::FocusError;
 
 use chrono::offset::Utc;
 use chrono::DateTime;
-use dateparser::DateTimeUtc;
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -16,13 +15,13 @@ enum CriterionRole {
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
 pub enum Project {
-    BBMRI,
-    DKTK,
+    Bbmri,
+    Dktk,
 }
 
 static CODE_LISTS: Lazy<HashMap<&str, &str>> = Lazy::new(|| {
     //code lists with their names
-    let map = [
+    [
         ("icd10", "http://hl7.org/fhir/sid/icd-10"),
         ("icd10gm", "http://fhir.de/CodeSystem/dimdi/icd-10-gm"),
         ("loinc", "http://loinc.org"),
@@ -43,106 +42,98 @@ static CODE_LISTS: Lazy<HashMap<&str, &str>> = Lazy::new(|| {
             "http://hl7.org/fhir/uv/ips/ValueSet/current-smoking-status-uv-ips",
         ),
     ]
-    .into();
-
-    map
+    .into()
 });
 
 static OBSERVATION_LOINC_CODE: Lazy<HashMap<&str, &str>> = Lazy::new(|| {
-    let map = [
+    [
         ("body_weight", "29463-7"),
         ("bmi", "39156-5"),
         ("smoking_status", "72166-2"),
     ]
-    .into();
-
-    map
+    .into()
 });
 
 static CRITERION_CODE_LISTS: Lazy<HashMap<(&str, Project), Vec<&str>>> = Lazy::new(|| {
     // code lists needed depending on the criteria selected
-    let map = [
-        (("diagnosis", Project::BBMRI), vec!["icd10", "icd10gm"]),
-        (("body_weight", Project::BBMRI), vec!["loinc"]),
-        (("bmi", Project::BBMRI), vec!["loinc"]),
-        (("smoking_status", Project::BBMRI), vec!["loinc"]),
-        (("sample_kind", Project::BBMRI), vec!["SampleMaterialType"]),
+    [
+        (("diagnosis", Project::Bbmri), vec!["icd10", "icd10gm"]),
+        (("body_weight", Project::Bbmri), vec!["loinc"]),
+        (("bmi", Project::Bbmri), vec!["loinc"]),
+        (("smoking_status", Project::Bbmri), vec!["loinc"]),
+        (("sample_kind", Project::Bbmri), vec!["SampleMaterialType"]),
         (
-            ("storage_temperature", Project::BBMRI),
+            ("storage_temperature", Project::Bbmri),
             vec!["StorageTemperature"],
         ),
-        (("fasting_status", Project::BBMRI), vec!["FastingStatus"]),
+        (("fasting_status", Project::Bbmri), vec!["FastingStatus"]),
     ]
-    .into();
-
-    map
+    .into()
 });
 
 static CQL_SNIPPETS_BBMRI: Lazy<HashMap<(&str, CriterionRole, Project), &str>> = Lazy::new(|| {
     // CQL snippets depending on the criteria
-    let map = [
-        (("gender", CriterionRole::Query, Project::BBMRI), "Patient.gender = '{{D1}}'"),
+    [
+        (("gender", CriterionRole::Query, Project::Bbmri), "Patient.gender = '{{C}}'"),
         (
-            ("conditionSampleDiagnosis", CriterionRole::Query, Project::BBMRI),
+            ("diagnosis", CriterionRole::Query, Project::Bbmri),
             " ((exists[Condition: Code '{{C}}' from {{A1}}]) or (exists[Condition: Code '{{C}}' from {{A2}}])) or (exists from [Specimen] S where (S.extension.where(url='https://fhir.bbmri.de/StructureDefinition/SampleDiagnosis').value.coding.code contains '{{C}}')) ",
         ),
-        (("diagnosis", CriterionRole::Query, Project::BBMRI), " exists [Condition: Code '{{C}}' from {{A1}}] "),
+        (("diagnosis_old", CriterionRole::Query, Project::Bbmri), " exists [Condition: Code '{{C}}' from {{A1}}] "),
         (
-            ("date_of_diagnosis", CriterionRole::Query, Project::BBMRI),
+            ("date_of_diagnosis", CriterionRole::Query, Project::Bbmri),
             " exists from [Condition] C\nwhere FHIRHelpers.ToDateTime(C.onset) between {{D1}} and {{D2}} ",
         ),
         (
-            ("diagnosis_age_donor", CriterionRole::Query, Project::BBMRI),
+            ("diagnosis_age_donor", CriterionRole::Query, Project::Bbmri),
             " exists from [Condition] C\nwhere AgeInYearsAt(FHIRHelpers.ToDateTime(C.onset)) between Ceiling({{D1}}) and Ceiling({{D2}}) ",
         ),
-        (("donor_age", CriterionRole::Query, Project::BBMRI), " AgeInYears() between Ceiling({{D1}}) and Ceiling({{D2}}) "),
+        (("donor_age", CriterionRole::Query, Project::Bbmri), " AgeInYears() between Ceiling({{D1}}) and Ceiling({{D2}}) "),
         (
-            ("observationRange", CriterionRole::Query, Project::BBMRI),
+            ("observationRange", CriterionRole::Query, Project::Bbmri),
             " exists from [Observation: Code '{{K}}' from {{A1}}] O\nwhere O.value between {{D1}} and {{D2}} ",
         ),
         (
-            ("body_weight", CriterionRole::Query, Project::BBMRI),
+            ("body_weight", CriterionRole::Query, Project::Bbmri),
             " exists from [Observation: Code '{{K}}' from {{A1}}] O\nwhere ((O.value as Quantity) < {{D1}} 'kg' and (O.value as Quantity) > {{D2}} 'kg') ",
         ),
         (
-            ("bmi", CriterionRole::Query, Project::BBMRI),
+            ("bmi", CriterionRole::Query, Project::Bbmri),
             " exists from [Observation: Code '{{K}}' from {{A1}}] O\nwhere ((O.value as Quantity) < {{D1}} 'kg/m2' and (O.value as Quantity) > {{D2}} 'kg/m2') ",
         ),
-        (("pat_with_samples", CriterionRole::Query, Project::BBMRI), " exists [Specimen] "),
-        (("sample_kind", CriterionRole::Query, Project::BBMRI), " exists [Specimen: Code '{{C}}' from {{A1}}] "),
-        (("retrieveSpecimenByType", CriterionRole::Query, Project::BBMRI), " (S.type.coding.code contains '{{C}}') "),
+        (("sample_kind", CriterionRole::Query, Project::Bbmri), " exists [Specimen: Code '{{C}}' from {{A1}}] "),
+        (("sample_kind", CriterionRole::Filter, Project::Bbmri), " (S.type.coding.code contains '{{C}}') "),
+
         (
-            ("retrieveSpecimenByTemperature", CriterionRole::Query, Project::BBMRI),
+            ("storage_temperature", CriterionRole::Filter, Project::Bbmri),
             " (S.extension.where(url='https://fhir.bbmri.de/StructureDefinition/StorageTemperature').value.coding.code contains '{{C}}') ",
         ),
         (
-            ("retrieveSpecimenBySamplingDate", CriterionRole::Query, Project::BBMRI),
+            ("sampling_date", CriterionRole::Filter, Project::Bbmri),
             " (FHIRHelpers.ToDateTime(S.collection.collected) between {{D1}} and {{D2}}) ",
         ),
         (
-            ("retrieveSpecimenByFastingStatus", CriterionRole::Query, Project::BBMRI),
+            ("fasting_status", CriterionRole::Filter, Project::Bbmri),
             " (S.collection.fastingStatus.coding.code contains '{{C}}') ",
         ),
         (
-            ("sampling_date", CriterionRole::Query, Project::BBMRI),
+            ("sampling_date", CriterionRole::Query, Project::Bbmri),
             " exists from [Specimen] S\nwhere FHIRHelpers.ToDateTime(S.collection.collected) between {{D1}} and {{D2}} ",
         ),
         (
-            ("fasting_status", CriterionRole::Query, Project::BBMRI),   
+            ("fasting_status", CriterionRole::Query, Project::Bbmri),   
             " exists from [Specimen] S\nwhere S.collection.fastingStatus.coding.code contains '{{C}}' ",
         ),
         (
-            ("storage_temperature", CriterionRole::Query, Project::BBMRI), 
+            ("storage_temperature", CriterionRole::Query, Project::Bbmri), 
             " exists from [Specimen] S where (S.extension.where(url='https://fhir.bbmri.de/StructureDefinition/StorageTemperature').value.coding contains Code '{{C}}' from {{A1}}) ",
         ),
         (
-            ("smoking_status", CriterionRole::Query, Project::BBMRI), 
+            ("smoking_status", CriterionRole::Query, Project::Bbmri), 
             " exists from [Observation: Code '{{K}}' from {{A1}}] O\nwhere O.value.coding.code contains '{{C}}' ",
         ),
     ]
-    .into();
-
-    map
+    .into()
 });
 
 pub fn bbmri(ast: ast::Ast) -> Result<String, FocusError> {
@@ -169,7 +160,7 @@ pub fn bbmri(ast: ast::Ast) -> Result<String, FocusError> {
             &mut retrieval_criteria,
             &mut filter_criteria,
             &mut code_systems,
-            Project::BBMRI,
+            Project::Bbmri,
         )?;
 
         // Only concatenate operator if it's not the last element
@@ -181,8 +172,7 @@ pub fn bbmri(ast: ast::Ast) -> Result<String, FocusError> {
     retrieval_criteria += ")";
 
     for code_system in code_systems {
-        lists = lists
-            + format!(
+        lists += format!(
                 "codesystem {}: '{}' \n",
                 code_system,
                 CODE_LISTS.get(code_system).unwrap_or(&(""))
@@ -191,11 +181,17 @@ pub fn bbmri(ast: ast::Ast) -> Result<String, FocusError> {
     }
 
     cql = cql
-        .replace("{[lists}}", lists.as_str())
-        .replace("{{filter_criteria}}", filter_criteria.as_str())
-        .replace("{{retrieval_criteria}}", retrieval_criteria.as_str());
+        .replace("{{lists}}", lists.as_str())
+        .replace("{{filter_criteria}}", filter_criteria.as_str());
 
-    Ok(retrieval_criteria)
+    if retrieval_criteria != *"()"{ // no criteria selected
+        cql = cql.replace("{{retrieval_criteria}}", retrieval_criteria.as_str());
+    } else {
+        cql = cql.replace("{{retrieval_criteria}}", "true");
+    }
+
+
+    Ok(cql)
 }
 
 pub fn process(
@@ -289,8 +285,32 @@ pub fn process(
                         }
 
                     } // deal with no lower or no upper value
-                    ast::ConditionType::In => {
-                        " in ";
+                    ast::ConditionType::In => { // although in works in CQL, at least in some places, most of it is converted to multiple criteria with OR
+                        let operator_str = " or ";
+
+                        match condition.value {
+                            ast::ConditionValue::StringArray(string_array) => {
+                                let mut condition_humongous_string = " (".to_string();
+                                for (index, string) in string_array.iter().enumerate() {
+                                    condition_humongous_string = condition_humongous_string + " (" + condition_string.as_str() + ") ";
+                                    condition_humongous_string = condition_humongous_string
+                                    .replace("{{C}}", string.as_str());
+
+                                    // Only concatenate operator if it's not the last element
+                                    if index < string_array.len() - 1 {
+                                        condition_humongous_string += operator_str;
+                                    }
+
+                                }
+                                condition_string = condition_humongous_string + " )";
+
+
+                            },
+                            _ => {
+                                return Err(FocusError::AstOperatorValueMismatch());
+                            }
+                        }
+
                     } // this becomes or of all - deal with clones
                     ast::ConditionType::Equals => {
                         match condition.value {
@@ -305,18 +325,16 @@ pub fn process(
 
                         }
                     }
-                    ast::ConditionType::NotEquals => { //won't get it from Lens
+                    ast::ConditionType::NotEquals => { // won't get it from Lens
                     
                     }
-                    ast::ConditionType::Contains => {
-                        "contains ";
+                    ast::ConditionType::Contains => { // won't get it from Lens
+                        
                     }
                     ast::ConditionType::GreaterThan => { 
-                        " greater than ";
-                    } // guess Lens won't send me this, convert between to it
+                    } // guess Lens won't send me this
                     ast::ConditionType::LowerThan => {
-                        " lower than ";
-                    } // guess Lens won't send me this, convert between to it
+                    } // guess Lens won't send me this
                 };
 
                 retrieval_cond += condition_string.as_str();
@@ -384,6 +402,8 @@ mod test {
     const SOME_GBN: &str = r#"{"ast":{"children":[{"key":"gender","system":"","type":"IN","value":["other","male"]},{"key":"diagnosis","system":"http://fhir.de/CodeSystem/dimdi/icd-10-gm","type":"EQUALS","value":"C24"},{"key":"diagnosis_age_donor","system":"","type":"BETWEEN","value":{"max":11,"min":1}},{"key":"date_of_diagnosis","system":"","type":"BETWEEN","value":{"max":"2023-10-30T23:00:00.000Z","min":"2023-10-29T23:00:00.000Z"}},{"key":"bmi","system":"","type":"BETWEEN","value":{"max":111,"min":1}},{"key":"body_weight","system":"","type":"BETWEEN","value":{"max":1111,"min":110}},{"key":"fasting_status","system":"","type":"IN","value":["Sober","Not sober"]},{"key":"smoking_status","system":"","type":"IN","value":["Smoker","Never smoked"]},{"key":"donor_age","system":"","type":"BETWEEN","value":{"max":123,"min":1}},{"key":"sample_kind","system":"","type":"IN","value":["blood-serum","tissue-other"]},{"key":"sampling_date","system":"","type":"BETWEEN","value":{"max":"2023-10-30T23:00:00.000Z","min":"2023-10-29T23:00:00.000Z"}},{"key":"storage_temperature","system":"","type":"IN","value":["temperature2to10","temperatureGN"]}],"de":"haupt","en":"main","key":"main","operand":"AND"},"id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
 
     const LENS2: &str = r#"{"ast":{"children":[{"children":[{"children":[{"key":"gender","system":"","type":"EQUALS","value":"male"},{"key":"gender","system":"","type":"EQUALS","value":"female"}],"operand":"OR"},{"children":[{"key":"diagnosis","system":"","type":"EQUALS","value":"C41"},{"key":"diagnosis","system":"","type":"EQUALS","value":"C50"}],"operand":"OR"},{"children":[{"key":"sample_kind","system":"","type":"EQUALS","value":"tissue-frozen"},{"key":"sample_kind","system":"","type":"EQUALS","value":"blood-serum"}],"operand":"OR"}],"operand":"AND"},{"children":[{"children":[{"key":"gender","system":"","type":"EQUALS","value":"male"}],"operand":"OR"},{"children":[{"key":"diagnosis","system":"","type":"EQUALS","value":"C41"},{"key":"diagnosis","system":"","type":"EQUALS","value":"C50"}],"operand":"OR"},{"children":[{"key":"sample_kind","system":"","type":"EQUALS","value":"liquid-other"},{"key":"sample_kind","system":"","type":"EQUALS","value":"rna"},{"key":"sample_kind","system":"","type":"EQUALS","value":"urine"}],"operand":"OR"},{"children":[{"key":"storage_temperature","system":"","type":"EQUALS","value":"temperatureRoom"},{"key":"storage_temperature","system":"","type":"EQUALS","value":"four_degrees"}],"operand":"OR"}],"operand":"AND"}],"operand":"OR"},"id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
+    
+    const EMPTY: &str = r#"{"ast":{"children":[],"operand":"OR"}, "id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
 
     #[test]
     fn test_just_print() {
@@ -435,5 +455,13 @@ mod test {
             "{:?}",
             bbmri(serde_json::from_str(LENS2).expect("Failed to deserialize JSON"))
         );
+
+        println!();
+
+        println!(
+            "{:?}",
+            bbmri(serde_json::from_str(EMPTY).expect("Failed to deserialize JSON"))
+        );
+
     }
 }

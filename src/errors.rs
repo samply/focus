@@ -1,5 +1,4 @@
 use thiserror::Error;
-use crate::ast;
 
 #[derive(Error, Debug)]
 pub enum FocusError {

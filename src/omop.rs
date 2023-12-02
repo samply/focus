@@ -31,7 +31,7 @@ pub async fn post_ast(ast: ast::Ast) -> Result<String, FocusError> {
         .body(ast_string.clone())
         .send()
         .await
-        .map_err(|e| FocusError::UnableToPostAst(e))?;
+        .map_err(FocusError::UnableToPostAst)?;
 
     debug!("Posted AST...");
 
@@ -40,7 +40,7 @@ pub async fn post_ast(ast: ast::Ast) -> Result<String, FocusError> {
             resp
             .text()
             .await
-            .map_err(|e| FocusError::UnableToPostAst(e))?
+            .map_err(FocusError::UnableToPostAst)?
         },
         code => {
             warn!("Got unexpected code {code} while posting AST; reply was `{}`, debug info: {:?}", ast_string, resp);
