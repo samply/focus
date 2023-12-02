@@ -194,7 +194,7 @@ impl Config {
             delta_medication_statements: cli_args.delta_medication_statements,
             epsilon: cli_args.epsilon,
             rounding_step: cli_args.rounding_step,
-            unobfuscated: cli_args.projects_no_obfuscation.split(";").map(|s| s.to_string()).collect(),
+            unobfuscated: cli_args.projects_no_obfuscation.split(';').map(|s| s.to_string()).collect(),
             queries_to_cache_file_path: cli_args.queries_to_cache_file_path,
             tls_ca_certificates,
             provider: cli_args.provider,
@@ -244,17 +244,17 @@ pub fn prepare_reqwest_client(certs: &Vec<Certificate>) -> Result<reqwest::Clien
             match k.as_str() {
                 "http_proxy" => proxies.push(
                     Proxy::http(v)
-                        .map_err(|e| FocusError::InvalidProxyConfig(e))?
+                        .map_err(FocusError::InvalidProxyConfig)?
                         .no_proxy(no_proxy.clone()),
                 ),
                 "https_proxy" => proxies.push(
                     Proxy::https(v)
-                        .map_err(|e| FocusError::InvalidProxyConfig(e))?
+                        .map_err(FocusError::InvalidProxyConfig)?
                         .no_proxy(no_proxy.clone()),
                 ),
                 "all_proxy" => proxies.push(
                     Proxy::all(v)
-                        .map_err(|e| FocusError::InvalidProxyConfig(e))?
+                        .map_err( FocusError::InvalidProxyConfig)?
                         .no_proxy(no_proxy.clone()),
                 ),
                 _ => (),

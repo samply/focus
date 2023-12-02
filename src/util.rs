@@ -69,8 +69,6 @@ struct MeasureReport {
     type_: String, //because "type" is a reserved keyword
 }
 
-const MU: f64 = 0.;
-
 pub(crate) fn get_json_field(json_string: &str, field: &str) -> Result<Value, serde_json::Error> {
     let json: Value = serde_json::from_str(json_string)?;
     Ok(json[field].clone())
@@ -99,6 +97,8 @@ pub(crate) fn replace_cql(decoded_library: impl Into<String>) -> String {
             ("EXLIQUID_ALIQUOTS_CQL_SPECIMEN", "define Specimen:\nif InInitialPopulation then [Specimen] else {} as List<Specimen>\n define Aliquot:\n [Specimen] S\n where exists S.collection.quantity.value and exists S.parent.reference and S.container.specimenQuantity.value > 0 define AliquotGroupReferences: flatten Aliquot S return S.parent.reference define AliquotGroupWithAliquot: [Specimen] S where not (S.identifier.system contains 'http://dktk.dkfz.de/fhir/sid/exliquid-specimen') and not exists S.collection.quantity.value and not exists S.container.specimenQuantity.value and AliquotGroupReferences contains 'Specimen/' + S.id define PrimarySampleReferences: flatten AliquotGroupWithAliquot S return S.parent.reference define ExliquidSpecimenWithAliquot: from [Specimen] PrimarySample where PrimarySample.identifier.system contains 'http://dktk.dkfz.de/fhir/sid/exliquid-specimen'   and PrimarySampleReferences contains 'Specimen/' + PrimarySample.id \n define function SampleType(specimen FHIR.Specimen): specimen.type.coding.where(system = 'https://fhir.bbmri.de/CodeSystem/SampleMaterialType').code.first()"),
             ("DKTK_STRAT_GENDER_STRATIFIER", "define Gender:\nif (Patient.gender is null) then 'unknown' else Patient.gender"),
             ("DKTK_STRAT_AGE_STRATIFIER", "define PrimaryDiagnosis:\nFirst(\nfrom [Condition] C\nwhere C.extension.where(url='http://hl7.org/fhir/StructureDefinition/condition-related').empty()\nsort by date from onset asc)\n\ndefine AgeClass:\nif (PrimaryDiagnosis.onset is null) then 'unknown' else ToString((AgeInYearsAt(FHIRHelpers.ToDateTime(PrimaryDiagnosis.onset)) div 10) * 10)"),
+            ("DKTK_STRAT_PRIMARY_DIAGNOSIS_STRATIFIER", "define PrimaryDiagnosis:\nFirst(\nfrom [Condition] C\nwhere C.extension.where(url='http://hl7.org/fhir/StructureDefinition/condition-related').empty()\nsort by date from onset asc)\n"),
+            ("DKTK_STRAT_AGE_CLASS_STRATIFIER", "define AgeClass:\nif (PrimaryDiagnosis.onset is null) then 'unknown' else ToString((AgeInYearsAt(FHIRHelpers.ToDateTime(PrimaryDiagnosis.onset)) div 10) * 10)"),
             ("DKTK_STRAT_DECEASED_STRATIFIER", "define PatientDeceased:\nFirst (from [Observation: Code '75186-7' from loinc] O return O.value.coding.where(system = 'http://dktk.dkfz.de/fhir/onco/core/CodeSystem/VitalstatusCS').code.first())\ndefine Deceased:\nif (PatientDeceased is null) then 'unbekannt' else PatientDeceased"),
             ("DKTK_STRAT_DIAGNOSIS_STRATIFIER", "define Diagnosis:\nif InInitialPopulation then [Condition] else {} as List<Condition>\n\ndefine function DiagnosisCode(condition FHIR.Condition):\ncondition.code.coding.where(system = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm').code.first()"),
             ("DKTK_STRAT_SPECIMEN_STRATIFIER", "define Specimen:\nif InInitialPopulation then [Specimen] else {} as List<Specimen>\n\ndefine function SampleType(specimen FHIR.Specimen):\nspecimen.type.coding.where(system = 'https://fhir.bbmri.de/CodeSystem/SampleMaterialType').code.first()"),
@@ -106,9 +106,11 @@ pub(crate) fn replace_cql(decoded_library: impl Into<String>) -> String {
             ("DKTK_STRAT_PROCEDURE_STRATIFIER", "define Procedure:\nif InInitialPopulation then [Procedure] else {} as List <Procedure>\n\ndefine function ProcedureType(procedure FHIR.Procedure):\nprocedure.category.coding.where(system = 'http://dktk.dkfz.de/fhir/onco/core/CodeSystem/SYSTTherapieartCS').code.first()"),
             ("DKTK_STRAT_MEDICATION_STRATIFIER", "define MedicationStatement:\nif InInitialPopulation then [MedicationStatement] else {} as List <MedicationStatement>"),
             ("DKTK_STRAT_ENCOUNTER_STRATIFIER", "define Encounter:\nif InInitialPopulation then [Encounter] else {} as List<Encounter>\n\ndefine function Departments(encounter FHIR.Encounter):\nencounter.identifier.where(system = 'http://dktk.dkfz.de/fhir/sid/hki-department').value.first()"),
+            ("DKTK_STRAT_HISTOLOGY_STRATIFIER", "define Histo:\nif InInitialPopulation then [Observation] else {} as List <Observation>\n\ndefine function Histlogoy(histo FHIR.Observation):\n if histo.code.coding.where(code = '59847-4').code.first() is null then 0 else 1"),
             ("DKTK_STRAT_DEF_IN_INITIAL_POPULATION", "define InInitialPopulation:"),
             ("EXLIQUID_STRAT_DEF_IN_INITIAL_POPULATION", "define InInitialPopulation:\n   exists ExliquidSpecimen and\n"),        
-            ("EXLIQUID_STRAT_W_ALIQUOTS", "define InInitialPopulation: exists ExliquidSpecimenWithAliquot and \n")
+            ("EXLIQUID_STRAT_W_ALIQUOTS", "define InInitialPopulation: exists ExliquidSpecimenWithAliquot and \n"),
+            ("MTBA_STRAT_GENETIC_VARIANT", "define GeneticVariantCode:\nFirst (from [Observation: Code '69548-6' from loinc] O return O.component.where(code.coding contains Code '48018-6' from loinc).value.coding.code.first())")
         ].into();
 
     let mut decoded_library = decoded_library.into();
@@ -151,7 +153,6 @@ pub fn obfuscate_counts_mr(
             "patients" => {
                 obfuscate_counts_recursive(
                     &mut g.population,
-                    MU,
                     delta_patient,
                     epsilon,
                     1,
@@ -162,7 +163,6 @@ pub fn obfuscate_counts_mr(
                 )?;
                 obfuscate_counts_recursive(
                     &mut g.stratifier,
-                    MU,
                     delta_patient,
                     epsilon,
                     2,
@@ -175,7 +175,6 @@ pub fn obfuscate_counts_mr(
             "diagnosis" => {
                 obfuscate_counts_recursive(
                     &mut g.population,
-                    MU,
                     delta_diagnosis,
                     epsilon,
                     1,
@@ -186,7 +185,6 @@ pub fn obfuscate_counts_mr(
                 )?;
                 obfuscate_counts_recursive(
                     &mut g.stratifier,
-                    MU,
                     delta_diagnosis,
                     epsilon,
                     2,
@@ -199,7 +197,6 @@ pub fn obfuscate_counts_mr(
             "specimen" => {
                 obfuscate_counts_recursive(
                     &mut g.population,
-                    MU,
                     delta_specimen,
                     epsilon,
                     1,
@@ -210,7 +207,6 @@ pub fn obfuscate_counts_mr(
                 )?;
                 obfuscate_counts_recursive(
                     &mut g.stratifier,
-                    MU,
                     delta_specimen,
                     epsilon,
                     2,
@@ -223,7 +219,6 @@ pub fn obfuscate_counts_mr(
             "procedures" => {
                 obfuscate_counts_recursive(
                     &mut g.population,
-                    MU,
                     delta_procedures,
                     epsilon,
                     1,
@@ -234,7 +229,6 @@ pub fn obfuscate_counts_mr(
                 )?;
                 obfuscate_counts_recursive(
                     &mut g.stratifier,
-                    MU,
                     delta_procedures,
                     epsilon,
                     2,
@@ -247,7 +241,6 @@ pub fn obfuscate_counts_mr(
             "medicationStatements" => {
                 obfuscate_counts_recursive(
                     &mut g.population,
-                    MU,
                     delta_medication_statements,
                     epsilon,
                     1,
@@ -258,7 +251,6 @@ pub fn obfuscate_counts_mr(
                 )?;
                 obfuscate_counts_recursive(
                     &mut g.stratifier,
-                    MU,
                     delta_medication_statements,
                     epsilon,
                     2,
@@ -281,7 +273,6 @@ pub fn obfuscate_counts_mr(
 
 fn obfuscate_counts_recursive(
     val: &mut Value,
-    mu: f64,
     delta: f64,
     epsilon: f64,
     bin: Bin,
@@ -295,7 +286,7 @@ fn obfuscate_counts_recursive(
         Value::Object(map) => {
             if let Some(count_val) = map.get_mut("count") {
                 if let Some(count) = count_val.as_u64() {
-                    if count >= 1 && count <= 10 {
+                    if (1..=10).contains(&count) {
                         *count_val = json!(10);
                     } else {
                         let obfuscated = get_from_cache_or_privatize(
@@ -309,7 +300,7 @@ fn obfuscate_counts_recursive(
                             rounding_step,
                             &mut rng,
                         )
-                        .map_err(|e| FocusError::LaplaceError(e));
+                        .map_err(FocusError::LaplaceError);
 
                         *count_val = json!(obfuscated?);
                     }
@@ -318,7 +309,6 @@ fn obfuscate_counts_recursive(
             for (_, sub_val) in map.iter_mut() {
                 obfuscate_counts_recursive(
                     sub_val,
-                    mu,
                     delta,
                     epsilon,
                     bin,
@@ -333,7 +323,6 @@ fn obfuscate_counts_recursive(
             for sub_val in vec.iter_mut() {
                 obfuscate_counts_recursive(
                     sub_val,
-                    mu,
                     delta,
                     epsilon,
                     bin,
@@ -461,6 +450,14 @@ mod test {
         let expected_result = "define InInitialPopulation:\n";
         assert_eq!(replace_cql(decoded_library), expected_result);
 
+        let decoded_library = "DKTK_STRAT_PRIMARY_DIAGNOSIS_STRATIFIER";
+        let expected_result = "define PrimaryDiagnosis:\nFirst(\nfrom [Condition] C\nwhere C.extension.where(url='http://hl7.org/fhir/StructureDefinition/condition-related').empty()\nsort by date from onset asc)\n\n";
+        assert_eq!(replace_cql(decoded_library), expected_result);
+
+        let decoded_library = "DKTK_STRAT_AGE_CLASS_STRATIFIER";
+        let expected_result = "define AgeClass:\nif (PrimaryDiagnosis.onset is null) then 'unknown' else ToString((AgeInYearsAt(FHIRHelpers.ToDateTime(PrimaryDiagnosis.onset)) div 10) * 10)\n";
+        assert_eq!(replace_cql(decoded_library), expected_result);
+
         let decoded_library = "EXLIQUID_CQL_DIAGNOSIS";
         let expected_result = "define retrieveCondition: First(from [Condition] C return C.code.coding.where(system = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm').code.first())\ndefine Diagnosis: if (retrieveCondition is null) then 'unknown' else retrieveCondition\n\n";
         assert_eq!(replace_cql(decoded_library), expected_result);
@@ -484,6 +481,15 @@ mod test {
         let decoded_library = "EXLIQUID_STRAT_W_ALIQUOTS";
         let expected_result = "define InInitialPopulation: exists ExliquidSpecimenWithAliquot and \n\n";
 
+        assert_eq!(replace_cql(decoded_library), expected_result);
+
+        let decoded_library = "MTBA_STRAT_GENETIC_VARIANT";
+        let expected_result = "define GeneticVariantCode:\nFirst (from [Observation: Code '69548-6' from loinc] O return O.component.where(code.coding contains Code '48018-6' from loinc).value.coding.code.first())\n";
+
+        assert_eq!(replace_cql(decoded_library), expected_result);
+
+        let decoded_library = "DKTK_STRAT_HISTOLOGY_STRATIFIER";
+        let expected_result = "define Histo:\nif InInitialPopulation then [Observation] else {} as List <Observation>\n\ndefine function Histlogoy(histo FHIR.Observation):\n if histo.code.coding.where(code = '59847-4').code.first() is null then 0 else 1\n";
         assert_eq!(replace_cql(decoded_library), expected_result);
 
         let decoded_library = "INVALID_KEY";
