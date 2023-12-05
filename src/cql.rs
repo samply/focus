@@ -139,7 +139,7 @@ static CQL_SNIPPETS: Lazy<HashMap<(&str, CriterionRole, Project), &str>> = Lazy:
 pub fn bbmri(ast: ast::Ast) -> Result<String, FocusError> {
     let mut retrieval_criteria: String = "(".to_string(); // main selection criteria (Patient)
 
-    let mut filter_criteria: String = "(".to_string(); // criteria for filtering specimens
+    let mut filter_criteria: String = " where (".to_string(); // criteria for filtering specimens
 
     let mut code_systems: HashSet<&str> = HashSet::new(); // code lists needed depending on the criteria
     code_systems.insert("icd10"); //for diagnosis stratifier
@@ -170,26 +170,34 @@ pub fn bbmri(ast: ast::Ast) -> Result<String, FocusError> {
     }
 
     retrieval_criteria += ")";
+    filter_criteria += ")";
 
     for code_system in code_systems {
         lists += format!(
-                "codesystem {}: '{}' \n",
-                code_system,
-                CODE_LISTS.get(code_system).unwrap_or(&(""))
-            )
-            .as_str();
+            "codesystem {}: '{}' \n",
+            code_system,
+            CODE_LISTS.get(code_system).unwrap_or(&(""))
+        )
+        .as_str();
     }
 
     cql = cql
         .replace("{{lists}}", lists.as_str())
         .replace("{{filter_criteria}}", filter_criteria.as_str());
 
-    if retrieval_criteria != *"()"{ // no criteria selected
+    if retrieval_criteria != *"()" {
+        // no criteria selected
         cql = cql.replace("{{retrieval_criteria}}", retrieval_criteria.as_str());
     } else {
         cql = cql.replace("{{retrieval_criteria}}", "true");
     }
 
+    if filter_criteria != *" where ()" {
+        // no criteria selected
+        cql = cql.replace("{{retrieval_criteria}}", filter_criteria.as_str());
+    } else {
+        cql = cql.replace("{{retrieval_criteria}}", "");
+    }
 
     Ok(cql)
 }
@@ -202,20 +210,24 @@ pub fn process(
     project: Project,
 ) -> Result<(), FocusError> {
     let mut retrieval_cond: String = "(".to_string();
-    let mut filter_cond: String = "(".to_string();
+    let mut filter_cond: String = "".to_string();
 
     match child {
         ast::Child::Condition(condition) => {
             let condition_key_trans = condition.key.as_str();
 
-            let condition_snippet = CQL_SNIPPETS.get(&(
-                condition_key_trans,
-                CriterionRole::Query,
-                project.clone(),
-            ));
+            let condition_snippet =
+                CQL_SNIPPETS.get(&(condition_key_trans, CriterionRole::Query, project.clone()));
 
             if let Some(snippet) = condition_snippet {
                 let mut condition_string = (*snippet).to_string();
+                let mut filter_string: String = "".to_string();
+
+                let filter_snippet = CQL_SNIPPETS.get(&(
+                    condition_key_trans,
+                    CriterionRole::Filter,
+                    project.clone(),
+                ));
 
                 let code_lists_option = CRITERION_CODE_LISTS.get(&(condition_key_trans, project));
                 if let Some(code_lists_vec) = code_lists_option {
@@ -226,10 +238,10 @@ pub fn process(
                         condition_string =
                             condition_string.replace(placeholder.as_str(), code_list);
                     }
-                }           
+                }
 
-                if condition_string.contains("{{K}}") {
-                    //observation loinc code
+                if condition_string.contains("{{K}}") { 
+                    //observation loinc code, those only apply to query criteria, we don't filter specimens by observations
                     let observation_code_option = OBSERVATION_LOINC_CODE.get(&condition_key_trans);
 
                     if let Some(observation_code) = observation_code_option {
@@ -241,9 +253,12 @@ pub fn process(
                     }
                 }
 
+                if let Some(filtret) = filter_snippet { 
+                    filter_string = (*filtret).to_string();
+                }
+
                 match condition.type_ {
-                    ast::ConditionType::Between => {
-                        //it has both min and max values stated
+                    ast::ConditionType::Between => { // both min and max values stated
                         match condition.value {
                             ast::ConditionValue::DateRange(date_range) => {
                                 let datetime_str_min = date_range.min.as_str();
@@ -256,6 +271,8 @@ pub fn process(
 
                                     condition_string =
                                         condition_string.replace("{{D1}}", date_str_min.as_str());
+                                    filter_string =
+                                        filter_string.replace("{{D1}}", date_str_min.as_str()); // no condition needed, "" stays ""
                                 } else {
                                     return Err(FocusError::AstInvalidDateFormat(date_range.min));
                                 }
@@ -269,83 +286,95 @@ pub fn process(
 
                                     condition_string =
                                         condition_string.replace("{{D2}}", date_str_max.as_str());
+                                    filter_string =
+                                        filter_string.replace("{{D2}}", date_str_max.as_str()); // no condition needed, "" stays ""
                                 } else {
                                     return Err(FocusError::AstInvalidDateFormat(date_range.max));
                                 }
-                            },
+                            }
                             ast::ConditionValue::NumRange(num_range) => {
                                 condition_string = condition_string
                                     .replace("{{D1}}", num_range.min.to_string().as_str());
                                 condition_string = condition_string
                                     .replace("{{D2}}", num_range.max.to_string().as_str());
-                            },
+                                filter_string = filter_string
+                                    .replace("{{D1}}", num_range.min.to_string().as_str()); // no condition needed, "" stays ""
+                                filter_string = filter_string
+                                    .replace("{{D2}}", num_range.max.to_string().as_str()); // no condition needed, "" stays ""
+                            }
                             _ => {
                                 return Err(FocusError::AstOperatorValueMismatch());
                             }
                         }
-
                     } // deal with no lower or no upper value
-                    ast::ConditionType::In => { // although in works in CQL, at least in some places, most of it is converted to multiple criteria with OR
+                    ast::ConditionType::In => {
+                        // although in works in CQL, at least in some places, most of it is converted to multiple criteria with OR
                         let operator_str = " or ";
 
                         match condition.value {
                             ast::ConditionValue::StringArray(string_array) => {
                                 let mut condition_humongous_string = " (".to_string();
+                                let mut filter_humongous_string = " (".to_string();
+
                                 for (index, string) in string_array.iter().enumerate() {
-                                    condition_humongous_string = condition_humongous_string + " (" + condition_string.as_str() + ") ";
                                     condition_humongous_string = condition_humongous_string
-                                    .replace("{{C}}", string.as_str());
+                                        + " ("
+                                        + condition_string.as_str()
+                                        + ") ";
+                                    condition_humongous_string = condition_humongous_string
+                                        .replace("{{C}}", string.as_str());
+
+                                    filter_humongous_string = filter_humongous_string
+                                        + " ("
+                                        + filter_string.as_str()
+                                        + ") ";
+                                    filter_humongous_string =
+                                        filter_humongous_string.replace("{{C}}", string.as_str());
 
                                     // Only concatenate operator if it's not the last element
                                     if index < string_array.len() - 1 {
                                         condition_humongous_string += operator_str;
+                                        filter_humongous_string += operator_str;
                                     }
-
                                 }
                                 condition_string = condition_humongous_string + " )";
 
-
-                            },
+                                if filter_string != "" {
+                                    filter_string = filter_humongous_string + " )";
+                                }
+                            }
                             _ => {
                                 return Err(FocusError::AstOperatorValueMismatch());
                             }
                         }
-
-                    } // this becomes or of all - deal with clones
-                    ast::ConditionType::Equals => {
-                        match condition.value {
-                            ast::ConditionValue::String(string) => {
-                                condition_string = condition_string
-                                    .replace("{{C}}", string.as_str());
-
-                            },
-                            _ => {
-                                return Err(FocusError::AstOperatorValueMismatch());
-                            }
-
+                    } // this becomes or of all
+                    ast::ConditionType::Equals => match condition.value {
+                        ast::ConditionValue::String(string) => {
+                            condition_string = condition_string.replace("{{C}}", string.as_str());
+                            filter_string = filter_string.replace("{{C}}", string.as_str()); // no condition needed, "" stays ""
                         }
-                    }
+                        _ => {
+                            return Err(FocusError::AstOperatorValueMismatch());
+                        }
+                    },
                     ast::ConditionType::NotEquals => { // won't get it from Lens
-                    
                     }
                     ast::ConditionType::Contains => { // won't get it from Lens
-                        
                     }
-                    ast::ConditionType::GreaterThan => { 
-                    } // guess Lens won't send me this
-                    ast::ConditionType::LowerThan => {
-                    } // guess Lens won't send me this
+                    ast::ConditionType::GreaterThan => {} // guess Lens won't send me this
+                    ast::ConditionType::LowerThan => {}   // guess Lens won't send me this
                 };
 
                 retrieval_cond += condition_string.as_str();
+                filter_cond += filter_string.as_str(); // no condition needed, "" can be added with no change
             } else {
                 return Err(FocusError::AstUnknownCriterion(
                     condition_key_trans.to_string(),
                 ));
             }
-
-            filter_cond += condition.key.as_str();
-
+            if filter_cond != "" {
+                filter_cond += " ";
+            }
             retrieval_cond += " ";
         }
 
@@ -367,16 +396,27 @@ pub fn process(
                 // Only concatenate operator if it's not the last element
                 if index < operation.children.len() - 1 {
                     retrieval_cond += operator_str;
+                    if filter_cond != "" {
+                        filter_cond += operator_str;
+                        dbg!(filter_cond.clone());
+                    }
                 }
             }
         }
     }
 
     retrieval_cond += ")";
-    filter_cond += ")";
 
     *retrieval_criteria += retrieval_cond.as_str();
-    *filter_criteria += filter_cond.as_str();
+
+    if filter_cond != "" { 
+        dbg!(filter_cond.clone());
+        *filter_criteria += "(";
+        *filter_criteria += filter_cond.as_str();
+        *filter_criteria += ")";
+
+        dbg!(filter_criteria.clone());
+    }
 
     Ok(())
 }
@@ -402,8 +442,9 @@ mod test {
     const SOME_GBN: &str = r#"{"ast":{"children":[{"key":"gender","system":"","type":"IN","value":["other","male"]},{"key":"diagnosis","system":"http://fhir.de/CodeSystem/dimdi/icd-10-gm","type":"EQUALS","value":"C24"},{"key":"diagnosis_age_donor","system":"","type":"BETWEEN","value":{"max":11,"min":1}},{"key":"date_of_diagnosis","system":"","type":"BETWEEN","value":{"max":"2023-10-30T23:00:00.000Z","min":"2023-10-29T23:00:00.000Z"}},{"key":"bmi","system":"","type":"BETWEEN","value":{"max":111,"min":1}},{"key":"body_weight","system":"","type":"BETWEEN","value":{"max":1111,"min":110}},{"key":"fasting_status","system":"","type":"IN","value":["Sober","Not sober"]},{"key":"smoking_status","system":"","type":"IN","value":["Smoker","Never smoked"]},{"key":"donor_age","system":"","type":"BETWEEN","value":{"max":123,"min":1}},{"key":"sample_kind","system":"","type":"IN","value":["blood-serum","tissue-other"]},{"key":"sampling_date","system":"","type":"BETWEEN","value":{"max":"2023-10-30T23:00:00.000Z","min":"2023-10-29T23:00:00.000Z"}},{"key":"storage_temperature","system":"","type":"IN","value":["temperature2to10","temperatureGN"]}],"de":"haupt","en":"main","key":"main","operand":"AND"},"id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
 
     const LENS2: &str = r#"{"ast":{"children":[{"children":[{"children":[{"key":"gender","system":"","type":"EQUALS","value":"male"},{"key":"gender","system":"","type":"EQUALS","value":"female"}],"operand":"OR"},{"children":[{"key":"diagnosis","system":"","type":"EQUALS","value":"C41"},{"key":"diagnosis","system":"","type":"EQUALS","value":"C50"}],"operand":"OR"},{"children":[{"key":"sample_kind","system":"","type":"EQUALS","value":"tissue-frozen"},{"key":"sample_kind","system":"","type":"EQUALS","value":"blood-serum"}],"operand":"OR"}],"operand":"AND"},{"children":[{"children":[{"key":"gender","system":"","type":"EQUALS","value":"male"}],"operand":"OR"},{"children":[{"key":"diagnosis","system":"","type":"EQUALS","value":"C41"},{"key":"diagnosis","system":"","type":"EQUALS","value":"C50"}],"operand":"OR"},{"children":[{"key":"sample_kind","system":"","type":"EQUALS","value":"liquid-other"},{"key":"sample_kind","system":"","type":"EQUALS","value":"rna"},{"key":"sample_kind","system":"","type":"EQUALS","value":"urine"}],"operand":"OR"},{"children":[{"key":"storage_temperature","system":"","type":"EQUALS","value":"temperatureRoom"},{"key":"storage_temperature","system":"","type":"EQUALS","value":"four_degrees"}],"operand":"OR"}],"operand":"AND"}],"operand":"OR"},"id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
-    
-    const EMPTY: &str = r#"{"ast":{"children":[],"operand":"OR"}, "id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
+
+    const EMPTY: &str =
+        r#"{"ast":{"children":[],"operand":"OR"}, "id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
 
     #[test]
     fn test_just_print() {
@@ -462,6 +503,5 @@ mod test {
             "{:?}",
             bbmri(serde_json::from_str(EMPTY).expect("Failed to deserialize JSON"))
         );
-
     }
 }
