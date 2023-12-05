@@ -5,7 +5,7 @@ use chrono::offset::Utc;
 use chrono::DateTime;
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
-use std::collections::HashSet;
+use indexmap::set::IndexSet;
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
 enum CriterionRole {
@@ -77,60 +77,60 @@ static CQL_SNIPPETS: Lazy<HashMap<(&str, CriterionRole, Project), &str>> = Lazy:
         (("gender", CriterionRole::Query, Project::Bbmri), "Patient.gender = '{{C}}'"),
         (
             ("diagnosis", CriterionRole::Query, Project::Bbmri),
-            " ((exists[Condition: Code '{{C}}' from {{A1}}]) or (exists[Condition: Code '{{C}}' from {{A2}}])) or (exists from [Specimen] S where (S.extension.where(url='https://fhir.bbmri.de/StructureDefinition/SampleDiagnosis').value.coding.code contains '{{C}}')) ",
+            "((exists[Condition: Code '{{C}}' from {{A1}}]) or (exists[Condition: Code '{{C}}' from {{A2}}])) or (exists from [Specimen] S where (S.extension.where(url='https://fhir.bbmri.de/StructureDefinition/SampleDiagnosis').value.coding.code contains '{{C}}'))",
         ),
-        (("diagnosis_old", CriterionRole::Query, Project::Bbmri), " exists [Condition: Code '{{C}}' from {{A1}}] "),
+        (("diagnosis_old", CriterionRole::Query, Project::Bbmri), " exists [Condition: Code '{{C}}' from {{A1}}]"),
         (
             ("date_of_diagnosis", CriterionRole::Query, Project::Bbmri),
-            " exists from [Condition] C\nwhere FHIRHelpers.ToDateTime(C.onset) between {{D1}} and {{D2}} ",
+            "exists from [Condition] C\nwhere FHIRHelpers.ToDateTime(C.onset) between {{D1}} and {{D2}}",
         ),
         (
             ("diagnosis_age_donor", CriterionRole::Query, Project::Bbmri),
-            " exists from [Condition] C\nwhere AgeInYearsAt(FHIRHelpers.ToDateTime(C.onset)) between Ceiling({{D1}}) and Ceiling({{D2}}) ",
+            "exists from [Condition] C\nwhere AgeInYearsAt(FHIRHelpers.ToDateTime(C.onset)) between Ceiling({{D1}}) and Ceiling({{D2}})",
         ),
-        (("donor_age", CriterionRole::Query, Project::Bbmri), " AgeInYears() between Ceiling({{D1}}) and Ceiling({{D2}}) "),
+        (("donor_age", CriterionRole::Query, Project::Bbmri), " AgeInYears() between Ceiling({{D1}}) and Ceiling({{D2}})"),
         (
             ("observationRange", CriterionRole::Query, Project::Bbmri),
-            " exists from [Observation: Code '{{K}}' from {{A1}}] O\nwhere O.value between {{D1}} and {{D2}} ",
+            "exists from [Observation: Code '{{K}}' from {{A1}}] O\nwhere O.value between {{D1}} and {{D2}}",
         ),
         (
             ("body_weight", CriterionRole::Query, Project::Bbmri),
-            " exists from [Observation: Code '{{K}}' from {{A1}}] O\nwhere ((O.value as Quantity) < {{D1}} 'kg' and (O.value as Quantity) > {{D2}} 'kg') ",
+            "exists from [Observation: Code '{{K}}' from {{A1}}] O\nwhere ((O.value as Quantity) < {{D1}} 'kg' and (O.value as Quantity) > {{D2}} 'kg')",
         ),
         (
             ("bmi", CriterionRole::Query, Project::Bbmri),
-            " exists from [Observation: Code '{{K}}' from {{A1}}] O\nwhere ((O.value as Quantity) < {{D1}} 'kg/m2' and (O.value as Quantity) > {{D2}} 'kg/m2') ",
+            "exists from [Observation: Code '{{K}}' from {{A1}}] O\nwhere ((O.value as Quantity) < {{D1}} 'kg/m2' and (O.value as Quantity) > {{D2}} 'kg/m2')",
         ),
-        (("sample_kind", CriterionRole::Query, Project::Bbmri), " exists [Specimen: Code '{{C}}' from {{A1}}] "),
-        (("sample_kind", CriterionRole::Filter, Project::Bbmri), " (S.type.coding.code contains '{{C}}') "),
+        (("sample_kind", CriterionRole::Query, Project::Bbmri), " exists [Specimen: Code '{{C}}' from {{A1}}]"),
+        (("sample_kind", CriterionRole::Filter, Project::Bbmri), " (S.type.coding.code contains '{{C}}')"),
 
         (
             ("storage_temperature", CriterionRole::Filter, Project::Bbmri),
-            " (S.extension.where(url='https://fhir.bbmri.de/StructureDefinition/StorageTemperature').value.coding.code contains '{{C}}') ",
+            "(S.extension.where(url='https://fhir.bbmri.de/StructureDefinition/StorageTemperature').value.coding.code contains '{{C}}')",
         ),
         (
             ("sampling_date", CriterionRole::Filter, Project::Bbmri),
-            " (FHIRHelpers.ToDateTime(S.collection.collected) between {{D1}} and {{D2}}) ",
+            "(FHIRHelpers.ToDateTime(S.collection.collected) between {{D1}} and {{D2}}) ",
         ),
         (
             ("fasting_status", CriterionRole::Filter, Project::Bbmri),
-            " (S.collection.fastingStatus.coding.code contains '{{C}}') ",
+            "(S.collection.fastingStatus.coding.code contains '{{C}}') ",
         ),
         (
             ("sampling_date", CriterionRole::Query, Project::Bbmri),
-            " exists from [Specimen] S\nwhere FHIRHelpers.ToDateTime(S.collection.collected) between {{D1}} and {{D2}} ",
+            "exists from [Specimen] S\nwhere FHIRHelpers.ToDateTime(S.collection.collected) between {{D1}} and {{D2}} ",
         ),
         (
             ("fasting_status", CriterionRole::Query, Project::Bbmri),   
-            " exists from [Specimen] S\nwhere S.collection.fastingStatus.coding.code contains '{{C}}' ",
+            "exists from [Specimen] S\nwhere S.collection.fastingStatus.coding.code contains '{{C}}' ",
         ),
         (
             ("storage_temperature", CriterionRole::Query, Project::Bbmri), 
-            " exists from [Specimen] S where (S.extension.where(url='https://fhir.bbmri.de/StructureDefinition/StorageTemperature').value.coding contains Code '{{C}}' from {{A1}}) ",
+            "exists from [Specimen] S where (S.extension.where(url='https://fhir.bbmri.de/StructureDefinition/StorageTemperature').value.coding contains Code '{{C}}' from {{A1}}) ",
         ),
         (
             ("smoking_status", CriterionRole::Query, Project::Bbmri), 
-            " exists from [Observation: Code '{{K}}' from {{A1}}] O\nwhere O.value.coding.code contains '{{C}}' ",
+            "exists from [Observation: Code '{{K}}' from {{A1}}] O\nwhere O.value.coding.code contains '{{C}}' ",
         ),
     ]
     .into()
@@ -141,7 +141,7 @@ pub fn bbmri(ast: ast::Ast) -> Result<String, FocusError> {
 
     let mut filter_criteria: String = " where (".to_string(); // criteria for filtering specimens
 
-    let mut code_systems: HashSet<&str> = HashSet::new(); // code lists needed depending on the criteria
+    let mut code_systems: IndexSet<&str> = IndexSet::new(); // code lists needed depending on the criteria
     code_systems.insert("icd10"); //for diagnosis stratifier
     code_systems.insert("SampleMaterialType"); //for sample type stratifier
 
@@ -174,7 +174,7 @@ pub fn bbmri(ast: ast::Ast) -> Result<String, FocusError> {
 
     for code_system in code_systems {
         lists += format!(
-            "codesystem {}: '{}' \n",
+            "codesystem {}: '{}'\n",
             code_system,
             CODE_LISTS.get(code_system).unwrap_or(&(""))
         )
@@ -206,7 +206,7 @@ pub fn process(
     child: ast::Child,
     retrieval_criteria: &mut String,
     filter_criteria: &mut String,
-    code_systems: &mut HashSet<&str>,
+    code_systems: &mut IndexSet<&str>,
     project: Project,
 ) -> Result<(), FocusError> {
     let mut retrieval_cond: String = "(".to_string();
@@ -313,21 +313,21 @@ pub fn process(
 
                         match condition.value {
                             ast::ConditionValue::StringArray(string_array) => {
-                                let mut condition_humongous_string = " (".to_string();
-                                let mut filter_humongous_string = " (".to_string();
+                                let mut condition_humongous_string = "(".to_string();
+                                let mut filter_humongous_string = "(".to_string();
 
                                 for (index, string) in string_array.iter().enumerate() {
                                     condition_humongous_string = condition_humongous_string
-                                        + " ("
+                                        + "("
                                         + condition_string.as_str()
-                                        + ") ";
+                                        + ")";
                                     condition_humongous_string = condition_humongous_string
                                         .replace("{{C}}", string.as_str());
 
                                     filter_humongous_string = filter_humongous_string
-                                        + " ("
+                                        + "("
                                         + filter_string.as_str()
-                                        + ") ";
+                                        + ")";
                                     filter_humongous_string =
                                         filter_humongous_string.replace("{{C}}", string.as_str());
 
@@ -337,10 +337,10 @@ pub fn process(
                                         filter_humongous_string += operator_str;
                                     }
                                 }
-                                condition_string = condition_humongous_string + " )";
+                                condition_string = condition_humongous_string + ")";
 
-                                if filter_string != "" {
-                                    filter_string = filter_humongous_string + " )";
+                                if !filter_string.is_empty() {
+                                    filter_string = filter_humongous_string + ")";
                                 }
                             }
                             _ => {
@@ -372,10 +372,10 @@ pub fn process(
                     condition_key_trans.to_string(),
                 ));
             }
-            if filter_cond != "" {
-                filter_cond += " ";
+            if !filter_cond.is_empty() {
+            //    filter_cond += " ";
             }
-            retrieval_cond += " ";
+            //retrieval_cond += " ";
         }
 
         ast::Child::Operation(operation) => {
@@ -396,7 +396,7 @@ pub fn process(
                 // Only concatenate operator if it's not the last element
                 if index < operation.children.len() - 1 {
                     retrieval_cond += operator_str;
-                    if filter_cond != "" {
+                    if !filter_cond.is_empty() {
                         filter_cond += operator_str;
                         dbg!(filter_cond.clone());
                     }
@@ -409,8 +409,11 @@ pub fn process(
 
     *retrieval_criteria += retrieval_cond.as_str();
 
-    if filter_cond != "" { 
+    if !filter_cond.is_empty() { 
         dbg!(filter_cond.clone());
+        if !filter_criteria.is_empty() { 
+            *filter_criteria += " and ";
+        }
         *filter_criteria += "(";
         *filter_criteria += filter_cond.as_str();
         *filter_criteria += ")";
@@ -424,6 +427,7 @@ pub fn process(
 #[cfg(test)]
 mod test {
     use super::*;
+    use pretty_assertions;
 
     const AST: &str = r#"{"ast":{"operand":"AND","children":[{"key":"age","type":"EQUALS","value":5.0}]},"id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
 
@@ -478,30 +482,33 @@ mod test {
         //     bbmri(serde_json::from_str(C61_OR_MALE).expect("Failed to deserialize JSON"))
         // );
 
-        println!(
-            "{:?}",
-            bbmri(serde_json::from_str(ALL_GBN).expect("Failed to deserialize JSON"))
-        );
+        // println!(
+        //     "{:?}",
+        //     bbmri(serde_json::from_str(ALL_GBN).expect("Failed to deserialize JSON"))
+        // );
 
-        println!();
+        // println!();
 
-        println!(
-            "{:?}",
-            bbmri(serde_json::from_str(SOME_GBN).expect("Failed to deserialize JSON"))
-        );
+        // println!(
+        //     "{:?}",
+        //     bbmri(serde_json::from_str(SOME_GBN).expect("Failed to deserialize JSON"))
+        // );
 
-        println!();
+        // println!();
 
-        println!(
-            "{:?}",
-            bbmri(serde_json::from_str(LENS2).expect("Failed to deserialize JSON"))
-        );
+        // println!(
+        //     "{:?}",
+        //     bbmri(serde_json::from_str(LENS2).expect("Failed to deserialize JSON"))
+        // );
 
-        println!();
+        // println!();
 
-        println!(
-            "{:?}",
-            bbmri(serde_json::from_str(EMPTY).expect("Failed to deserialize JSON"))
-        );
+        // println!(
+        //     "{:?}",
+        //     bbmri(serde_json::from_str(EMPTY).expect("Failed to deserialize JSON"))
+        // );
+
+        pretty_assertions::assert_eq!(bbmri(serde_json::from_str(EMPTY).unwrap()).unwrap(), include_str!("../resources/test/result_empty.cql").to_string());
+
     }
 }
