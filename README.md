@@ -47,8 +47,9 @@ EPSILON = "0.1" # Privacy budget parameter for obfuscating the counts in the str
 ROUNDING_STEP = "10" # The granularity of the rounding of the obfuscated values, has no effect if OBFUSCATE = "no", default value: 10
 PROJECTS_NO_OBFUSCATION = "exliquid;dktk_supervisors" # Projects for which the results are not to be obfuscated, separated by ;, default value: "exliquid; dktk_supervisors"
 QUERIES_TO_CACHE_FILE_PATH = "resources/bbmri" # The path to the file containing BASE64 encoded queries whose results are to be cached, if not set, no results are cached
-PROVIDER = "" #OMOP provider name
-PROVIDER_ICON = "" #Base64 encoded OMOP provider icon
+PROVIDER = "name" #OMOP provider name
+PROVIDER_ICON = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABAQMAAAAl21bKAAAAA1BMVEUAAACnej3aAAAAAXRSTlMAQObYZgAAAApJREFUCNdjYAAAAAIAAeIhvDMAAAAASUVORK5CYII=" #Base64 encoded OMOP provider icon
+AUTH_HEADER = "ApiKey XXXX" #Authorization header
 ```
 
 Obfuscating zero counts is by default switched off. To enable obfuscating zero counts, set the env. variable `OBFUSCATE_ZERO`. 

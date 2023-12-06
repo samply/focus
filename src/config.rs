@@ -130,12 +130,16 @@ struct CliArgs {
     tls_ca_certificates_dir: Option<PathBuf>,
 
     /// OMOP provider name
-    #[clap(long, env, value_parser, default_value = "")]
+    #[clap(long, env, value_parser)]
     provider: Option<String>,
   
     /// Base64 encoded OMOP provider icon
-    #[clap(long, env, value_parser, default_value = "")]
+    #[clap(long, env, value_parser)]
     provider_icon: Option<String>,
+
+    /// Authorization header
+    #[clap(long, env, value_parser)]
+    auth_header: Option<String>,
 
 }
 
@@ -162,6 +166,7 @@ pub(crate) struct Config {
     pub client: Client,
     pub provider: Option<String>,
     pub provider_icon: Option<String>,
+    pub auth_header: Option<String>,
 }
 
 impl Config {
@@ -199,6 +204,7 @@ impl Config {
             tls_ca_certificates,
             provider: cli_args.provider,
             provider_icon: cli_args.provider_icon,
+            auth_header: cli_args.auth_header,
             client,
         };
         Ok(config)

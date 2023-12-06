@@ -1,4 +1,7 @@
+use http::HeaderMap;
+use http::HeaderValue;
 use http::StatusCode;
+use http::header;
 use serde::Deserialize;
 use serde::Serialize;
 use tracing::{debug, warn};
@@ -24,10 +27,26 @@ pub async fn post_ast(ast: ast::Ast) -> Result<String, FocusError> {
 
     debug!("{}", ast_string.clone());
 
+    let mut headers = HeaderMap::new();
+
+    headers.insert(header::CONTENT_TYPE, 
+        HeaderValue::from_str("application/json")
+        .map_err(|e| FocusError::InvalidHeaderValue(e))?);
+   
+    match CONFIG.auth_header.clone() {
+        Some(auth_header_value) => {
+            headers.insert(header::AUTHORIZATION, 
+                HeaderValue::from_str(auth_header_value.as_str())
+                .map_err(|e| FocusError::InvalidHeaderValue(e))?);
+        },
+
+        None => {}
+    }
+        
     let resp = CONFIG
         .client
         .post(format!("{}", CONFIG.endpoint_url))
-        .header("Content-Type", "application/json")
+        .headers(headers)
         .body(ast_string.clone())
         .send()
         .await

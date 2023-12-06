@@ -46,4 +46,7 @@ pub enum FocusError {
     AstOperatorValueMismatch(),
     #[error("Invalid date format: {0}")]
     AstInvalidDateFormat(String),
+    #[error("Invalid Header Value: {0}")]
+    InvalidHeaderValue(http::header::InvalidHeaderValue),
+
 }
