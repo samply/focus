@@ -46,7 +46,7 @@ pub async fn post_library(library: String) -> Result<(), FocusError> {
         .body(library)
         .send()
         .await
-        .map_err(|e| FocusError::UnableToPostLibrary(e))?;
+        .map_err(FocusError::UnableToPostLibrary)?;
 
     if resp.status() == StatusCode::CREATED {
         debug!("Successfully created a Library");
@@ -66,7 +66,7 @@ pub async fn post_measure(measure: String) -> Result<(), FocusError> {
         .body(measure)
         .send()
         .await
-        .map_err(|e| FocusError::UnableToPostMeasure(e))?;
+        .map_err(FocusError::UnableToPostMeasure)?;
 
     if resp.status() == StatusCode::CREATED {
         debug!("Successfully created a Measure");
@@ -88,7 +88,7 @@ pub async fn evaluate_measure(url: String) -> Result<String, FocusError> {
         ))
         .send()
         .await
-        .map_err(|e| FocusError::MeasureEvaluationErrorReqwest(e))?;
+        .map_err(FocusError::MeasureEvaluationErrorReqwest)?;
 
     if resp.status() == StatusCode::OK {
         debug!(
@@ -98,7 +98,7 @@ pub async fn evaluate_measure(url: String) -> Result<String, FocusError> {
         resp
             .text()
             .await
-            .map_err(|e| FocusError::MeasureEvaluationErrorReqwest(e))
+            .map_err( FocusError::MeasureEvaluationErrorReqwest)
     } else {
         warn!(
             "Error while evaluating the Measure with canonical URL `{}`: {:?}",
@@ -110,7 +110,7 @@ pub async fn evaluate_measure(url: String) -> Result<String, FocusError> {
 
 pub async fn run_cql_query(library: &Value, measure: &Value) -> Result<String, FocusError> {
     let url: String = if let Ok(value) = get_json_field(&measure.to_string(), "url") {
-        value.to_string().replace("\"", "")
+        value.to_string().replace('"', "")
     } else {
         return Err(FocusError::CQLQueryError());
     };
@@ -118,6 +118,5 @@ pub async fn run_cql_query(library: &Value, measure: &Value) -> Result<String, F
 
     post_library(library.to_string()).await?; //TODO make it with into or could change the function signature to take the library
     post_measure(measure.to_string()).await?; //ditto   &str
-    let result_evaluation = evaluate_measure(url).await;
-    return result_evaluation;
+    evaluate_measure(url).await
 }
