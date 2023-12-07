@@ -78,7 +78,7 @@ mod test {
     use super::*;
 
     const EQUALS_AST: &str = r#"{"ast":{"operand":"AND","children":[{"key":"age","type":"EQUALS","value":5.0}]},"id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
- 
+
 
     #[test]
     fn test_deserialize_ast() {

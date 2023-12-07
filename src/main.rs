@@ -9,6 +9,7 @@ mod graceful_shutdown;
 mod logger;
 mod omop;
 mod util;
+pub mod ast_alternative;
 
 use beam_lib::{TaskRequest, TaskResult};
 use laplace_rs::ObfCache;

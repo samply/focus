@@ -19,6 +19,8 @@ indexmap = "2.1.0"
 tokio = { version = "1.25.0", default_features = false, features = ["signal", "rt-multi-thread", "macros"] }
 beam-lib = { git = "https://github.com/samply/beam", branch = "develop", features = ["http-util"] }
 laplace_rs = {version = "0.2.0", git = "https://github.com/samply/laplace-rs.git", branch = "main" }
+validated = "0.4.0"
+nonempty-collections = "0.1.4"
 
 # Logging
 tracing = { version = "0.1.37", default_features = false }
