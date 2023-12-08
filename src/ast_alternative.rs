@@ -148,8 +148,8 @@ pub struct Condition {
 }
 
 pub struct GeneratedCondition<'a> {
-    retrieval: &'a str,
-    filter: &'a str,
+    retrieval: Option<&'a str>, // Keep absence check for retrieval criteria at type level instead of inspecting the String later
+    filter: Option<&'a str>, // Same as above
     code_systems: Vec<&'a str>, // This should probably be a set as we don't want duplicates.
 }
 
@@ -186,9 +186,13 @@ pub fn generate_all<'a>(ast: &Ast) -> Validated<GeneratedCondition<'a>, Generati
                             condition_vec.
                             into_iter().
                             map(|g| g.retrieval).
+                            flatten().
                             collect();
                         Good(GeneratedCondition
-                            { retrieval: &format!("({})", op.apply_to_group(retrieval_vec))
+                            { retrieval:
+                                  if retrieval_vec.is_empty()
+                                      { None } else
+                                      { Some (&format!("({})", op.apply_to_group(retrieval_vec))) }
                             , filter: todo!("Combine filters")
                             , code_systems: todo!("Combine code systems")
                             })},
