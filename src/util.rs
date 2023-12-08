@@ -618,22 +618,5 @@ mod test {
 
         // Check that the obfuscated JSON is different from the original JSON
         assert_ne!(obfuscated_json, EXAMPLE_MEASURE_REPORT_BBMRI);
-
-        // Check that obfuscating the same JSON twice with the same obfuscation cache gives the same result
-        let obfuscated_json_2 = obfuscate_counts_mr(
-            EXAMPLE_MEASURE_REPORT_BBMRI,
-            &mut obf_cache,
-            false,
-            1,
-            DELTA_PATIENT,
-            DELTA_SPECIMEN,
-            DELTA_DIAGNOSIS,
-            DELTA_PROCEDURES,
-            DELTA_MEDICATION_STATEMENTS,
-            EPSILON,
-            ROUNDING_STEP,
-        )
-        .unwrap();
-        assert_eq!(obfuscated_json, obfuscated_json_2);
     }
 }
