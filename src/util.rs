@@ -150,7 +150,7 @@ pub fn obfuscate_counts_mr(
         _ => ObfuscateBelow10Mode::Obfuscate,
     };
     let mut measure_report: MeasureReport = serde_json::from_str(&json_str)
-        .map_err(|e| FocusError::DeserializationError(format!(r#"Is obfuscation turned on when it shouldn't be? Is the metadata in the task formatted correctly, like this {{"project": "name"}}? Are there any other projects stated in the projects_no_obfuscation parameter in the bridgehead? {}"#,e.to_string())))?;
+        .map_err(|e| FocusError::DeserializationError(format!(r#"{}. Is obfuscation turned on when it shouldn't be? Is the metadata in the task formatted correctly, like this {{"project": "name"}}? Are there any other projects stated in the projects_no_obfuscation parameter in the bridgehead?"#,e.to_string())))?;
     for g in &mut measure_report.group {
         match &g.code.text[..] {
             "patients" => {
@@ -349,6 +349,7 @@ mod test {
     const EXAMPLE_MEASURE_REPORT_BBMRI: &str =
         include_str!("../resources/measure_report_bbmri.json");
     const EXAMPLE_MEASURE_REPORT_DKTK: &str = include_str!("../resources/measure_report_dktk.json");
+    const EXAMPLE_MEASURE_REPORT_EXLIQUID: &str = include_str!("../resources/test/measure_report_exliquid.json");
 
     const DELTA_PATIENT: f64 = 1.;
     const DELTA_SPECIMEN: f64 = 20.;
@@ -592,14 +593,14 @@ mod test {
 
     #[test]
     #[should_panic(
-        expected = "called `Result::unwrap()` on an `Err` value: DeserializationError(\"Is obfuscation turned on when it shouldn't be? Is the metadata in the task formatted correctly, like this {\\\"project\\\": \\\"name\\\"}? Are there any other projects stated in the projects_no_obfuscation parameter in the bridgehead? expected value at line 1 column 1\")"
+        expected = r#"called `Result::unwrap()` on an `Err` value: DeserializationError("missing field `text` at line 42 column 13. Is obfuscation turned on when it shouldn't be? Is the metadata in the task formatted correctly, like this {\"project\": \"name\"}? Are there any other projects stated in the projects_no_obfuscation parameter in the bridgehead?")"#
     )]
     fn test_obfuscate_counts_bad_measure() {
         let mut obf_cache = ObfCache {
             cache: HashMap::new(),
         };
         let obfuscated_json = obfuscate_counts_mr(
-            "bla bla not good",
+            EXAMPLE_MEASURE_REPORT_EXLIQUID,
             &mut obf_cache,
             false,
             1,
@@ -612,11 +613,5 @@ mod test {
             ROUNDING_STEP,
         )
         .unwrap();
-
-        // Check that the obfuscated JSON can be parsed and has the same structure as the original JSON
-        let _: MeasureReport = serde_json::from_str(&obfuscated_json).unwrap();
-
-        // Check that the obfuscated JSON is different from the original JSON
-        assert_ne!(obfuscated_json, EXAMPLE_MEASURE_REPORT_BBMRI);
     }
 }
