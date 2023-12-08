@@ -349,7 +349,8 @@ mod test {
     const EXAMPLE_MEASURE_REPORT_BBMRI: &str =
         include_str!("../resources/measure_report_bbmri.json");
     const EXAMPLE_MEASURE_REPORT_DKTK: &str = include_str!("../resources/measure_report_dktk.json");
-    const EXAMPLE_MEASURE_REPORT_EXLIQUID: &str = include_str!("../resources/test/measure_report_exliquid.json");
+    const EXAMPLE_MEASURE_REPORT_EXLIQUID: &str =
+        include_str!("../resources/test/measure_report_exliquid.json");
 
     const DELTA_PATIENT: f64 = 1.;
     const DELTA_SPECIMEN: f64 = 20.;
@@ -592,9 +593,6 @@ mod test {
     }
 
     #[test]
-    #[should_panic(
-        expected = r#"called `Result::unwrap()` on an `Err` value: DeserializationError("missing field `text` at line 42 column 13. Is obfuscation turned on when it shouldn't be? Is the metadata in the task formatted correctly, like this {\"project\": \"name\"}? Are there any other projects stated in the projects_no_obfuscation parameter in the bridgehead?")"#
-    )]
     fn test_obfuscate_counts_bad_measure() {
         let mut obf_cache = ObfCache {
             cache: HashMap::new(),
@@ -611,7 +609,11 @@ mod test {
             DELTA_MEDICATION_STATEMENTS,
             EPSILON,
             ROUNDING_STEP,
-        )
-        .unwrap();
+        );
+
+        assert_eq!(
+            obfuscated_json.unwrap_err().to_string(),
+            r#"Deserialization error: missing field `text` at line 42 column 13. Is obfuscation turned on when it shouldn't be? Is the metadata in the task formatted correctly, like this {"project": "name"}? Are there any other projects stated in the projects_no_obfuscation parameter in the bridgehead?"#
+        );
     }
 }
