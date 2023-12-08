@@ -150,7 +150,7 @@ pub fn obfuscate_counts_mr(
         _ => ObfuscateBelow10Mode::Obfuscate,
     };
     let mut measure_report: MeasureReport = serde_json::from_str(&json_str)
-        .map_err(|e| FocusError::DeserializationError(e.to_string()))?;
+        .map_err(|e| FocusError::DeserializationError(format!(r#"{}. Is obfuscation turned on when it shouldn't be? Is the metadata in the task formatted correctly, like this {{"project": "name"}}? Are there any other projects stated in the projects_no_obfuscation parameter in the bridgehead?"#, e)))?;
     for g in &mut measure_report.group {
         match &g.code.text[..] {
             "patients" => {
@@ -346,8 +346,11 @@ mod test {
     use super::*;
     use serde_json::json;
 
-    const EXAMPLE_MEASURE_REPORT_BBMRI: &str = include_str!("../resources/measure_report_bbmri.json");
+    const EXAMPLE_MEASURE_REPORT_BBMRI: &str =
+        include_str!("../resources/measure_report_bbmri.json");
     const EXAMPLE_MEASURE_REPORT_DKTK: &str = include_str!("../resources/measure_report_dktk.json");
+    const EXAMPLE_MEASURE_REPORT_EXLIQUID: &str =
+        include_str!("../resources/test/measure_report_exliquid.json");
 
     const DELTA_PATIENT: f64 = 1.;
     const DELTA_SPECIMEN: f64 = 20.;
@@ -482,7 +485,8 @@ mod test {
         assert_eq!(replace_cql(decoded_library), expected_result);
 
         let decoded_library = "EXLIQUID_STRAT_W_ALIQUOTS";
-        let expected_result = "define InInitialPopulation: exists ExliquidSpecimenWithAliquot and \n\n";
+        let expected_result =
+            "define InInitialPopulation: exists ExliquidSpecimenWithAliquot and \n\n";
 
         assert_eq!(replace_cql(decoded_library), expected_result);
 
@@ -586,5 +590,30 @@ mod test {
         )
         .unwrap();
         assert_eq!(obfuscated_json, obfuscated_json_2);
+    }
+
+    #[test]
+    fn test_obfuscate_counts_bad_measure() {
+        let mut obf_cache = ObfCache {
+            cache: HashMap::new(),
+        };
+        let obfuscated_json = obfuscate_counts_mr(
+            EXAMPLE_MEASURE_REPORT_EXLIQUID,
+            &mut obf_cache,
+            false,
+            1,
+            DELTA_PATIENT,
+            DELTA_SPECIMEN,
+            DELTA_DIAGNOSIS,
+            DELTA_PROCEDURES,
+            DELTA_MEDICATION_STATEMENTS,
+            EPSILON,
+            ROUNDING_STEP,
+        );
+
+        assert_eq!(
+            obfuscated_json.unwrap_err().to_string(),
+            r#"Deserialization error: missing field `text` at line 42 column 13. Is obfuscation turned on when it shouldn't be? Is the metadata in the task formatted correctly, like this {"project": "name"}? Are there any other projects stated in the projects_no_obfuscation parameter in the bridgehead?"#
+        );
     }
 }

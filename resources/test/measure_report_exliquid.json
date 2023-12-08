@@ -1,0 +1,117 @@
+{
+    "date": "2023-12-08T14:37:25.66727986Z",
+    "group": [
+        {
+            "stratifier": [
+                {
+                    "code": [
+                        {
+                            "coding": [
+                                {
+                                    "system": "https://dktk.dkfz.de/fhir/CodeSystem/exliquid-stratifier",
+                                    "code": "diagnosis"
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ],
+            "population": [
+                {
+                    "subjectResults": {
+                        "reference": "List/DDCJ3SRU5DPLO4N3"
+                    },
+                    "count": 0,
+                    "code": {
+                        "coding": [
+                            {
+                                "system": "http://terminology.hl7.org/CodeSystem/measure-population",
+                                "code": "initial-population"
+                            }
+                        ]
+                    }
+                }
+            ],
+            "code": {
+                "coding": [
+                    {
+                        "system": "https://dktk.dkfz.de/fhir/CodeSystem/exliquid-measure-group",
+                        "code": "patient"
+                    }
+                ]
+            }
+        },
+        {
+            "stratifier": [
+                {
+                    "code": [
+                        {
+                            "coding": [
+                                {
+                                    "system": "https://dktk.dkfz.de/fhir/CodeSystem/exliquid-stratifier",
+                                    "code": "sample-diagnosis"
+                                }
+                            ]
+                        },
+                        {
+                            "coding": [
+                                {
+                                    "system": "https://dktk.dkfz.de/fhir/CodeSystem/exliquid-stratifier",
+                                    "code": "sample-type"
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ],
+            "population": [
+                {
+                    "subjectResults": {
+                        "reference": "List/DDCJ3SRU5DPLO4N4"
+                    },
+                    "count": 0,
+                    "code": {
+                        "coding": [
+                            {
+                                "system": "http://terminology.hl7.org/CodeSystem/measure-population",
+                                "code": "initial-population"
+                            }
+                        ]
+                    }
+                }
+            ],
+            "code": {
+                "coding": [
+                    {
+                        "system": "https://dktk.dkfz.de/fhir/CodeSystem/exliquid-measure-group",
+                        "code": "specimen"
+                    }
+                ]
+            }
+        }
+    ],
+    "meta": {
+        "versionId": "615",
+        "lastUpdated": "2023-12-08T14:37:25.775Z"
+    },
+    "type": "subject-list",
+    "resourceType": "MeasureReport",
+    "measure": "urn:uuid:7ff542ad-69e4-48ed-a2d3-2efafb609f61",
+    "extension": [
+        {
+            "url": "https://samply.github.io/blaze/fhir/StructureDefinition/eval-duration",
+            "valueQuantity": {
+                "value": 0.027764815,
+                "unit": "s",
+                "system": "http://unitsofmeasure.org",
+                "code": "s"
+            }
+        }
+    ],
+    "status": "complete",
+    "id": "DDCJ3SRWUBLWIFTI",
+    "period": {
+        "start": "2000",
+        "end": "2030"
+    }
+}
