@@ -150,7 +150,7 @@ pub fn obfuscate_counts_mr(
         _ => ObfuscateBelow10Mode::Obfuscate,
     };
     let mut measure_report: MeasureReport = serde_json::from_str(&json_str)
-        .map_err(|e| FocusError::DeserializationError(e.to_string()))?;
+        .map_err(|e| FocusError::DeserializationError(format!(r#"Is obfuscation turned on when it shouldn't be? Is the metadata in the task formatted correctly, like this {{"project": "name"}}? Are there any other projects stated in the projects_no_obfuscation parameter in the bridgehead? {}"#,e.to_string())))?;
     for g in &mut measure_report.group {
         match &g.code.text[..] {
             "patients" => {
@@ -346,7 +346,8 @@ mod test {
     use super::*;
     use serde_json::json;
 
-    const EXAMPLE_MEASURE_REPORT_BBMRI: &str = include_str!("../resources/measure_report_bbmri.json");
+    const EXAMPLE_MEASURE_REPORT_BBMRI: &str =
+        include_str!("../resources/measure_report_bbmri.json");
     const EXAMPLE_MEASURE_REPORT_DKTK: &str = include_str!("../resources/measure_report_dktk.json");
 
     const DELTA_PATIENT: f64 = 1.;
@@ -482,7 +483,8 @@ mod test {
         assert_eq!(replace_cql(decoded_library), expected_result);
 
         let decoded_library = "EXLIQUID_STRAT_W_ALIQUOTS";
-        let expected_result = "define InInitialPopulation: exists ExliquidSpecimenWithAliquot and \n\n";
+        let expected_result =
+            "define InInitialPopulation: exists ExliquidSpecimenWithAliquot and \n\n";
 
         assert_eq!(replace_cql(decoded_library), expected_result);
 
@@ -573,6 +575,53 @@ mod test {
         // Check that obfuscating the same JSON twice with the same obfuscation cache gives the same result
         let obfuscated_json_2 = obfuscate_counts_mr(
             EXAMPLE_MEASURE_REPORT_DKTK,
+            &mut obf_cache,
+            false,
+            1,
+            DELTA_PATIENT,
+            DELTA_SPECIMEN,
+            DELTA_DIAGNOSIS,
+            DELTA_PROCEDURES,
+            DELTA_MEDICATION_STATEMENTS,
+            EPSILON,
+            ROUNDING_STEP,
+        )
+        .unwrap();
+        assert_eq!(obfuscated_json, obfuscated_json_2);
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "called `Result::unwrap()` on an `Err` value: DeserializationError(\"Is obfuscation turned on when it shouldn't be? Is the metadata in the task formatted correctly, like this {\\\"project\\\": \\\"name\\\"}? Are there any other projects stated in the projects_no_obfuscation parameter in the bridgehead? expected value at line 1 column 1\")"
+    )]
+    fn test_obfuscate_counts_bad_measure() {
+        let mut obf_cache = ObfCache {
+            cache: HashMap::new(),
+        };
+        let obfuscated_json = obfuscate_counts_mr(
+            "bla bla not good",
+            &mut obf_cache,
+            false,
+            1,
+            DELTA_PATIENT,
+            DELTA_SPECIMEN,
+            DELTA_DIAGNOSIS,
+            DELTA_PROCEDURES,
+            DELTA_MEDICATION_STATEMENTS,
+            EPSILON,
+            ROUNDING_STEP,
+        )
+        .unwrap();
+
+        // Check that the obfuscated JSON can be parsed and has the same structure as the original JSON
+        let _: MeasureReport = serde_json::from_str(&obfuscated_json).unwrap();
+
+        // Check that the obfuscated JSON is different from the original JSON
+        assert_ne!(obfuscated_json, EXAMPLE_MEASURE_REPORT_BBMRI);
+
+        // Check that obfuscating the same JSON twice with the same obfuscation cache gives the same result
+        let obfuscated_json_2 = obfuscate_counts_mr(
+            EXAMPLE_MEASURE_REPORT_BBMRI,
             &mut obf_cache,
             false,
             1,
