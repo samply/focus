@@ -150,7 +150,7 @@ pub fn obfuscate_counts_mr(
         _ => ObfuscateBelow10Mode::Obfuscate,
     };
     let mut measure_report: MeasureReport = serde_json::from_str(&json_str)
-        .map_err(|e| FocusError::DeserializationError(format!(r#"{}. Is obfuscation turned on when it shouldn't be? Is the metadata in the task formatted correctly, like this {{"project": "name"}}? Are there any other projects stated in the projects_no_obfuscation parameter in the bridgehead?"#,e.to_string())))?;
+        .map_err(|e| FocusError::DeserializationError(format!(r#"{}. Is obfuscation turned on when it shouldn't be? Is the metadata in the task formatted correctly, like this {{"project": "name"}}? Are there any other projects stated in the projects_no_obfuscation parameter in the bridgehead?"#, e)))?;
     for g in &mut measure_report.group {
         match &g.code.text[..] {
             "patients" => {
