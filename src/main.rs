@@ -1,13 +1,13 @@
+mod ast;
 mod banner;
 mod beam;
 mod blaze;
 mod config;
+mod errors;
+mod graceful_shutdown;
 mod logger;
 mod omop;
 mod util;
-mod ast;
-mod errors;
-mod graceful_shutdown;
 
 use beam_lib::{TaskRequest, TaskResult};
 use laplace_rs::ObfCache;
@@ -24,12 +24,10 @@ use std::{process::exit, time::Duration};
 
 use base64::{engine::general_purpose, Engine as _};
 
-use serde_json::from_slice;
 use serde::{Deserialize, Serialize};
+use serde_json::from_slice;
 
-use tracing::{debug, error, info, warn};
-
-
+use tracing::{debug, error, warn};
 
 // result cache
 type SearchQuery = String;
@@ -71,7 +69,6 @@ pub async fn main() -> ExitCode {
 }
 
 async fn main_loop() -> ExitCode {
-    
     let mut obf_cache: ObfCache = ObfCache {
         cache: HashMap::new(),
     };
@@ -79,15 +76,13 @@ async fn main_loop() -> ExitCode {
     let mut report_cache: ReportCache = ReportCache {
         cache: HashMap::new(),
     };
-    
 
     if let Some(filename) = CONFIG.queries_to_cache_file_path.clone() {
-  
         let lines = util::read_lines(filename.clone().to_string());
         match lines {
             Ok(ok_lines) => {
                 for line in ok_lines {
-                    let Ok(ok_line) = line else{
+                    let Ok(ok_line) = line else {
                         warn!("A line in the file {} is not readable", filename);
                         continue;
                     };
@@ -144,16 +139,18 @@ async fn process_task(
 ) -> Result<BeamResult, FocusError> {
     debug!("Processing task {}", task.id);
 
-    let metadata: Metadata = serde_json::from_value(task.metadata.clone()).unwrap_or(Metadata {project: "default_obfuscation".to_string()});
+    let metadata: Metadata = serde_json::from_value(task.metadata.clone()).unwrap_or(Metadata {
+        project: "default_obfuscation".to_string(),
+    });
 
     if CONFIG.endpoint_type == config::EndpointType::Blaze {
         let query = parse_query(task)?;
         if query.lang == "cql" {
             // TODO: Change query.lang to an enum
-            return Ok(run_cql_query(task, &query, obf_cache, report_cache, metadata.project).await)?;
+            Ok(run_cql_query(task, &query, obf_cache, report_cache, metadata.project).await)?
         } else {
             warn!("Can't run queries with language {} in Blaze", query.lang);
-            return Ok(beam::beam_result::perm_failed(
+            Ok(beam::beam_result::perm_failed(
                 CONFIG.beam_app_id_long.clone(),
                 vec![task.from.clone()],
                 task.id,
@@ -161,21 +158,26 @@ async fn process_task(
                     "Can't run queries with language {} and/or endpoint type {}",
                     query.lang, CONFIG.endpoint_type
                 ),
-            ));
+            ))
         }
-    } else if CONFIG.endpoint_type == config::EndpointType::Omop { 
+    } else if CONFIG.endpoint_type == config::EndpointType::Omop {
+        let decoded = decode_body(task)?;
+        let omop_query: omop::OmopQuery =
+            from_slice(&decoded).map_err(|e| FocusError::ParsingError(e.to_string()))?;
+        //TODO check that the language is ast
+        let query_decoded = general_purpose::STANDARD
+            .decode(omop_query.query)
+            .map_err(FocusError::DecodeError)?;
+        let ast: ast::Ast =
+            from_slice(&query_decoded).map_err(|e| FocusError::ParsingError(e.to_string()))?;
 
-        let decoded = decode_body(task)?; 
-        let omop_query: omop::OmopQuery = from_slice(&decoded).map_err(|e| FocusError::ParsingError(e.to_string()))?;
-        //TODO check that the language is ast 
-        let query_decoded = general_purpose::STANDARD.decode(omop_query.query).map_err(|e| FocusError::DecodeError(e))?;
-        let ast: ast::Ast = from_slice(&query_decoded).map_err(|e| FocusError::ParsingError(e.to_string()))?;
-
-        return Ok(run_omop_query(task, ast).await)?;
-        
+        Ok(run_omop_query(task, ast).await)?
     } else {
-        warn!("Can't run queries with endpoint type {}", CONFIG.endpoint_type);
-        return Ok(beam::beam_result::perm_failed(
+        warn!(
+            "Can't run queries with endpoint type {}",
+            CONFIG.endpoint_type
+        );
+        Ok(beam::beam_result::perm_failed(
             CONFIG.beam_app_id_long.clone(),
             vec![task.from.clone()],
             task.id,
@@ -183,7 +185,7 @@ async fn process_task(
                 "Can't run queries with endpoint type {}",
                 CONFIG.endpoint_type
             ),
-        ));
+        ))
     }
 }
 
@@ -275,9 +277,8 @@ async fn run_cql_query(
     query: &Query,
     obf_cache: &mut ObfCache,
     report_cache: &mut ReportCache,
-    project: String
+    project: String,
 ) -> Result<BeamResult, FocusError> {
-
     let encoded_query =
         query.lib["content"][0]["data"]
             .as_str()
@@ -310,7 +311,7 @@ async fn run_cql_query(
 
             let cql_result_new: String = match CONFIG.obfuscate {
                 config::Obfuscate::Yes => {
-                    if !CONFIG.unobfuscated.contains(&project){
+                    if !CONFIG.unobfuscated.contains(&project) {
                         obfuscate_counts_mr(
                             &cql_result,
                             obf_cache,
@@ -327,7 +328,7 @@ async fn run_cql_query(
                     } else {
                         cql_result
                     }
-                },
+                }
                 config::Obfuscate::No => cql_result,
             };
 
@@ -346,7 +347,7 @@ async fn run_cql_query(
             CONFIG.beam_app_id_long.clone(),
             vec![task.to_owned().from],
             task.to_owned().id,
-            e.to_string()
+            e.to_string(),
         )
     });
 
@@ -363,23 +364,22 @@ async fn run_omop_query(task: &BeamTask, ast: ast::Ast) -> Result<BeamResult, Fo
 
     let mut omop_result = omop::post_ast(ast).await?;
 
-    match CONFIG.provider_icon.clone() {
-        Some(provider_icon) => {
-            omop_result = omop_result.replacen("{", format!(r#"{{"provider_icon":"{}","#, provider_icon).as_str(), 1);
-        }
-        None => {}
+    if let Some(provider_icon) = CONFIG.provider_icon.clone() {
+        omop_result = omop_result.replacen(
+            '{',
+            format!(r#"{{"provider_icon":"{}","#, provider_icon).as_str(),
+            1,
+        );
     }
 
-    match CONFIG.provider.clone() {
-        Some(provider) => {
-            omop_result = omop_result.replacen("{", format!(r#"{{"provider":"{}","#, provider).as_str(), 1);
-        }
-        None => {}
+    if let Some(provider) = CONFIG.provider.clone() {
+        omop_result =
+            omop_result.replacen('{', format!(r#"{{"provider":"{}","#, provider).as_str(), 1);
     }
 
     let result = beam_result(task.to_owned(), omop_result).unwrap_or_else(|e| {
         err.body = beam_lib::RawString(e.to_string());
-        return err;
+        err
     });
 
     Ok(result)
@@ -423,15 +423,12 @@ fn replace_cql_library(mut query: Query) -> Result<Query, FocusError> {
     Ok(query)
 }
 
-fn beam_result(
-    task: BeamTask,
-    measure_report: String,
-) -> Result<BeamResult, FocusError> {
+fn beam_result(task: BeamTask, measure_report: String) -> Result<BeamResult, FocusError> {
     let data = general_purpose::STANDARD.encode(measure_report.as_bytes());
     Ok(beam::beam_result::succeeded(
         CONFIG.beam_app_id_long.clone(),
         vec![task.from],
         task.id,
-        data
+        data,
     ))
 }
