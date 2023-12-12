@@ -71,7 +71,11 @@ struct CliArgs {
 
     /// The endpoint base URL, e.g. https://blaze.site/fhir
     #[clap(long, env, value_parser)]
-    endpoint_url: Uri,
+    endpoint_url: Option<Uri>,
+
+    /// The endpoint base URL, e.g. https://blaze.site/fhir, for the sake of backward compatibility, use endpoint_url instead
+    #[clap(long, env, value_parser)]
+    blaze_url: Option<Uri>,
 
     /// Type of the endpoint, e.g. "blaze", "omop"
     #[clap(long, env, value_parser = clap::value_parser!(EndpointType), default_value = "blaze")]
@@ -182,12 +186,14 @@ impl Config {
                 ))
             })?;
         let client = prepare_reqwest_client(&tls_ca_certificates)?;
+        dbg!(cli_args.endpoint_url.clone());
+        dbg!(cli_args.blaze_url.clone());
         let config = Config {
             beam_proxy_url: cli_args.beam_proxy_url,
             beam_app_id_long: AppId::new_unchecked(cli_args.beam_app_id_long),
             api_key: cli_args.api_key,
             retry_count: cli_args.retry_count,
-            endpoint_url: cli_args.endpoint_url,
+            endpoint_url: cli_args.endpoint_url.unwrap_or_else(|| cli_args.blaze_url.expect("Look, mate, you need to set endpoint-url or blaze-url, can't work without, sry")),
             endpoint_type: cli_args.endpoint_type,
             obfuscate: cli_args.obfuscate,
             obfuscate_zero: cli_args.obfuscate_zero,
