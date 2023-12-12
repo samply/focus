@@ -28,7 +28,7 @@ pub async fn post_ast(ast: ast::Ast) -> Result<String, FocusError> {
 
     headers.insert(
         header::CONTENT_TYPE,
-        HeaderValue::from_str("application/json").map_err(FocusError::InvalidHeaderValue)?,
+        HeaderValue::from_static("application/json"),
     );
 
     if let Some(auth_header_value) = CONFIG.auth_header.clone() {
@@ -51,10 +51,7 @@ pub async fn post_ast(ast: ast::Ast) -> Result<String, FocusError> {
     debug!("Posted AST...");
 
     let text = match resp.status() {
-        StatusCode::OK => resp
-            .text()
-            .await
-            .map_err(FocusError::UnableToPostAst)?,
+        StatusCode::OK => resp.text().await.map_err(FocusError::UnableToPostAst)?,
         code => {
             warn!(
                 "Got unexpected code {code} while posting AST; reply was `{}`, debug info: {:?}",

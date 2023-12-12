@@ -6,11 +6,9 @@ mod config;
 mod exporter;
 mod logger;
 mod omop;
+mod errors;
 
 mod util;
-
-mod errors;
-mod graceful_shutdown;
 
 use beam_lib::{TaskRequest, TaskResult};
 use laplace_rs::ObfCache;
@@ -181,13 +179,13 @@ async fn process_task(
         let ast: ast::Ast =
             from_slice(&query_decoded).map_err(|e| FocusError::ParsingError(e.to_string()))?;
 
-        return Ok(run_omop_query(task, ast).await)?;
+        Ok(run_omop_query(task, ast).await)?
     } else {
         warn!(
             "Can't run queries with endpoint type {}",
             CONFIG.endpoint_type
         );
-        return Ok(beam::beam_result::perm_failed(
+        Ok(beam::beam_result::perm_failed(
             CONFIG.beam_app_id_long.clone(),
             vec![task.from.clone()],
             task.id,
@@ -195,7 +193,7 @@ async fn process_task(
                 "Can't run queries with endpoint type {}",
                 CONFIG.endpoint_type
             ),
-        ));
+        ))
     }
 }
 
@@ -208,7 +206,7 @@ async fn process_tasks(
     let tasks = beam::retrieve_tasks().await?;
     for task in tasks {
         let task_cloned = task.clone();
-        let claiming = tokio::task::spawn(async move { beam::claim_task(&task_cloned).await });
+        let claiming = tokio::task::spawn(beam::claim_task(&task_cloned));
         let res = process_task(&task, obf_cache, report_cache).await;
         let error_msg = match res {
             Err(FocusError::DecodeError(_)) | Err(FocusError::ParsingError(_)) => {
@@ -455,8 +453,8 @@ fn replace_cql_library(mut query: Query) -> Result<Query, FocusError> {
     Ok(query)
 }
 
-fn beam_result(task: BeamTask, report_body: String) -> Result<BeamResult, FocusError> {
-    let data = general_purpose::STANDARD.encode(report_body.as_bytes());
+fn beam_result(task: BeamTask, measure_report: String) -> Result<BeamResult, FocusError> {
+    let data = general_purpose::STANDARD.encode(measure_report.as_bytes());
     Ok(beam::beam_result::succeeded(
         CONFIG.beam_app_id_long.clone(),
         vec![task.from],

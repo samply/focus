@@ -47,8 +47,7 @@ pub async fn post_exporter_query(body: &String, execute: bool) -> Result<String,
 
             headers.insert(
                 header::CONTENT_TYPE, //TODO discard the result, just return OK
-                HeaderValue::from_str("text/html; charset=UTF-8")
-                    .map_err(FocusError::InvalidHeaderValue)?,
+                HeaderValue::from_static("text/html; charset=UTF-8"),
             );
 
             if let Some(auth_header_value) = CONFIG.auth_header.clone() {
