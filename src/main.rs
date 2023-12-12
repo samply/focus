@@ -198,7 +198,7 @@ async fn process_tasks(
     let tasks = beam::retrieve_tasks().await?;
     for task in tasks {
         let task_cloned = task.clone();
-        let claiming = tokio::task::spawn(beam::claim_task(&task_cloned));
+        let claiming = tokio::task::spawn(async move { beam::claim_task(&task_cloned).await });
         let res = process_task(&task, obf_cache, report_cache).await;
         let error_msg = match res {
             Err(FocusError::DecodeError(_)) | Err(FocusError::ParsingError(_)) => {
