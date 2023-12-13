@@ -9,7 +9,7 @@ use crate::util::get_json_field;
 use crate::config::CONFIG;
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
-pub struct Query {
+pub struct CqlQuery {
     pub lang: String,
     pub lib: Value,
     pub measure: Value

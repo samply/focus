@@ -11,7 +11,7 @@ use crate::config::CONFIG;
 use crate::errors::FocusError;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct OmopQuery {
+pub struct IntermediateRepQuery {
     pub lang: String,
     pub query: String,
 }
@@ -21,8 +21,6 @@ pub async fn post_ast(ast: ast::Ast) -> Result<String, FocusError> {
 
     let ast_string = serde_json::to_string_pretty(&ast)
         .map_err(|e| FocusError::SerializationError(e.to_string()))?;
-
-    debug!("{}", ast_string.clone());
 
     let mut headers = HeaderMap::new();
 
