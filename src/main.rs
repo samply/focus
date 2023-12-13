@@ -1,18 +1,20 @@
+mod ast;
 mod banner;
 mod beam;
 mod blaze;
 mod config;
-mod logger;
-mod util;
 mod errors;
 mod graceful_shutdown;
+mod logger;
+mod intermediate_rep;
+mod util;
 
 use beam_lib::{TaskRequest, TaskResult};
 use laplace_rs::ObfCache;
 
 use crate::util::{is_cql_tampered_with, obfuscate_counts_mr};
 use crate::{config::CONFIG, errors::FocusError};
-use blaze::Query;
+use blaze::CqlQuery;
 
 use std::collections::HashMap;
 use std::process::ExitCode;
@@ -22,12 +24,10 @@ use std::{process::exit, time::Duration};
 
 use base64::{engine::general_purpose, Engine as _};
 
-use serde_json::from_slice;
 use serde::{Deserialize, Serialize};
+use serde_json::from_slice;
 
-use tracing::{debug, error, info, warn};
-
-
+use tracing::{debug, error, warn};
 
 // result cache
 type SearchQuery = String;
@@ -69,7 +69,6 @@ pub async fn main() -> ExitCode {
 }
 
 async fn main_loop() -> ExitCode {
-    
     let mut obf_cache: ObfCache = ObfCache {
         cache: HashMap::new(),
     };
@@ -77,15 +76,13 @@ async fn main_loop() -> ExitCode {
     let mut report_cache: ReportCache = ReportCache {
         cache: HashMap::new(),
     };
-    
 
     if let Some(filename) = CONFIG.queries_to_cache_file_path.clone() {
-  
         let lines = util::read_lines(filename.clone().to_string());
         match lines {
             Ok(ok_lines) => {
                 for line in ok_lines {
-                    let Ok(ok_line) = line else{
+                    let Ok(ok_line) = line else {
                         warn!("A line in the file {} is not readable", filename);
                         continue;
                     };
@@ -109,9 +106,18 @@ async fn main_loop() -> ExitCode {
             );
             tokio::time::sleep(Duration::from_secs(2)).await;
         }
-        if !(beam::check_availability().await && blaze::check_availability().await) {
+        if !(beam::check_availability().await) {
             failures += 1;
         }
+        if CONFIG.endpoint_type == config::EndpointType::Blaze {
+            if !(blaze::check_availability().await) {
+                failures += 1;
+            }
+        } else if CONFIG.endpoint_type == config::EndpointType::Omop {
+
+            //TODO health check
+        }
+
         if let Err(e) = process_tasks(&mut obf_cache, &mut report_cache).await {
             warn!("Encountered the following error, while processing tasks: {e}");
             //failures += 1;
@@ -133,15 +139,54 @@ async fn process_task(
 ) -> Result<BeamResult, FocusError> {
     debug!("Processing task {}", task.id);
 
-    let query = parse_query(task)?;
+    let metadata: Metadata = serde_json::from_value(task.metadata.clone()).unwrap_or(Metadata {
+        project: "default_obfuscation".to_string(),
+    });
 
-    let metadata: Metadata = serde_json::from_value(task.metadata.clone()).unwrap_or(Metadata {project: "default_obfuscation".to_string()});
+    if CONFIG.endpoint_type == config::EndpointType::Blaze {
+        let query = parse_blaze_cql_query(task)?;
+        if query.lang == "cql" {
+            // TODO: Change query.lang to an enum
+            Ok(run_cql_query(task, &query, obf_cache, report_cache, metadata.project).await)?
+        } else {
+            warn!("Can't run queries with language {} in Blaze", query.lang);
+            Ok(beam::beam_result::perm_failed(
+                CONFIG.beam_app_id_long.clone(),
+                vec![task.from.clone()],
+                task.id,
+                format!(
+                    "Can't run queries with language {} and/or endpoint type {}",
+                    query.lang, CONFIG.endpoint_type
+                ),
+            ))
+        }
+    } else if CONFIG.endpoint_type == config::EndpointType::Omop {
+        let decoded = decode_body(task)?;
+        let intermediate_rep_query: intermediate_rep::IntermediateRepQuery =
+            from_slice(&decoded).map_err(|e| FocusError::ParsingError(e.to_string()))?;
+        //TODO check that the language is ast
+        let query_decoded = general_purpose::STANDARD
+            .decode(intermediate_rep_query.query)
+            .map_err(FocusError::DecodeError)?;
+        let ast: ast::Ast =
+            from_slice(&query_decoded).map_err(|e| FocusError::ParsingError(e.to_string()))?;
 
-    let run_result = run_query(task, &query, obf_cache, report_cache, metadata.project).await?;
-
-    info!("Reported successful execution of task {} to Beam.", task.id);
-
-    Ok(run_result)
+        Ok(run_intermediate_rep_query(task, ast).await)?
+    } else {
+        warn!(
+            "Can't run queries with endpoint type {}",
+            CONFIG.endpoint_type
+        );
+        Ok(beam::beam_result::perm_failed(
+            CONFIG.beam_app_id_long.clone(),
+            vec![task.from.clone()],
+            task.id,
+            format!(
+                "Can't run queries with endpoint type {}",
+                CONFIG.endpoint_type
+            ),
+        ))
+    }
 }
 
 async fn process_tasks(
@@ -153,9 +198,7 @@ async fn process_tasks(
     let tasks = beam::retrieve_tasks().await?;
     for task in tasks {
         let task_cloned = task.clone();
-        let claiming = tokio::task::spawn(async move {
-            beam::claim_task(&task_cloned).await
-        });
+        let claiming = tokio::task::spawn(async move { beam::claim_task(&task_cloned).await });
         let res = process_task(&task, obf_cache, report_cache).await;
         let error_msg = match res {
             Err(FocusError::DecodeError(_)) | Err(FocusError::ParsingError(_)) => {
@@ -171,7 +214,7 @@ async fn process_tasks(
 
         // Make sure that claiming the task is done before we update it again.
         match claiming.await.unwrap() {
-            Ok(_) => {},
+            Ok(_) => {}
             Err(FocusError::ConfigurationError(s)) => {
                 error!("FATAL: Unable to report back to Beam due to a configuration issue: {s}");
                 return Err(FocusError::ConfigurationError(s));
@@ -212,47 +255,30 @@ async fn process_tasks(
     Ok(())
 }
 
-fn parse_query(task: &BeamTask) -> Result<blaze::Query, FocusError> {
+fn decode_body(task: &BeamTask) -> Result<Vec<u8>, FocusError> {
     let decoded = general_purpose::STANDARD
         .decode(&task.body)
         .map_err(FocusError::DecodeError)?;
 
-    let query: blaze::Query =
+    Ok(decoded)
+}
+
+fn parse_blaze_cql_query(task: &BeamTask) -> Result<blaze::CqlQuery, FocusError> {
+    let decoded = decode_body(task)?;
+
+    let query: blaze::CqlQuery =
         from_slice(&decoded).map_err(|e| FocusError::ParsingError(e.to_string()))?;
 
     Ok(query)
 }
 
-async fn run_query(
-    task: &BeamTask,
-    query: &Query,
-    obf_cache: &mut ObfCache,
-    report_cache: &mut ReportCache,
-    project: String
-) -> Result<BeamResult, FocusError> {
-    debug!("Run");
-
-    if query.lang == "cql" {
-        // TODO: Change query.lang to an enum
-        Ok(run_cql_query(task, query, obf_cache, report_cache, project).await)?
-    } else {
-        Ok(beam::beam_result::perm_failed(
-            CONFIG.beam_app_id_long.clone(),
-            vec![task.from.clone()],
-            task.id,
-            format!("Can't run inqueries with language {}", query.lang),
-        ))
-    }
-}
-
 async fn run_cql_query(
     task: &BeamTask,
-    query: &Query,
+    query: &CqlQuery,
     obf_cache: &mut ObfCache,
     report_cache: &mut ReportCache,
-    project: String
+    project: String,
 ) -> Result<BeamResult, FocusError> {
-
     let encoded_query =
         query.lib["content"][0]["data"]
             .as_str()
@@ -285,7 +311,7 @@ async fn run_cql_query(
 
             let cql_result_new: String = match CONFIG.obfuscate {
                 config::Obfuscate::Yes => {
-                    if !CONFIG.unobfuscated.contains(&project){
+                    if !CONFIG.unobfuscated.contains(&project) {
                         obfuscate_counts_mr(
                             &cql_result,
                             obf_cache,
@@ -302,7 +328,7 @@ async fn run_cql_query(
                     } else {
                         cql_result
                     }
-                },
+                }
                 config::Obfuscate::No => cql_result,
             };
 
@@ -321,14 +347,45 @@ async fn run_cql_query(
             CONFIG.beam_app_id_long.clone(),
             vec![task.to_owned().from],
             task.to_owned().id,
-            e.to_string()
+            e.to_string(),
         )
     });
 
     Ok(result)
 }
 
-fn replace_cql_library(mut query: Query) -> Result<Query, FocusError> {
+async fn run_intermediate_rep_query(task: &BeamTask, ast: ast::Ast) -> Result<BeamResult, FocusError> {
+    let mut err = beam::beam_result::perm_failed(
+        CONFIG.beam_app_id_long.clone(),
+        vec![task.to_owned().from],
+        task.to_owned().id,
+        String::new(),
+    );
+
+    let mut intermediate_rep_result = intermediate_rep::post_ast(ast).await?;
+
+    if let Some(provider_icon) = CONFIG.provider_icon.clone() {
+        intermediate_rep_result = intermediate_rep_result.replacen(
+            '{',
+            format!(r#"{{"provider_icon":"{}","#, provider_icon).as_str(),
+            1,
+        );
+    }
+
+    if let Some(provider) = CONFIG.provider.clone() {
+        intermediate_rep_result =
+            intermediate_rep_result.replacen('{', format!(r#"{{"provider":"{}","#, provider).as_str(), 1);
+    }
+
+    let result = beam_result(task.to_owned(), intermediate_rep_result).unwrap_or_else(|e| {
+        err.body = beam_lib::RawString(e.to_string());
+        err
+    });
+
+    Ok(result)
+}
+
+fn replace_cql_library(mut query: CqlQuery) -> Result<CqlQuery, FocusError> {
     let old_data_value = &query.lib["content"][0]["data"];
 
     let old_data_string = old_data_value
@@ -366,15 +423,12 @@ fn replace_cql_library(mut query: Query) -> Result<Query, FocusError> {
     Ok(query)
 }
 
-fn beam_result(
-    task: BeamTask,
-    measure_report: String,
-) -> Result<BeamResult, FocusError> {
+fn beam_result(task: BeamTask, measure_report: String) -> Result<BeamResult, FocusError> {
     let data = general_purpose::STANDARD.encode(measure_report.as_bytes());
     Ok(beam::beam_result::succeeded(
         CONFIG.beam_app_id_long.clone(),
         vec![task.from],
         task.id,
-        data
+        data,
     ))
 }

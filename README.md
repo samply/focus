@@ -16,7 +16,7 @@ To run a standalone Focus, you need at least one running [Samply.Beam.Proxy](htt
 You can compile and run this application via Cargo, however, we encourage the usage of the pre-compiled [docker images](https://hub.docker.com/r/samply/focus):
 
 ```bash
-docker run --rm -e BEAM_PROXY_URL=http://localhost:8081 -e BLAZE_URL=http://localhost:8089/fhir -e PROXY_ID=proxy1.broker -e API_KEY=App1Secret -e BEAM_APP_ID_LONG=app1.broker.example.com samply/focus:latest
+docker run --rm -e BEAM_PROXY_URL=http://localhost:8081 -e ENDPOINT_URL=http://localhost:8089/fhir -e PROXY_ID=proxy1.broker -e API_KEY=App1Secret -e BEAM_APP_ID_LONG=app1.broker.example.com samply/focus:latest
 ```
 
 ## Configuration
@@ -25,7 +25,7 @@ The following environment variables are mandatory for the usage of Focus. If com
 
 ```bash
 BEAM_PROXY_URL = "http://localhost:8081" 
-BLAZE_URL = "http://localhost:8089/fhir"
+ENDPOINT_URL = "http://localhost:8089/fhir"
 PROXY_ID = "proxy1.broker"
 API_KEY = "App1Secret"
 BEAM_APP_ID_LONG = "app1.broker.example.com"
@@ -35,6 +35,7 @@ BEAM_APP_ID_LONG = "app1.broker.example.com"
 
 ```bash
 RETRY_COUNT = "32" # The maximum number of retries for beam and blaze healthchecks, default value: 32
+ENDPOINT_TYPE = "blaze" # Type of the endpoint, allowed values: "blaze", "omop", default value: "blaze"
 OBFUSCATE = "yes" # Should the results be obfuscated - the "master switch", allowed values: "yes", "no", default value: "yes"
 OBFUSCATE_BELOW_10_MODE = "1" # The mode of obfuscating values below 10: 0 - return zero, 1 - return ten, 2 - obfuscate using Laplace distribution and rounding, has no effect if OBFUSCATE = "no", default value: 1
 DELTA_PATIENT = "1." # Sensitivity parameter for obfuscating the counts in the Patient stratifier, has no effect if OBFUSCATE = "no", default value: 1
@@ -46,6 +47,9 @@ EPSILON = "0.1" # Privacy budget parameter for obfuscating the counts in the str
 ROUNDING_STEP = "10" # The granularity of the rounding of the obfuscated values, has no effect if OBFUSCATE = "no", default value: 10
 PROJECTS_NO_OBFUSCATION = "exliquid;dktk_supervisors" # Projects for which the results are not to be obfuscated, separated by ;, default value: "exliquid; dktk_supervisors"
 QUERIES_TO_CACHE_FILE_PATH = "resources/bbmri" # The path to the file containing BASE64 encoded queries whose results are to be cached, if not set, no results are cached
+PROVIDER = "name" #OMOP provider name
+PROVIDER_ICON = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABAQMAAAAl21bKAAAAA1BMVEUAAACnej3aAAAAAXRSTlMAQObYZgAAAApJREFUCNdjYAAAAAIAAeIhvDMAAAAASUVORK5CYII=" #Base64 encoded OMOP provider icon
+AUTH_HEADER = "ApiKey XXXX" #Authorization header
 ```
 
 Obfuscating zero counts is by default switched off. To enable obfuscating zero counts, set the env. variable `OBFUSCATE_ZERO`. 

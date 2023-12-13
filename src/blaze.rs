@@ -9,7 +9,7 @@ use crate::util::get_json_field;
 use crate::config::CONFIG;
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
-pub struct Query {
+pub struct CqlQuery {
     pub lang: String,
     pub lib: Value,
     pub measure: Value
@@ -20,7 +20,7 @@ pub async fn check_availability() -> bool {
     debug!("Checking Blaze availability...");
 
     let resp = match CONFIG.client
-        .get(format!("{}metadata", CONFIG.blaze_url))
+        .get(format!("{}metadata", CONFIG.endpoint_url))
         .send()
         .await
     {
@@ -41,7 +41,7 @@ pub async fn post_library(library: String) -> Result<(), FocusError> {
     debug!("Creating a Library...");
 
     let resp = CONFIG.client
-        .post(format!("{}Library", CONFIG.blaze_url))
+        .post(format!("{}Library", CONFIG.endpoint_url))
         .header("Content-Type", "application/json")
         .body(library)
         .send()
@@ -61,7 +61,7 @@ pub async fn post_library(library: String) -> Result<(), FocusError> {
 pub async fn post_measure(measure: String) -> Result<(), FocusError> {
     debug!("Creating a Measure...");
     let resp = CONFIG.client
-        .post(format!("{}Measure", CONFIG.blaze_url))
+        .post(format!("{}Measure", CONFIG.endpoint_url))
         .header("Content-Type", "application/json")
         .body(measure)
         .send()
@@ -82,9 +82,9 @@ pub async fn evaluate_measure(url: String) -> Result<String, FocusError> {
     debug!("Evaluating the Measure with canonical URL: {}", url);
     let resp = CONFIG.client
         .get(format!(
-            "{}Measure/$evaluate-measure?measure={}&periodStart=2000&periodEnd=2030",
-            CONFIG.blaze_url,
-            url
+        "{}Measure/$evaluate-measure?measure={}&periodStart=2000&periodEnd=2030",
+        CONFIG.endpoint_url,
+        url
         ))
         .send()
         .await

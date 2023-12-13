@@ -82,7 +82,7 @@ services:
     environment:
       API_KEY: ${APP_KEY}
       BEAM_APP_ID_LONG: app1.${PROXY1_ID}
-      BLAZE_URL: "http://blaze:8080/fhir/"
+      ENDPOINT_URL: "http://blaze:8080/fhir/"
       BEAM_PROXY_URL: http://proxy1:8081
       RETRY_COUNT: 30
       OBFUSCATE: "no"

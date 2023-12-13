@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::fmt;
 
 use beam_lib::AppId;
 use clap::Parser;
@@ -15,6 +16,24 @@ pub enum Obfuscate {
     No,
     Yes,
 }
+
+#[derive(clap::ValueEnum, Clone, Debug, PartialEq, Copy)]
+pub enum EndpointType {
+    Blaze,
+    Omop,
+}
+
+impl fmt::Display for EndpointType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            EndpointType::Blaze => write!(f, "blaze"), 
+            EndpointType::Omop => write!(f, "omop"),
+        }
+    }
+}
+
+
+
 
 pub(crate) static CONFIG: Lazy<Config> = Lazy::new(|| {
     debug!("Loading config");
@@ -50,9 +69,17 @@ struct CliArgs {
     #[clap(long, env, value_parser, default_value = "32")]
     retry_count: usize,
 
-    /// The FHIR servers base URL, e.g. https://blaze.site/fhir
+    /// The endpoint base URL, e.g. https://blaze.site/fhir
     #[clap(long, env, value_parser)]
-    blaze_url: Uri,
+    endpoint_url: Option<Uri>,
+
+    /// The endpoint base URL, e.g. https://blaze.site/fhir, for the sake of backward compatibility, use endpoint_url instead
+    #[clap(long, env, value_parser)]
+    blaze_url: Option<Uri>,
+
+    /// Type of the endpoint, e.g. "blaze", "omop"
+    #[clap(long, env, value_parser = clap::value_parser!(EndpointType), default_value = "blaze")]
+    endpoint_type: EndpointType,
 
     /// Should the results be obfuscated
     #[clap(long, env, value_parser = clap::value_parser!(Obfuscate), default_value = "yes")]
@@ -105,6 +132,19 @@ struct CliArgs {
     /// Outgoing HTTP proxy: Directory with CA certificates to trust for TLS connections (e.g. /etc/samply/cacerts/)
     #[clap(long, env, value_parser)]
     tls_ca_certificates_dir: Option<PathBuf>,
+
+    /// OMOP provider name
+    #[clap(long, env, value_parser)]
+    provider: Option<String>,
+  
+    /// Base64 encoded OMOP provider icon
+    #[clap(long, env, value_parser)]
+    provider_icon: Option<String>,
+
+    /// Authorization header
+    #[clap(long, env, value_parser)]
+    auth_header: Option<String>,
+
 }
 
 pub(crate) struct Config {
@@ -112,7 +152,8 @@ pub(crate) struct Config {
     pub beam_app_id_long: AppId,
     pub api_key: String,
     pub retry_count: usize,
-    pub blaze_url: Uri,
+    pub endpoint_url: Uri,
+    pub endpoint_type: EndpointType,
     pub obfuscate: Obfuscate,
     pub obfuscate_zero: bool,
     pub obfuscate_below_10_mode: usize,
@@ -127,6 +168,9 @@ pub(crate) struct Config {
     pub queries_to_cache_file_path: Option<String>,
     tls_ca_certificates: Vec<Certificate>,
     pub client: Client,
+    pub provider: Option<String>,
+    pub provider_icon: Option<String>,
+    pub auth_header: Option<String>,
 }
 
 impl Config {
@@ -142,12 +186,15 @@ impl Config {
                 ))
             })?;
         let client = prepare_reqwest_client(&tls_ca_certificates)?;
+        dbg!(cli_args.endpoint_url.clone());
+        dbg!(cli_args.blaze_url.clone());
         let config = Config {
             beam_proxy_url: cli_args.beam_proxy_url,
             beam_app_id_long: AppId::new_unchecked(cli_args.beam_app_id_long),
             api_key: cli_args.api_key,
             retry_count: cli_args.retry_count,
-            blaze_url: cli_args.blaze_url,
+            endpoint_url: cli_args.endpoint_url.unwrap_or_else(|| cli_args.blaze_url.expect("Look, mate, you need to set endpoint-url or blaze-url, can't work without, sry")),
+            endpoint_type: cli_args.endpoint_type,
             obfuscate: cli_args.obfuscate,
             obfuscate_zero: cli_args.obfuscate_zero,
             obfuscate_below_10_mode: cli_args.obfuscate_below_10_mode,
@@ -161,6 +208,9 @@ impl Config {
             unobfuscated: cli_args.projects_no_obfuscation.split(';').map(|s| s.to_string()).collect(),
             queries_to_cache_file_path: cli_args.queries_to_cache_file_path,
             tls_ca_certificates,
+            provider: cli_args.provider,
+            provider_icon: cli_args.provider_icon,
+            auth_header: cli_args.auth_header,
             client,
         };
         Ok(config)
