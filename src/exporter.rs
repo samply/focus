@@ -2,46 +2,35 @@ use http::header;
 use http::HeaderMap;
 use http::HeaderValue;
 use http::StatusCode;
-use once_cell::sync::Lazy;
-use std::collections::HashMap;
 use tracing::{debug, warn};
 
 use crate::config::CONFIG;
 use crate::errors::FocusError;
 
-struct Words {
+struct Params {
     method: &'static str,
     doing: &'static str,
     done: &'static str,
 }
 
-static WORDS: Lazy<HashMap<bool, Words>> = Lazy::new(|| {
-    [
-        (
-            true,
-            Words {
-                method: "request",
-                doing: "executing",
-                done: "executed",
-            },
-        ),
-        (
-            false,
-            Words {
-                method: "create-query",
-                doing: "creating",
-                done: "created",
-            },
-        ),
-    ]
-    .into()
-});
+const CREATE: Params = Params {
+    method: "create-query",
+    doing: "creating",
+    done: "created",
+};
+
+const EXECUTE: Params = Params {
+    method: "request",
+    doing: "executing",
+    done: "executed",
+};
 
 pub async fn post_exporter_query(body: &String, execute: bool) -> Result<String, FocusError> {
     match &CONFIG.exporter_url {
         None => Err(FocusError::MissingExporterEndpoint()),
         Some(exporter_url) => {
-            debug!("{} exporter query...", WORDS.get(&execute).unwrap().doing);
+            let exporter_params = if execute { EXECUTE } else { CREATE };
+            debug!("{} exporter query...", exporter_params.doing);
 
             let mut headers = HeaderMap::new();
 
@@ -63,7 +52,7 @@ pub async fn post_exporter_query(body: &String, execute: bool) -> Result<String,
                 .post(format!(
                     "{}{}",
                     exporter_url,
-                    WORDS.get(&execute).unwrap().method
+                    exporter_params.method
                 ))
                 .headers(headers)
                 .body(body.clone())
@@ -71,17 +60,17 @@ pub async fn post_exporter_query(body: &String, execute: bool) -> Result<String,
                 .await
                 .map_err(FocusError::UnableToPostExporterQuery)?;
 
-            debug!("{} query...", WORDS.get(&execute).unwrap().done);
+            debug!("{} query...", exporter_params.done);
 
             let text = match resp.status() {
                 StatusCode::OK => {
-                    format!("Query successfully {}", WORDS.get(&execute).unwrap().done)
+                    format!("Query successfully {}", exporter_params.done)
                 }
                 code => {
-                    warn!("Got unexpected code {code} while {} query; reply was `{}`, debug info: {:?}", WORDS.get(&execute).unwrap().doing, body, resp);
+                    warn!("Got unexpected code {code} while {} query; reply was `{}`, debug info: {:?}", exporter_params.doing, body, resp);
                     return Err(FocusError::ExporterQueryErrorReqwest(format!(
                         "Error while {} query: {:?}",
-                        WORDS.get(&execute).unwrap().doing,
+                        exporter_params.doing,
                         resp
                     )));
                 }
