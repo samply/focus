@@ -3,9 +3,11 @@ mod banner;
 mod beam;
 mod blaze;
 mod config;
+mod exporter;
+mod logger;
 mod errors;
 mod graceful_shutdown;
-mod logger;
+
 mod intermediate_rep;
 mod util;
 
@@ -39,6 +41,7 @@ type BeamResult = TaskResult<beam_lib::RawString>;
 #[derive(Debug, Deserialize, Serialize, Clone)]
 struct Metadata {
     project: String,
+    execute: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -141,13 +144,19 @@ async fn process_task(
 
     let metadata: Metadata = serde_json::from_value(task.metadata.clone()).unwrap_or(Metadata {
         project: "default_obfuscation".to_string(),
+        execute: true,
     });
 
     if CONFIG.endpoint_type == config::EndpointType::Blaze {
         let query = parse_blaze_cql_query(task)?;
         if query.lang == "cql" {
             // TODO: Change query.lang to an enum
-            Ok(run_cql_query(task, &query, obf_cache, report_cache, metadata.project).await)?
+            if metadata.project == "exporter" {
+                let body = &task.body;
+                Ok(run_exporter_query(task, body, metadata.execute).await)?
+            } else {
+                Ok(run_cql_query(task, &query, obf_cache, report_cache, metadata.project).await)?
+            }
         } else {
             warn!("Can't run queries with language {} in Blaze", query.lang);
             Ok(beam::beam_result::perm_failed(
@@ -378,6 +387,28 @@ async fn run_intermediate_rep_query(task: &BeamTask, ast: ast::Ast) -> Result<Be
     }
 
     let result = beam_result(task.to_owned(), intermediate_rep_result).unwrap_or_else(|e| {
+        err.body = beam_lib::RawString(e.to_string());
+        err
+    });
+
+    Ok(result)
+}
+
+async fn run_exporter_query(
+    task: &BeamTask,
+    body: &String,
+    execute: bool,
+) -> Result<BeamResult, FocusError> {
+    let mut err = beam::beam_result::perm_failed(
+        CONFIG.beam_app_id_long.clone(),
+        vec![task.to_owned().from],
+        task.to_owned().id,
+        String::new(),
+    );
+
+    let exporter_result = exporter::post_exporter_query(body, execute).await?;
+
+    let result = beam_result(task.to_owned(), exporter_result).unwrap_or_else(|e| {
         err.body = beam_lib::RawString(e.to_string());
         err
     });

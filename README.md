@@ -36,6 +36,7 @@ BEAM_APP_ID_LONG = "app1.broker.example.com"
 ```bash
 RETRY_COUNT = "32" # The maximum number of retries for beam and blaze healthchecks, default value: 32
 ENDPOINT_TYPE = "blaze" # Type of the endpoint, allowed values: "blaze", "omop", default value: "blaze"
+EXPORTER_URL = " https://exporter.site/"  # The exporter URL
 OBFUSCATE = "yes" # Should the results be obfuscated - the "master switch", allowed values: "yes", "no", default value: "yes"
 OBFUSCATE_BELOW_10_MODE = "1" # The mode of obfuscating values below 10: 0 - return zero, 1 - return ten, 2 - obfuscate using Laplace distribution and rounding, has no effect if OBFUSCATE = "no", default value: 1
 DELTA_PATIENT = "1." # Sensitivity parameter for obfuscating the counts in the Patient stratifier, has no effect if OBFUSCATE = "no", default value: 1
@@ -45,7 +46,7 @@ DELTA_PROCEDURES = "1.7" # Sensitivity parameter for obfuscating the counts in t
 DELTA_MEDICATION_STATEMENTS = "2.1" # Sensitivity parameter for obfuscating the counts in the Medication Statements stratifier, has no effect if OBFUSCATE = "no", default value: 2.1
 EPSILON = "0.1" # Privacy budget parameter for obfuscating the counts in the stratifiers, has no effect if OBFUSCATE = "no", default value: 0.1
 ROUNDING_STEP = "10" # The granularity of the rounding of the obfuscated values, has no effect if OBFUSCATE = "no", default value: 10
-PROJECTS_NO_OBFUSCATION = "exliquid;dktk_supervisors" # Projects for which the results are not to be obfuscated, separated by ;, default value: "exliquid; dktk_supervisors"
+PROJECTS_NO_OBFUSCATION = "exliquid;dktk_supervisors;exporter" # Projects for which the results are not to be obfuscated, separated by ;, default value: "exliquid; dktk_supervisors"
 QUERIES_TO_CACHE_FILE_PATH = "resources/bbmri" # The path to the file containing BASE64 encoded queries whose results are to be cached, if not set, no results are cached
 PROVIDER = "name" #OMOP provider name
 PROVIDER_ICON = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABAQMAAAAl21bKAAAAA1BMVEUAAACnej3aAAAAAXRSTlMAQObYZgAAAApJREFUCNdjYAAAAAIAAeIhvDMAAAAASUVORK5CYII=" #Base64 encoded OMOP provider icon
