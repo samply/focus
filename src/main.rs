@@ -41,6 +41,7 @@ type BeamResult = TaskResult<beam_lib::RawString>;
 #[derive(Debug, Deserialize, Serialize, Clone)]
 struct Metadata {
     project: String,
+    #[serde(default)]
     execute: bool,
 }
 
@@ -462,4 +463,23 @@ fn beam_result(task: BeamTask, measure_report: String) -> Result<BeamResult, Foc
         task.id,
         data,
     ))
+}
+
+mod test {
+    use super::*;
+
+    const METADATA_STRING : &str = "{\"project\": \"exliquid\"}";
+
+    #[test]
+    fn test_metadata_deserialization_default() {
+
+        let metadata: Metadata = serde_json::from_str(METADATA_STRING).unwrap_or(Metadata {
+            project: "default_obfuscation".to_string(),
+            execute: true,
+        });
+
+        assert!(!metadata.execute);
+
+    }
+
 }
