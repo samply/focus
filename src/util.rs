@@ -311,6 +311,7 @@ fn obfuscate_counts_recursive(
 mod test {
     use super::*;
     use serde_json::json;
+    use std::collections::HashMap;
 
     const EXAMPLE_MEASURE_REPORT_BBMRI: &str =
         include_str!("../resources/measure_report_bbmri.json");
