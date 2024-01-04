@@ -468,7 +468,7 @@ fn beam_result(task: BeamTask, measure_report: String) -> Result<BeamResult, Foc
 mod test {
     use super::*;
 
-    const METADATA_STRING : &str = "{\"project\": \"exliquid\"}";
+    const METADATA_STRING : &str = r#"{"project": "exliquid"}"#;
 
     #[test]
     fn test_metadata_deserialization_default() {
