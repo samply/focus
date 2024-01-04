@@ -127,8 +127,7 @@ pub(crate) fn replace_cql(decoded_library: impl Into<String>) -> String {
     let mut decoded_library = decoded_library.into();
 
     for (key, value) in replace_map {
-        let replacement_value = value.to_string() + "\n";
-        decoded_library = decoded_library.replace(key, &replacement_value[..]);
+        decoded_library = decoded_library.replace(key, &value[..]);
     }
     decoded_library
 }
