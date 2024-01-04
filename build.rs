@@ -1,3 +1,5 @@
+use std::{path::Path, env, io::{BufWriter, Write}, fs::File};
+
 use build_data::get_git_dirty;
 
 /// Outputs a readable version number such as
@@ -15,6 +17,29 @@ fn version() -> String {
     }
 }
 
+fn build_cqlmap() {
+    let mut map = phf_codegen::Map::new();
+
+    for cqlfile in std::fs::read_dir(Path::new("resources/cql")).unwrap() {
+        let cqlfile = cqlfile.unwrap();
+        let cqlfilename = cqlfile.file_name().to_str().unwrap().to_owned();
+        let cqlcontent = std::fs::read_to_string(cqlfile.path()).unwrap();
+        map.entry(
+            cqlfilename,
+            &format!("r###\"{}\"###", cqlcontent)
+        );
+    }
+    let map_as_str = map.build();
+
+    let path = Path::new(&env::var("OUT_DIR").unwrap()).join("replace_map.rs");
+    let mut file = BufWriter::new(File::create(path).unwrap());
+    writeln!(
+        &mut file,
+        "static REPLACE_MAP: phf::Map<&'static str, &'static str> = {};",
+        map_as_str
+    ).unwrap();
+}
+
 fn main() {
     build_data::set_GIT_COMMIT_SHORT();
     build_data::set_GIT_DIRTY();
@@ -22,4 +47,6 @@ fn main() {
     build_data::set_BUILD_TIME();
     build_data::no_debug_rebuilds();
     println!("cargo:rustc-env=SAMPLY_USER_AGENT=Samply.Focus.{}/{}", env!("CARGO_PKG_NAME"), version());
+
+    build_cqlmap();
 }

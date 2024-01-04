@@ -16,6 +16,7 @@ thiserror = "1.0.38"
 tokio = { version = "1.25.0", default_features = false, features = ["signal", "rt-multi-thread", "macros"] }
 beam-lib = { git = "https://github.com/samply/beam", branch = "develop", features = ["http-util"] }
 laplace_rs = {version = "0.2.0", git = "https://github.com/samply/laplace-rs.git", branch = "main" }
+phf = "0.11.2"
 
 # Logging
 tracing = { version = "0.1.37", default_features = false }
@@ -33,6 +34,7 @@ tokio-test = "0.4.2"
 
 [build-dependencies]
 build-data = "0"
+phf_codegen = "0.11.2"
 
 [profile.release]
 #opt-level = "z"     # Optimize for size.

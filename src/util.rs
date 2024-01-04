@@ -1,10 +1,8 @@
 use crate::errors::FocusError;
 use laplace_rs::{get_from_cache_or_privatize, Bin, ObfCache, ObfuscateBelow10Mode};
-use once_cell::sync::Lazy;
 use rand::thread_rng;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use std::collections::HashMap;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader};
 use tracing::warn;
@@ -82,52 +80,12 @@ pub(crate) fn read_lines(filename: String) -> Result<io::Lines<BufReader<File>>,
     Ok(io::BufReader::new(file).lines())
 }
 
-macro_rules! include_cql {
-    ( $( $key:expr ), * ) => {
-        {
-            let mut map: HashMap<&'static str, &'static str> = HashMap::new();
-            $(
-                map.insert($key, include_str!(concat!("../resources/cql/", $key)));
-            )*
-            map
-        }
-    };
-}
-
-static REPLACE_MAP: Lazy<HashMap<&'static str, &'static str>> = Lazy::new(|| include_cql!(
-    "BBMRI_STRAT_GENDER_STRATIFIER",
-    "BBMRI_STRAT_SAMPLE_TYPE_STRATIFIER",
-    "BBMRI_STRAT_CUSTODIAN_STRATIFIER",
-    "BBMRI_STRAT_DIAGNOSIS_STRATIFIER",
-    "BBMRI_STRAT_AGE_STRATIFIER",
-    "BBMRI_STRAT_DEF_SPECIMEN",
-    "BBMRI_STRAT_DEF_IN_INITIAL_POPULATION",
-    "EXLIQUID_CQL_DIAGNOSIS",
-    "EXLIQUID_CQL_SPECIMEN",
-    "EXLIQUID_ALIQUOTS_CQL_DIAGNOSIS",
-    "EXLIQUID_ALIQUOTS_CQL_SPECIMEN",
-    "DKTK_STRAT_GENDER_STRATIFIER",
-    "DKTK_STRAT_AGE_STRATIFIER",
-    "DKTK_STRAT_PRIMARY_DIAGNOSIS_STRATIFIER",
-    "DKTK_STRAT_AGE_CLASS_STRATIFIER",
-    "DKTK_STRAT_DECEASED_STRATIFIER",
-    "DKTK_STRAT_DIAGNOSIS_STRATIFIER",
-    "DKTK_STRAT_SPECIMEN_STRATIFIER",
-    "UCT_STRAT_SPECIMEN_STRATIFIER",
-    "DKTK_STRAT_PROCEDURE_STRATIFIER",
-    "DKTK_STRAT_MEDICATION_STRATIFIER",
-    "DKTK_STRAT_ENCOUNTER_STRATIFIER",
-    "DKTK_STRAT_HISTOLOGY_STRATIFIER",
-    "DKTK_STRAT_DEF_IN_INITIAL_POPULATION",
-    "EXLIQUID_STRAT_DEF_IN_INITIAL_POPULATION",
-    "EXLIQUID_STRAT_W_ALIQUOTS",
-    "MTBA_STRAT_GENETIC_VARIANT"
-));
+include!(concat!(env!("OUT_DIR"), "/replace_map.rs"));
 
 pub(crate) fn replace_cql(decoded_library: impl Into<String>) -> String {
     let mut decoded_library = decoded_library.into();
 
-    for (key, value) in REPLACE_MAP.iter() {
+    for (key, value) in REPLACE_MAP.entries() {
         decoded_library = decoded_library.replace(key, &value[..]);
     }
     decoded_library
