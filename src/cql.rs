@@ -4,6 +4,7 @@ use crate::errors::FocusError;
 use chrono::offset::Utc;
 use chrono::DateTime;
 use once_cell::sync::Lazy;
+use tracing_subscriber::filter;
 use std::collections::HashMap;
 use indexmap::set::IndexSet;
 
@@ -137,9 +138,9 @@ static CQL_SNIPPETS: Lazy<HashMap<(&str, CriterionRole, Project), &str>> = Lazy:
 });
 
 pub fn bbmri(ast: ast::Ast) -> Result<String, FocusError> {
-    let mut retrieval_criteria: String = "(".to_string(); // main selection criteria (Patient)
+    let mut retrieval_criteria: String = "".to_string(); // main selection criteria (Patient)
 
-    let mut filter_criteria: String = " where (".to_string(); // criteria for filtering specimens
+    let mut filter_criteria: String = "".to_string(); // criteria for filtering specimens
 
     let mut code_systems: IndexSet<&str> = IndexSet::new(); // code lists needed depending on the criteria
     code_systems.insert("icd10"); //for diagnosis stratifier
@@ -169,9 +170,6 @@ pub fn bbmri(ast: ast::Ast) -> Result<String, FocusError> {
         }
     }
 
-    retrieval_criteria += ")";
-    filter_criteria += ")";
-
     for code_system in code_systems {
         lists += format!(
             "codesystem {}: '{}'\n",
@@ -182,21 +180,22 @@ pub fn bbmri(ast: ast::Ast) -> Result<String, FocusError> {
     }
 
     cql = cql
-        .replace("{{lists}}", lists.as_str())
-        .replace("{{filter_criteria}}", filter_criteria.as_str());
+        .replace("{{lists}}", lists.as_str());
 
-    if retrieval_criteria != *"()" {
-        // no criteria selected
-        cql = cql.replace("{{retrieval_criteria}}", retrieval_criteria.as_str());
+    if retrieval_criteria.is_empty() {
+        cql = cql.replace("{{retrieval_criteria}}", "true"); //()?
     } else {
-        cql = cql.replace("{{retrieval_criteria}}", "true");
+        let formatted_retrieval_criteria = format!("({})", retrieval_criteria);
+        cql = cql.replace("{{retrieval_criteria}}", formatted_retrieval_criteria.as_str());
     }
 
-    if filter_criteria != *" where ()" {
-        // no criteria selected
-        cql = cql.replace("{{retrieval_criteria}}", filter_criteria.as_str());
+
+    if filter_criteria.is_empty() {
+        cql = cql.replace("{{filter_criteria}}", "");
     } else {
-        cql = cql.replace("{{retrieval_criteria}}", "");
+        let formatted_filter_criteria = format!("where ({})", filter_criteria);
+        dbg!(formatted_filter_criteria.clone());
+        cql = cql.replace("{{filter_criteria}}", formatted_filter_criteria.as_str());
     }
 
     Ok(cql)
@@ -366,6 +365,11 @@ pub fn process(
                 };
 
                 retrieval_cond += condition_string.as_str();
+
+                if !filter_cond.is_empty() && !filter_string.is_empty() {
+                    filter_cond += " and ";
+                }
+
                 filter_cond += filter_string.as_str(); // no condition needed, "" can be added with no change
             } else {
                 return Err(FocusError::AstUnknownCriterion(
@@ -411,9 +415,6 @@ pub fn process(
 
     if !filter_cond.is_empty() { 
         dbg!(filter_cond.clone());
-        if !filter_criteria.is_empty() { 
-            *filter_criteria += " and ";
-        }
         *filter_criteria += "(";
         *filter_criteria += filter_cond.as_str();
         *filter_criteria += ")";
@@ -451,7 +452,7 @@ mod test {
         r#"{"ast":{"children":[],"operand":"OR"}, "id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
 
     #[test]
-    fn test_just_print() {
+    fn test_bbmri() {
         // println!(
         //     "{:?}",
         //     bbmri(serde_json::from_str(AST).expect("Failed to deserialize JSON"))
@@ -496,12 +497,10 @@ mod test {
 
         // println!();
 
-        // println!(
-        //     "{:?}",
-        //     bbmri(serde_json::from_str(LENS2).expect("Failed to deserialize JSON"))
-        // );
-
-        // println!();
+        println!(
+            "{:?}",
+            bbmri(serde_json::from_str(LENS2).expect("Failed to deserialize JSON"))
+        );
 
         // println!(
         //     "{:?}",

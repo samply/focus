@@ -4,6 +4,8 @@ include FHIRHelpers version '4.0.0'
 
 codesystem icd10: 'http://hl7.org/fhir/sid/icd-10'
 codesystem SampleMaterialType: 'https://fhir.bbmri.de/CodeSystem/SampleMaterialType'
+codesystem icd10gm: 'http://fhir.de/CodeSystem/dimdi/icd-10-gm'
+codesystem StorageTemperature: 'https://fhir.bbmri.de/CodeSystem/StorageTemperature'
 
 
 context Patient
@@ -65,7 +67,7 @@ define function SampleType(specimen FHIR.Specimen):
        else 'Unknown'
    end
 define Specimen:
-    if InInitialPopulation then [Specimen] S  else {} as List<Specimen>
+    if InInitialPopulation then [Specimen] S where (((( (S.type.coding.code contains 'tissue-frozen')) or ( (S.type.coding.code contains 'blood-serum'))))((( (S.type.coding.code contains 'liquid-other')) or ( (S.type.coding.code contains 'rna')) or ( (S.type.coding.code contains 'urine'))) and (((S.extension.where(url='https://fhir.bbmri.de/StructureDefinition/StorageTemperature').value.coding.code contains 'temperatureRoom')) or ((S.extension.where(url='https://fhir.bbmri.de/StructureDefinition/StorageTemperature').value.coding.code contains 'four_degrees'))))) else {} as List<Specimen>
 
 define Diagnosis:
 if InInitialPopulation then [Condition] else {} as List<Condition>
@@ -75,11 +77,11 @@ condition.code.coding.where(system = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm'
 
 define function DiagnosisCode(condition FHIR.Condition, specimen FHIR.Specimen):
 Coalesce(
-  condition.code.coding.where(system = 'http://hl7.org/fhir/sid/icd-10').code.first(),
+      condition.code.coding.where(system = 'http://hl7.org/fhir/sid/icd-10').code.first(),
   condition.code.coding.where(system = 'http://fhir.de/CodeSystem/dimdi/icd-10-gm').code.first(),
   specimen.extension.where(url='https://fhir.bbmri.de/StructureDefinition/SampleDiagnosis').value.coding.code.first(),
   condition.code.coding.where(system = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm').code.first()
   )
 
 define InInitialPopulation:
-true
+((((Patient.gender = 'male') or (Patient.gender = 'female')) and ((((exists[Condition: Code 'C41' from icd10]) or (exists[Condition: Code 'C41' from icd10gm])) or (exists from [Specimen] S where (S.extension.where(url='https://fhir.bbmri.de/StructureDefinition/SampleDiagnosis').value.coding.code contains 'C41'))) or (((exists[Condition: Code 'C50' from icd10]) or (exists[Condition: Code 'C50' from icd10gm])) or (exists from [Specimen] S where (S.extension.where(url='https://fhir.bbmri.de/StructureDefinition/SampleDiagnosis').value.coding.code contains 'C50')))) and (( exists [Specimen: Code 'tissue-frozen' from SampleMaterialType]) or ( exists [Specimen: Code 'blood-serum' from SampleMaterialType]))) or (((Patient.gender = 'male')) and ((((exists[Condition: Code 'C41' from icd10]) or (exists[Condition: Code 'C41' from icd10gm])) or (exists from [Specimen] S where (S.extension.where(url='https://fhir.bbmri.de/StructureDefinition/SampleDiagnosis').value.coding.code contains 'C41'))) or (((exists[Condition: Code 'C50' from icd10]) or (exists[Condition: Code 'C50' from icd10gm])) or (exists from [Specimen] S where (S.extension.where(url='https://fhir.bbmri.de/StructureDefinition/SampleDiagnosis').value.coding.code contains 'C50')))) and (( exists [Specimen: Code 'liquid-other' from SampleMaterialType]) or ( exists [Specimen: Code 'rna' from SampleMaterialType]) or ( exists [Specimen: Code 'urine' from SampleMaterialType])) and ((exists from [Specimen] S where (S.extension.where(url='https://fhir.bbmri.de/StructureDefinition/StorageTemperature').value.coding contains Code 'temperatureRoom' from StorageTemperature) ) or (exists from [Specimen] S where (S.extension.where(url='https://fhir.bbmri.de/StructureDefinition/StorageTemperature').value.coding contains Code 'four_degrees' from StorageTemperature) ))))
