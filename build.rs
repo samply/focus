@@ -21,15 +21,18 @@ fn build_cqlmap() {
     let path = Path::new(&env::var("OUT_DIR").unwrap()).join("replace_map.rs");
     let mut file = BufWriter::new(File::create(path).unwrap());
 
-    writeln!(&mut file, r#"static REPLACE_MAP: once_cell::sync::Lazy<HashMap<&'static str, &'static str>> = once_cell::sync::Lazy::new(|| {{
-        let mut map = HashMap::new();"#).unwrap();
+    write!(&mut file, r#"
+        static REPLACE_MAP: once_cell::sync::Lazy<HashMap<&'static str, &'static str>> = once_cell::sync::Lazy::new(|| {{
+        let mut map = HashMap::new();
+    "#).unwrap();
 
     for cqlfile in std::fs::read_dir(Path::new("resources/cql")).unwrap() {
         let cqlfile = cqlfile.unwrap();
         let cqlfilename = cqlfile.file_name().to_str().unwrap().to_owned();
         let cqlcontent = std::fs::read_to_string(cqlfile.path()).unwrap();
-        writeln!(&mut file, r####"
-            map.insert(r###"{cqlfilename}"###, r###"{cqlcontent}"###);"####).unwrap();
+        write!(&mut file, r####"
+            map.insert(r###"{cqlfilename}"###, r###"{cqlcontent}"###);
+        "####).unwrap();
     }
 
     writeln!(&mut file, "
