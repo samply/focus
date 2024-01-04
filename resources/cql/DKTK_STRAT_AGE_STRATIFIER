@@ -1,0 +1,8 @@
+define PrimaryDiagnosis:
+First(
+from [Condition] C
+where C.extension.where(url='http://hl7.org/fhir/StructureDefinition/condition-related').empty()
+sort by date from onset asc)
+
+define AgeClass:
+if (PrimaryDiagnosis.onset is null) then 'unknown' else ToString((AgeInYearsAt(FHIRHelpers.ToDateTime(PrimaryDiagnosis.onset)) div 10) * 10)

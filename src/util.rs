@@ -81,46 +81,14 @@ pub(crate) fn read_lines(filename: String) -> Result<io::Lines<BufReader<File>>,
     Ok(io::BufReader::new(file).lines())
 }
 
-pub(crate) fn replace_cql(decoded_library: impl Into<String>) -> String {
-    let replace_map: HashMap<&str, &str> =
-        [
-            ("BBMRI_STRAT_GENDER_STRATIFIER", 
-            "define Gender:
-             if (Patient.gender is null) then 'unknown' else Patient.gender"
-            ),
-            ("BBMRI_STRAT_SAMPLE_TYPE_STRATIFIER", "define function SampleType(specimen FHIR.Specimen):\n    case FHIRHelpers.ToCode(specimen.type.coding.where(system = 'https://fhir.bbmri.de/CodeSystem/SampleMaterialType').first())\n        when Code 'plasma-edta' from SampleMaterialType then 'blood-plasma' \n        when Code 'plasma-citrat' from SampleMaterialType then 'blood-plasma' \n        when Code 'plasma-heparin' from SampleMaterialType then 'blood-plasma' \n        when Code 'plasma-cell-free' from SampleMaterialType then 'blood-plasma' \n        when Code 'plasma-other' from SampleMaterialType then 'blood-plasma' \n        when Code 'plasma' from SampleMaterialType then 'blood-plasma' \n        when Code 'tissue-formalin' from SampleMaterialType then 'tissue-ffpe' \n        when Code 'tumor-tissue-ffpe' from SampleMaterialType then 'tissue-ffpe' \n        when Code 'normal-tissue-ffpe' from SampleMaterialType then 'tissue-ffpe' \n        when Code 'other-tissue-ffpe' from SampleMaterialType then 'tissue-ffpe' \n        when Code 'tumor-tissue-frozen' from SampleMaterialType then 'tissue-frozen' \n        when Code 'normal-tissue-frozen' from SampleMaterialType then 'tissue-frozen' \n        when Code 'other-tissue-frozen' from SampleMaterialType then 'tissue-frozen' \n        when Code 'tissue-paxgene-or-else' from SampleMaterialType then 'tissue-other' \n        when Code 'derivative' from SampleMaterialType then 'derivative-other' \n        when Code 'liquid' from SampleMaterialType then 'liquid-other' \n        when Code 'tissue' from SampleMaterialType then 'tissue-other' \n        when Code 'serum' from SampleMaterialType then 'blood-serum' \n        when Code 'cf-dna' from SampleMaterialType then 'dna' \n        when Code 'g-dna' from SampleMaterialType then 'dna' \n        when Code 'blood-plasma' from SampleMaterialType then 'blood-plasma' \n        when Code 'tissue-ffpe' from SampleMaterialType then 'tissue-ffpe' \n        when Code 'tissue-frozen' from SampleMaterialType then 'tissue-frozen' \n        when Code 'tissue-other' from SampleMaterialType then 'tissue-other' \n        when Code 'derivative-other' from SampleMaterialType then 'derivative-other' \n        when Code 'liquid-other' from SampleMaterialType then 'liquid-other' \n        when Code 'blood-serum' from SampleMaterialType then 'blood-serum' \n        when Code 'dna' from SampleMaterialType then 'dna' \n        when Code 'buffy-coat' from SampleMaterialType then 'buffy-coat' \n        when Code 'urine' from SampleMaterialType then 'urine' \n        when Code 'ascites' from SampleMaterialType then 'ascites' \n        when Code 'saliva' from SampleMaterialType then 'saliva' \n        when Code 'csf-liquor' from SampleMaterialType then 'csf-liquor' \n        when Code 'bone-marrow' from SampleMaterialType then 'bone-marrow' \n        when Code 'peripheral-blood-cells-vital' from SampleMaterialType then 'peripheral-blood-cells-vital' \n        when Code 'stool-faeces' from SampleMaterialType then 'stool-faeces' \n        when Code 'rna' from SampleMaterialType then 'rna' \n        when Code 'whole-blood' from SampleMaterialType then 'whole-blood' \n        when Code 'swab' from SampleMaterialType then 'swab' \n        when Code 'dried-whole-blood' from SampleMaterialType then 'dried-whole-blood' \n        when null  then 'Unknown'\n        else 'Unknown'\n    end"),
-            ("BBMRI_STRAT_CUSTODIAN_STRATIFIER", "define Custodian:\n First(from Specimen.extension E\n where E.url = 'https://fhir.bbmri.de/StructureDefinition/Custodian'\n return (E.value as Reference).identifier.value)"),
-            ("BBMRI_STRAT_DIAGNOSIS_STRATIFIER", "define Diagnosis:\n if InInitialPopulation then [Condition] else {} as List<Condition> \n define function DiagnosisCode(condition FHIR.Condition, specimen FHIR.Specimen):\n Coalesce(condition.code.coding.where(system = 'http://hl7.org/fhir/sid/icd-10').code.first(), condition.code.coding.where(system = 'http://fhir.de/CodeSystem/dimdi/icd-10-gm').code.first(), specimen.extension.where(url='https://fhir.bbmri.de/StructureDefinition/SampleDiagnosis').value.coding.code.first(), condition.code.coding.where(system = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm').code.first())\n"),
-            ("BBMRI_STRAT_AGE_STRATIFIER", "define AgeClass:\n     (AgeInYears() div 10) * 10"),
-            ("BBMRI_STRAT_DEF_SPECIMEN", "define Specimen:"),
-            ("BBMRI_STRAT_DEF_IN_INITIAL_POPULATION", "define InInitialPopulation:"),
-            ("EXLIQUID_CQL_DIAGNOSIS", "define retrieveCondition: First(from [Condition] C return C.code.coding.where(system = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm').code.first())\ndefine Diagnosis: if (retrieveCondition is null) then 'unknown' else retrieveCondition\n"),
-            ("EXLIQUID_CQL_SPECIMEN", "define Specimen:\nif InInitialPopulation then [Specimen] else {} as List<Specimen>\ndefine ExliquidSpecimen:\n  from [Specimen] S\n  where S.identifier.system contains 'http://dktk.dkfz.de/fhir/sid/exliquid-specimen'\ndefine function SampleType(specimen FHIR.Specimen):\n  specimen.type.coding.where(system = 'https://fhir.bbmri.de/CodeSystem/SampleMaterialType').code.first()"),
-            ("EXLIQUID_ALIQUOTS_CQL_DIAGNOSIS", "define retrieveCondition: First(from [Condition] C return C.code.coding.where(system = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm').code.first())\ndefine Diagnosis: if (retrieveCondition is null) then 'unknown' else retrieveCondition\n"),
-            ("EXLIQUID_ALIQUOTS_CQL_SPECIMEN", "define Specimen:\nif InInitialPopulation then [Specimen] else {} as List<Specimen>\n define Aliquot:\n [Specimen] S\n where exists S.collection.quantity.value and exists S.parent.reference and S.container.specimenQuantity.value > 0 define AliquotGroupReferences: flatten Aliquot S return S.parent.reference define AliquotGroupWithAliquot: [Specimen] S where not (S.identifier.system contains 'http://dktk.dkfz.de/fhir/sid/exliquid-specimen') and not exists S.collection.quantity.value and not exists S.container.specimenQuantity.value and AliquotGroupReferences contains 'Specimen/' + S.id define PrimarySampleReferences: flatten AliquotGroupWithAliquot S return S.parent.reference define ExliquidSpecimenWithAliquot: from [Specimen] PrimarySample where PrimarySample.identifier.system contains 'http://dktk.dkfz.de/fhir/sid/exliquid-specimen'   and PrimarySampleReferences contains 'Specimen/' + PrimarySample.id \n define function SampleType(specimen FHIR.Specimen): specimen.type.coding.where(system = 'https://fhir.bbmri.de/CodeSystem/SampleMaterialType').code.first()"),
-            ("DKTK_STRAT_GENDER_STRATIFIER", "define Gender:\nif (Patient.gender is null) then 'unknown' else Patient.gender"),
-            ("DKTK_STRAT_AGE_STRATIFIER", "define PrimaryDiagnosis:\nFirst(\nfrom [Condition] C\nwhere C.extension.where(url='http://hl7.org/fhir/StructureDefinition/condition-related').empty()\nsort by date from onset asc)\n\ndefine AgeClass:\nif (PrimaryDiagnosis.onset is null) then 'unknown' else ToString((AgeInYearsAt(FHIRHelpers.ToDateTime(PrimaryDiagnosis.onset)) div 10) * 10)"),
-            ("DKTK_STRAT_PRIMARY_DIAGNOSIS_STRATIFIER", "define PrimaryDiagnosis:\nFirst(\nfrom [Condition] C\nwhere C.extension.where(url='http://hl7.org/fhir/StructureDefinition/condition-related').empty()\nsort by date from onset asc)\n"),
-            ("DKTK_STRAT_AGE_CLASS_STRATIFIER", "define AgeClass:\nif (PrimaryDiagnosis.onset is null) then 'unknown' else ToString((AgeInYearsAt(FHIRHelpers.ToDateTime(PrimaryDiagnosis.onset)) div 10) * 10)"),
-            ("DKTK_STRAT_DECEASED_STRATIFIER", "define PatientDeceased:\nFirst (from [Observation: Code '75186-7' from loinc] O return O.value.coding.where(system = 'http://dktk.dkfz.de/fhir/onco/core/CodeSystem/VitalstatusCS').code.first())\ndefine Deceased:\nif (PatientDeceased is null) then 'unbekannt' else PatientDeceased"),
-            ("DKTK_STRAT_DIAGNOSIS_STRATIFIER", "define Diagnosis:\nif InInitialPopulation then [Condition] else {} as List<Condition>\n\ndefine function DiagnosisCode(condition FHIR.Condition):\ncondition.code.coding.where(system = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm').code.first()"),
-            ("DKTK_STRAT_SPECIMEN_STRATIFIER", "define Specimen:\nif InInitialPopulation then [Specimen] else {} as List<Specimen>\n\ndefine function SampleType(specimen FHIR.Specimen):\nspecimen.type.coding.where(system = 'https://fhir.bbmri.de/CodeSystem/SampleMaterialType').code.first()"),
-            ("UCT_STRAT_SPECIMEN_STRATIFIER", "define Specimen:\nif InInitialPopulation then [Specimen] else {} as List<Specimen>\n\ndefine function SampleType(specimen FHIR.Specimen):\nspecimen.type.coding.where(system = 'https://fhir.bbmri.de/CodeSystem/SampleMaterialType').code.first()\n\ndefine function Lagerort(specimen FHIR.Specimen):\nspecimen.extension.where(url = 'http://uct-locator/specimen/storage').value.coding.code.first()\n\ndefine function annotations(specimen FHIR.Specimen):\n(if (specimen.type.coding.where(system = 'https://fhir.bbmri.de/CodeSystem/SampleMaterialType').code.first() is null) then 1 else 0) +\n(if (specimen.collection.collected is null) then 1 else 0)"),
-            ("DKTK_STRAT_PROCEDURE_STRATIFIER", "define Procedure:\nif InInitialPopulation then [Procedure] else {} as List <Procedure>\n\ndefine function ProcedureType(procedure FHIR.Procedure):\nprocedure.category.coding.where(system = 'http://dktk.dkfz.de/fhir/onco/core/CodeSystem/SYSTTherapieartCS').code.first()"),
-            ("DKTK_STRAT_MEDICATION_STRATIFIER", "define MedicationStatement:\nif InInitialPopulation then [MedicationStatement] else {} as List <MedicationStatement>"),
-            ("DKTK_STRAT_ENCOUNTER_STRATIFIER", "define Encounter:\nif InInitialPopulation then [Encounter] else {} as List<Encounter>\n\ndefine function Departments(encounter FHIR.Encounter):\nencounter.identifier.where(system = 'http://dktk.dkfz.de/fhir/sid/hki-department').value.first()"),
-            ("DKTK_STRAT_HISTOLOGY_STRATIFIER", "define Histo:\nif InInitialPopulation then [Observation] else {} as List <Observation>\n\ndefine function Histlogoy(histo FHIR.Observation):\n if histo.code.coding.where(code = '59847-4').code.first() is null then 0 else 1"),
-            ("DKTK_STRAT_DEF_IN_INITIAL_POPULATION", "define InInitialPopulation:"),
-            ("EXLIQUID_STRAT_DEF_IN_INITIAL_POPULATION", "define InInitialPopulation:\n   exists ExliquidSpecimen and\n"),        
-            ("EXLIQUID_STRAT_W_ALIQUOTS", "define InInitialPopulation: exists ExliquidSpecimenWithAliquot and \n"),
-            ("MTBA_STRAT_GENETIC_VARIANT", "define GeneticVariantCode:\nFirst (from [Observation: Code '69548-6' from loinc] O return O.component.where(code.coding contains Code '48018-6' from loinc).value.coding.code.first())")
-        ].into();
+// REPLACE_MAP is built in build.rs
+include!(concat!(env!("OUT_DIR"), "/replace_map.rs"));
 
+pub(crate) fn replace_cql(decoded_library: impl Into<String>) -> String {
     let mut decoded_library = decoded_library.into();
 
-    for (key, value) in replace_map {
-        let replacement_value = value.to_string() + "\n";
-        decoded_library = decoded_library.replace(key, &replacement_value[..]);
+    for (key, value) in REPLACE_MAP.iter() {
+        decoded_library = decoded_library.replace(key, &value[..]);
     }
     decoded_library
 }
@@ -346,6 +314,9 @@ mod test {
     use super::*;
     use serde_json::json;
 
+    const QUERY_BBMRI_PLACEHOLDERS: &str =
+        include_str!("../resources/test/query_bbmri_placeholders.cql");
+    const QUERY_BBMRI: &str = include_str!("../resources/test/query_bbmri.cql");
     const EXAMPLE_MEASURE_REPORT_BBMRI: &str =
         include_str!("../resources/measure_report_bbmri.json");
     const EXAMPLE_MEASURE_REPORT_DKTK: &str = include_str!("../resources/measure_report_dktk.json");
@@ -432,8 +403,15 @@ mod test {
 
     #[test]
     fn test_replace_cql() {
+
+        
+        let decoded_library = QUERY_BBMRI_PLACEHOLDERS;
+        let expected_result = QUERY_BBMRI;
+        assert_eq!(replace_cql(decoded_library), expected_result);
+
+
         let decoded_library = "BBMRI_STRAT_GENDER_STRATIFIER";
-        let expected_result = "define Gender:\n             if (Patient.gender is null) then 'unknown' else Patient.gender\n";
+        let expected_result = "define Gender:\n  if (Patient.gender is null) then 'unknown' else Patient.gender\n";
         assert_eq!(replace_cql(decoded_library), expected_result);
 
         let decoded_library = "BBMRI_STRAT_CUSTODIAN_STRATIFIER";
@@ -502,6 +480,7 @@ mod test {
         let decoded_library = "INVALID_KEY";
         let expected_result = "INVALID_KEY";
         assert_eq!(replace_cql(decoded_library), expected_result);
+
     }
 
     #[test]
