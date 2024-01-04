@@ -1,0 +1,12 @@
+define Specimen:
+if InInitialPopulation then [Specimen] else {} as List<Specimen>
+
+define function SampleType(specimen FHIR.Specimen):
+specimen.type.coding.where(system = 'https://fhir.bbmri.de/CodeSystem/SampleMaterialType').code.first()
+
+define function Lagerort(specimen FHIR.Specimen):
+specimen.extension.where(url = 'http://uct-locator/specimen/storage').value.coding.code.first()
+
+define function annotations(specimen FHIR.Specimen):
+(if (specimen.type.coding.where(system = 'https://fhir.bbmri.de/CodeSystem/SampleMaterialType').code.first() is null) then 1 else 0) +
+(if (specimen.collection.collected is null) then 1 else 0)

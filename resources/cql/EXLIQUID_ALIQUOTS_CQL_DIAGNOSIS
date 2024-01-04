@@ -1,0 +1,3 @@
+define retrieveCondition: First(from [Condition] C return C.code.coding.where(system = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm').code.first())
+define Diagnosis: if (retrieveCondition is null) then 'unknown' else retrieveCondition
+
