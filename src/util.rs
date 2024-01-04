@@ -313,6 +313,9 @@ mod test {
     use serde_json::json;
     use std::collections::HashMap;
 
+    const QUERY_BBMRI_PLACEHOLDERS: &str =
+        include_str!("../resources/test/query_bbmri_placeholders.cql");
+    const QUERY_BBMRI: &str = include_str!("../resources/test/query_bbmri.cql");
     const EXAMPLE_MEASURE_REPORT_BBMRI: &str =
         include_str!("../resources/measure_report_bbmri.json");
     const EXAMPLE_MEASURE_REPORT_DKTK: &str = include_str!("../resources/measure_report_dktk.json");
@@ -399,6 +402,13 @@ mod test {
 
     #[test]
     fn test_replace_cql() {
+
+        
+        let decoded_library = QUERY_BBMRI_PLACEHOLDERS;
+        let expected_result = QUERY_BBMRI;
+        assert_eq!(replace_cql(decoded_library), expected_result);
+
+
         let decoded_library = "BBMRI_STRAT_GENDER_STRATIFIER";
         let expected_result = "define Gender:\n  if (Patient.gender is null) then 'unknown' else Patient.gender\n";
         assert_eq!(replace_cql(decoded_library), expected_result);
@@ -469,6 +479,7 @@ mod test {
         let decoded_library = "INVALID_KEY";
         let expected_result = "INVALID_KEY";
         assert_eq!(replace_cql(decoded_library), expected_result);
+
     }
 
     #[test]
