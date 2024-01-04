@@ -36,6 +36,10 @@ once_cell = "1.18"
 # Command Line Interface
 clap = { version = "4.0", default_features = false, features = ["std", "env", "derive", "help"] }
 
+[features]
+default = ["bbmri", "dktk"]
+bbmri = []
+dktk = []
 
 [dev-dependencies]
 pretty_assertions = "1.4.0"

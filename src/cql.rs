@@ -1,167 +1,36 @@
 use crate::ast;
 use crate::errors::FocusError;
+use crate::projects::{Project, CriterionRole, CQL_TEMPLATES, MANDATORY_CODE_SYSTEMS, CODE_LISTS, CQL_SNIPPETS, CRITERION_CODE_LISTS, OBSERVATION_LOINC_CODE};
 
 use chrono::offset::Utc;
 use chrono::DateTime;
-use once_cell::sync::Lazy;
-use tracing_subscriber::filter;
-use std::collections::HashMap;
 use indexmap::set::IndexSet;
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
-enum CriterionRole {
-    Query,
-    Filter,
-}
-
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
-pub enum Project {
-    Bbmri,
-    Dktk,
-}
-
-static CODE_LISTS: Lazy<HashMap<&str, &str>> = Lazy::new(|| {
-    //code lists with their names
-    [
-        ("icd10", "http://hl7.org/fhir/sid/icd-10"),
-        ("icd10gm", "http://fhir.de/CodeSystem/dimdi/icd-10-gm"),
-        ("loinc", "http://loinc.org"),
-        (
-            "SampleMaterialType",
-            "https://fhir.bbmri.de/CodeSystem/SampleMaterialType",
-        ),
-        (
-            "StorageTemperature",
-            "https://fhir.bbmri.de/CodeSystem/StorageTemperature",
-        ),
-        (
-            "FastingStatus",
-            "http://terminology.hl7.org/CodeSystem/v2-0916",
-        ),
-        (
-            "SmokingStatus",
-            "http://hl7.org/fhir/uv/ips/ValueSet/current-smoking-status-uv-ips",
-        ),
-    ]
-    .into()
-});
-
-static OBSERVATION_LOINC_CODE: Lazy<HashMap<&str, &str>> = Lazy::new(|| {
-    [
-        ("body_weight", "29463-7"),
-        ("bmi", "39156-5"),
-        ("smoking_status", "72166-2"),
-    ]
-    .into()
-});
-
-static CRITERION_CODE_LISTS: Lazy<HashMap<(&str, Project), Vec<&str>>> = Lazy::new(|| {
-    // code lists needed depending on the criteria selected
-    [
-        (("diagnosis", Project::Bbmri), vec!["icd10", "icd10gm"]),
-        (("body_weight", Project::Bbmri), vec!["loinc"]),
-        (("bmi", Project::Bbmri), vec!["loinc"]),
-        (("smoking_status", Project::Bbmri), vec!["loinc"]),
-        (("sample_kind", Project::Bbmri), vec!["SampleMaterialType"]),
-        (
-            ("storage_temperature", Project::Bbmri),
-            vec!["StorageTemperature"],
-        ),
-        (("fasting_status", Project::Bbmri), vec!["FastingStatus"]),
-    ]
-    .into()
-});
-
-static CQL_SNIPPETS: Lazy<HashMap<(&str, CriterionRole, Project), &str>> = Lazy::new(|| {
-    // CQL snippets depending on the criteria
-    [
-        (("gender", CriterionRole::Query, Project::Bbmri), "Patient.gender = '{{C}}'"),
-        (
-            ("diagnosis", CriterionRole::Query, Project::Bbmri),
-            "((exists[Condition: Code '{{C}}' from {{A1}}]) or (exists[Condition: Code '{{C}}' from {{A2}}])) or (exists from [Specimen] S where (S.extension.where(url='https://fhir.bbmri.de/StructureDefinition/SampleDiagnosis').value.coding.code contains '{{C}}'))",
-        ),
-        (("diagnosis_old", CriterionRole::Query, Project::Bbmri), " exists [Condition: Code '{{C}}' from {{A1}}]"),
-        (
-            ("date_of_diagnosis", CriterionRole::Query, Project::Bbmri),
-            "exists from [Condition] C\nwhere FHIRHelpers.ToDateTime(C.onset) between {{D1}} and {{D2}}",
-        ),
-        (
-            ("diagnosis_age_donor", CriterionRole::Query, Project::Bbmri),
-            "exists from [Condition] C\nwhere AgeInYearsAt(FHIRHelpers.ToDateTime(C.onset)) between Ceiling({{D1}}) and Ceiling({{D2}})",
-        ),
-        (("donor_age", CriterionRole::Query, Project::Bbmri), " AgeInYears() between Ceiling({{D1}}) and Ceiling({{D2}})"),
-        (
-            ("observationRange", CriterionRole::Query, Project::Bbmri),
-            "exists from [Observation: Code '{{K}}' from {{A1}}] O\nwhere O.value between {{D1}} and {{D2}}",
-        ),
-        (
-            ("body_weight", CriterionRole::Query, Project::Bbmri),
-            "exists from [Observation: Code '{{K}}' from {{A1}}] O\nwhere ((O.value as Quantity) < {{D1}} 'kg' and (O.value as Quantity) > {{D2}} 'kg')",
-        ),
-        (
-            ("bmi", CriterionRole::Query, Project::Bbmri),
-            "exists from [Observation: Code '{{K}}' from {{A1}}] O\nwhere ((O.value as Quantity) < {{D1}} 'kg/m2' and (O.value as Quantity) > {{D2}} 'kg/m2')",
-        ),
-        (("sample_kind", CriterionRole::Query, Project::Bbmri), " exists [Specimen: Code '{{C}}' from {{A1}}]"),
-        (("sample_kind", CriterionRole::Filter, Project::Bbmri), " (S.type.coding.code contains '{{C}}')"),
-
-        (
-            ("storage_temperature", CriterionRole::Filter, Project::Bbmri),
-            "(S.extension.where(url='https://fhir.bbmri.de/StructureDefinition/StorageTemperature').value.coding.code contains '{{C}}')",
-        ),
-        (
-            ("sampling_date", CriterionRole::Filter, Project::Bbmri),
-            "(FHIRHelpers.ToDateTime(S.collection.collected) between {{D1}} and {{D2}}) ",
-        ),
-        (
-            ("fasting_status", CriterionRole::Filter, Project::Bbmri),
-            "(S.collection.fastingStatus.coding.code contains '{{C}}') ",
-        ),
-        (
-            ("sampling_date", CriterionRole::Query, Project::Bbmri),
-            "exists from [Specimen] S\nwhere FHIRHelpers.ToDateTime(S.collection.collected) between {{D1}} and {{D2}} ",
-        ),
-        (
-            ("fasting_status", CriterionRole::Query, Project::Bbmri),   
-            "exists from [Specimen] S\nwhere S.collection.fastingStatus.coding.code contains '{{C}}' ",
-        ),
-        (
-            ("storage_temperature", CriterionRole::Query, Project::Bbmri), 
-            "exists from [Specimen] S where (S.extension.where(url='https://fhir.bbmri.de/StructureDefinition/StorageTemperature').value.coding contains Code '{{C}}' from {{A1}}) ",
-        ),
-        (
-            ("smoking_status", CriterionRole::Query, Project::Bbmri), 
-            "exists from [Observation: Code '{{K}}' from {{A1}}] O\nwhere O.value.coding.code contains '{{C}}' ",
-        ),
-    ]
-    .into()
-});
-
-pub fn bbmri(ast: ast::Ast) -> Result<String, FocusError> {
+pub fn generate_cql(ast: ast::Ast, project: Project) -> Result<String, FocusError> {
     let mut retrieval_criteria: String = "".to_string(); // main selection criteria (Patient)
 
     let mut filter_criteria: String = "".to_string(); // criteria for filtering specimens
 
-    let mut code_systems: IndexSet<&str> = IndexSet::new(); // code lists needed depending on the criteria
-    code_systems.insert("icd10"); //for diagnosis stratifier
-    code_systems.insert("SampleMaterialType"); //for sample type stratifier
-
     let mut lists: String = "".to_string(); // needed code lists, defined
 
-    let mut cql: String = include_str!("../resources/template_bbmri.cql").to_string();
+    let mut cql = CQL_TEMPLATES.get(&project).expect("missing project").to_string();
 
     let operator_str = match ast.ast.operand {
         ast::Operand::And => " and ",
         ast::Operand::Or => " or ",
     };
 
+    let mut mandatory_codes = MANDATORY_CODE_SYSTEMS.get(&project)
+        .expect("non-existent project")
+        .clone();
+
     for (index, grandchild) in ast.ast.children.iter().enumerate() {
         process(
             grandchild.clone(),
             &mut retrieval_criteria,
             &mut filter_criteria,
-            &mut code_systems,
-            Project::Bbmri,
+            &mut mandatory_codes,
+            project,
         )?;
 
         // Only concatenate operator if it's not the last element
@@ -170,7 +39,7 @@ pub fn bbmri(ast: ast::Ast) -> Result<String, FocusError> {
         }
     }
 
-    for code_system in code_systems {
+    for code_system in mandatory_codes.iter() {
         lists += format!(
             "codesystem {}: '{}'\n",
             code_system,
@@ -499,7 +368,7 @@ mod test {
 
         println!(
             "{:?}",
-            bbmri(serde_json::from_str(LENS2).expect("Failed to deserialize JSON"))
+            generate_cql(serde_json::from_str(LENS2).expect("Failed to deserialize JSON"), Project::Bbmri)
         );
 
         // println!(
@@ -507,7 +376,7 @@ mod test {
         //     bbmri(serde_json::from_str(EMPTY).expect("Failed to deserialize JSON"))
         // );
 
-        pretty_assertions::assert_eq!(bbmri(serde_json::from_str(EMPTY).unwrap()).unwrap(), include_str!("../resources/test/result_empty.cql").to_string());
+        pretty_assertions::assert_eq!(generate_cql(serde_json::from_str(EMPTY).unwrap(), Project::Bbmri).unwrap(), include_str!("../resources/test/result_empty.cql").to_string());
 
     }
 }
