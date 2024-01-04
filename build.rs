@@ -18,25 +18,23 @@ fn version() -> String {
 }
 
 fn build_cqlmap() {
-    let mut map = phf_codegen::Map::new();
+    let path = Path::new(&env::var("OUT_DIR").unwrap()).join("replace_map.rs");
+    let mut file = BufWriter::new(File::create(path).unwrap());
+
+    writeln!(&mut file, r#"static REPLACE_MAP: once_cell::sync::Lazy<HashMap<&'static str, &'static str>> = once_cell::sync::Lazy::new(|| {{
+        let mut map = HashMap::new();"#).unwrap();
 
     for cqlfile in std::fs::read_dir(Path::new("resources/cql")).unwrap() {
         let cqlfile = cqlfile.unwrap();
         let cqlfilename = cqlfile.file_name().to_str().unwrap().to_owned();
         let cqlcontent = std::fs::read_to_string(cqlfile.path()).unwrap();
-        map.entry(
-            cqlfilename,
-            &format!("r###\"{}\"###", cqlcontent)
-        );
+        writeln!(&mut file, r####"
+            map.insert(r###"{cqlfilename}"###, r###"{cqlcontent}"###);"####).unwrap();
     }
-    let map_as_str = map.build();
 
-    let path = Path::new(&env::var("OUT_DIR").unwrap()).join("replace_map.rs");
-    let mut file = BufWriter::new(File::create(path).unwrap());
-    writeln!(
-        &mut file,
-        "static REPLACE_MAP: phf::Map<&'static str, &'static str> = {};",
-        map_as_str
+    writeln!(&mut file, "
+        map
+    }});"
     ).unwrap();
 }
 

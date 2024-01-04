@@ -3,6 +3,7 @@ use laplace_rs::{get_from_cache_or_privatize, Bin, ObfCache, ObfuscateBelow10Mod
 use rand::thread_rng;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader};
 use tracing::warn;
@@ -80,12 +81,13 @@ pub(crate) fn read_lines(filename: String) -> Result<io::Lines<BufReader<File>>,
     Ok(io::BufReader::new(file).lines())
 }
 
+// REPLACE_MAP is built in build.rs
 include!(concat!(env!("OUT_DIR"), "/replace_map.rs"));
 
 pub(crate) fn replace_cql(decoded_library: impl Into<String>) -> String {
     let mut decoded_library = decoded_library.into();
 
-    for (key, value) in REPLACE_MAP.entries() {
+    for (key, value) in REPLACE_MAP.iter() {
         decoded_library = decoded_library.replace(key, &value[..]);
     }
     decoded_library
@@ -311,7 +313,6 @@ fn obfuscate_counts_recursive(
 mod test {
     use super::*;
     use serde_json::json;
-    use std::collections::HashMap;
 
     const QUERY_BBMRI_PLACEHOLDERS: &str =
         include_str!("../resources/test/query_bbmri_placeholders.cql");
