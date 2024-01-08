@@ -36,8 +36,8 @@ pub async fn post_exporter_query(body: &String, execute: bool) -> Result<String,
     let mut headers = HeaderMap::new();
 
     headers.insert(
-        header::CONTENT_TYPE, //TODO discard the result, just return OK
-        HeaderValue::from_static("text/html; charset=UTF-8"),
+        header::CONTENT_TYPE, 
+        HeaderValue::from_static("application/json"),
     );
 
     if let Some(auth_header_value) = CONFIG.auth_header.clone() {
