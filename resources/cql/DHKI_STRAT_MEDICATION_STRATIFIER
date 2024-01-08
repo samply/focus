@@ -1,0 +1,5 @@
+define MedicationStatement:
+if InInitialPopulation then [MedicationStatement] else {} as List <MedicationStatement>
+
+define function AppliedMedications(medication FHIR.MedicationStatement):
+medication.medication.coding.code.last()

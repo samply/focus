@@ -1,0 +1,5 @@
+define Encounter:
+if InInitialPopulation then [Encounter] else {} as List<Encounter>
+
+define function Departments(encounter FHIR.Encounter):
+encounter.identifier.where(system = 'http://dktk.dkfz.de/fhir/sid/hki-department').value.first()
