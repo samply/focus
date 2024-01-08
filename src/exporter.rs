@@ -42,7 +42,7 @@ pub async fn post_exporter_query(body: &String, execute: bool) -> Result<String,
 
     if let Some(auth_header_value) = CONFIG.auth_header.clone() {
         headers.insert(
-            header::AUTHORIZATION,
+            "x-api-key",
             HeaderValue::from_str(auth_header_value.as_str())
                 .map_err(FocusError::InvalidHeaderValue)?,
         );
