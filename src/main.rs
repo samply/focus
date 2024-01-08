@@ -3,10 +3,10 @@ mod banner;
 mod beam;
 mod blaze;
 mod config;
-mod exporter;
-mod logger;
 mod errors;
+mod exporter;
 mod graceful_shutdown;
+mod logger;
 
 mod intermediate_rep;
 mod util;
@@ -148,16 +148,17 @@ async fn process_task(
         execute: true,
     });
 
+    if metadata.project == "exporter" {
+        let body = &task.body;
+        return Ok(run_exporter_query(task, body, metadata.execute).await)?;
+    }
+
     if CONFIG.endpoint_type == config::EndpointType::Blaze {
-        let query = parse_blaze_cql_query(task)?;
+        let query = parse_blaze_query(task)?;
         if query.lang == "cql" {
             // TODO: Change query.lang to an enum
-            if metadata.project == "exporter" {
-                let body = &task.body;
-                Ok(run_exporter_query(task, body, metadata.execute).await)?
-            } else {
-                Ok(run_cql_query(task, &query, obf_cache, report_cache, metadata.project).await)?
-            }
+
+            Ok(run_cql_query(task, &query, obf_cache, report_cache, metadata.project).await)?
         } else {
             warn!("Can't run queries with language {} in Blaze", query.lang);
             Ok(beam::beam_result::perm_failed(
@@ -273,7 +274,7 @@ fn decode_body(task: &BeamTask) -> Result<Vec<u8>, FocusError> {
     Ok(decoded)
 }
 
-fn parse_blaze_cql_query(task: &BeamTask) -> Result<blaze::CqlQuery, FocusError> {
+fn parse_blaze_query(task: &BeamTask) -> Result<blaze::CqlQuery, FocusError> {
     let decoded = decode_body(task)?;
 
     let query: blaze::CqlQuery =
@@ -364,7 +365,10 @@ async fn run_cql_query(
     Ok(result)
 }
 
-async fn run_intermediate_rep_query(task: &BeamTask, ast: ast::Ast) -> Result<BeamResult, FocusError> {
+async fn run_intermediate_rep_query(
+    task: &BeamTask,
+    ast: ast::Ast,
+) -> Result<BeamResult, FocusError> {
     let mut err = beam::beam_result::perm_failed(
         CONFIG.beam_app_id_long.clone(),
         vec![task.to_owned().from],
@@ -383,8 +387,11 @@ async fn run_intermediate_rep_query(task: &BeamTask, ast: ast::Ast) -> Result<Be
     }
 
     if let Some(provider) = CONFIG.provider.clone() {
-        intermediate_rep_result =
-            intermediate_rep_result.replacen('{', format!(r#"{{"provider":"{}","#, provider).as_str(), 1);
+        intermediate_rep_result = intermediate_rep_result.replacen(
+            '{',
+            format!(r#"{{"provider":"{}","#, provider).as_str(),
+            1,
+        );
     }
 
     let result = beam_result(task.to_owned(), intermediate_rep_result).unwrap_or_else(|e| {
@@ -468,18 +475,15 @@ fn beam_result(task: BeamTask, measure_report: String) -> Result<BeamResult, Foc
 mod test {
     use super::*;
 
-    const METADATA_STRING : &str = r#"{"project": "exliquid"}"#;
+    const METADATA_STRING: &str = r#"{"project": "exliquid"}"#;
 
     #[test]
     fn test_metadata_deserialization_default() {
-
         let metadata: Metadata = serde_json::from_str(METADATA_STRING).unwrap_or(Metadata {
             project: "default_obfuscation".to_string(),
             execute: true,
         });
 
         assert!(!metadata.execute);
-
     }
-
 }
