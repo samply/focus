@@ -1,0 +1,5 @@
+define Diagnosis:
+if InInitialPopulation then [Condition] else {} as List<Condition>
+
+define function DiagnosisCode(condition FHIR.Condition):
+condition.code.coding.where(system = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm').code.first()

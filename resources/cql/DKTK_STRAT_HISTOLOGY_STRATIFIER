@@ -1,0 +1,5 @@
+define Histo:
+if InInitialPopulation then [Observation] else {} as List <Observation>
+
+define function Histlogoy(histo FHIR.Observation):
+ if histo.code.coding.where(code = '59847-4').code.first() is null then 0 else 1
