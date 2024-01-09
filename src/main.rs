@@ -7,17 +7,19 @@ mod cql;
 mod errors;
 mod graceful_shutdown;
 mod logger;
-mod omop;
 mod util;
 mod cql_alternative;
 mod projects;
+mod exporter;
+mod intermediate_rep;
+
 
 use beam_lib::{TaskRequest, TaskResult};
 use laplace_rs::ObfCache;
 
 use crate::util::{is_cql_tampered_with, obfuscate_counts_mr};
 use crate::{config::CONFIG, errors::FocusError};
-use blaze::Query;
+use blaze::CqlQuery;
 
 use std::collections::HashMap;
 use std::process::ExitCode;
@@ -42,6 +44,8 @@ type BeamResult = TaskResult<beam_lib::RawString>;
 #[derive(Debug, Deserialize, Serialize, Clone)]
 struct Metadata {
     project: String,
+    #[serde(default)]
+    execute: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -118,7 +122,7 @@ async fn main_loop() -> ExitCode {
             }
         } else if CONFIG.endpoint_type == config::EndpointType::Omop {
 
-            //TODO OMOP check
+            //TODO health check
         }
 
         if let Err(e) = process_tasks(&mut obf_cache, &mut report_cache).await {
@@ -144,10 +148,16 @@ async fn process_task(
 
     let metadata: Metadata = serde_json::from_value(task.metadata.clone()).unwrap_or(Metadata {
         project: "default_obfuscation".to_string(),
+        execute: true,
     });
 
+    if metadata.project == "exporter" {
+        let body = &task.body;
+        return Ok(run_exporter_query(task, body, metadata.execute).await)?;
+    }
+
     if CONFIG.endpoint_type == config::EndpointType::Blaze {
-        let query = parse_query(task)?;
+        let query = parse_blaze_query(task)?;
         if query.lang == "cql" {
             // TODO: Change query.lang to an enum
             Ok(run_cql_query(task, &query, obf_cache, report_cache, metadata.project).await)?
@@ -165,22 +175,22 @@ async fn process_task(
         }
     } else if CONFIG.endpoint_type == config::EndpointType::Omop {
         let decoded = decode_body(task)?;
-        let omop_query: omop::OmopQuery =
+        let intermediate_rep_query: intermediate_rep::IntermediateRepQuery =
             from_slice(&decoded).map_err(|e| FocusError::ParsingError(e.to_string()))?;
         //TODO check that the language is ast
         let query_decoded = general_purpose::STANDARD
-            .decode(omop_query.query)
+            .decode(intermediate_rep_query.query)
             .map_err(FocusError::DecodeError)?;
         let ast: ast::Ast =
             from_slice(&query_decoded).map_err(|e| FocusError::ParsingError(e.to_string()))?;
 
-        return Ok(run_omop_query(task, ast).await)?;
+        Ok(run_intermediate_rep_query(task, ast).await)?
     } else {
         warn!(
             "Can't run queries with endpoint type {}",
             CONFIG.endpoint_type
         );
-        return Ok(beam::beam_result::perm_failed(
+        Ok(beam::beam_result::perm_failed(
             CONFIG.beam_app_id_long.clone(),
             vec![task.from.clone()],
             task.id,
@@ -188,7 +198,7 @@ async fn process_task(
                 "Can't run queries with endpoint type {}",
                 CONFIG.endpoint_type
             ),
-        ));
+        ))
     }
 }
 
@@ -266,10 +276,10 @@ fn decode_body(task: &BeamTask) -> Result<Vec<u8>, FocusError> {
     Ok(decoded)
 }
 
-fn parse_query(task: &BeamTask) -> Result<blaze::Query, FocusError> {
+fn parse_blaze_query(task: &BeamTask) -> Result<blaze::CqlQuery, FocusError> {
     let decoded = decode_body(task)?;
 
-    let query: blaze::Query =
+    let query: blaze::CqlQuery =
         from_slice(&decoded).map_err(|e| FocusError::ParsingError(e.to_string()))?;
 
     Ok(query)
@@ -277,7 +287,7 @@ fn parse_query(task: &BeamTask) -> Result<blaze::Query, FocusError> {
 
 async fn run_cql_query(
     task: &BeamTask,
-    query: &Query,
+    query: &CqlQuery,
     obf_cache: &mut ObfCache,
     report_cache: &mut ReportCache,
     project: String,
@@ -357,7 +367,10 @@ async fn run_cql_query(
     Ok(result)
 }
 
-async fn run_omop_query(task: &BeamTask, ast: ast::Ast) -> Result<BeamResult, FocusError> {
+async fn run_intermediate_rep_query(
+    task: &BeamTask,
+    ast: ast::Ast,
+) -> Result<BeamResult, FocusError> {
     let mut err = beam::beam_result::perm_failed(
         CONFIG.beam_app_id_long.clone(),
         vec![task.to_owned().from],
@@ -365,10 +378,10 @@ async fn run_omop_query(task: &BeamTask, ast: ast::Ast) -> Result<BeamResult, Fo
         String::new(),
     );
 
-    let mut omop_result = omop::post_ast(ast).await?;
+    let mut intermediate_rep_result = intermediate_rep::post_ast(ast).await?;
 
     if let Some(provider_icon) = CONFIG.provider_icon.clone() {
-        omop_result = omop_result.replacen(
+        intermediate_rep_result = intermediate_rep_result.replacen(
             '{',
             format!(r#"{{"provider_icon":"{}","#, provider_icon).as_str(),
             1,
@@ -376,11 +389,14 @@ async fn run_omop_query(task: &BeamTask, ast: ast::Ast) -> Result<BeamResult, Fo
     }
 
     if let Some(provider) = CONFIG.provider.clone() {
-        omop_result =
-            omop_result.replacen('{', format!(r#"{{"provider":"{}","#, provider).as_str(), 1);
+        intermediate_rep_result = intermediate_rep_result.replacen(
+            '{',
+            format!(r#"{{"provider":"{}","#, provider).as_str(),
+            1,
+        );
     }
 
-    let result = beam_result(task.to_owned(), omop_result).unwrap_or_else(|e| {
+    let result = beam_result(task.to_owned(), intermediate_rep_result).unwrap_or_else(|e| {
         err.body = beam_lib::RawString(e.to_string());
         err
     });
@@ -388,7 +404,29 @@ async fn run_omop_query(task: &BeamTask, ast: ast::Ast) -> Result<BeamResult, Fo
     Ok(result)
 }
 
-fn replace_cql_library(mut query: Query) -> Result<Query, FocusError> {
+async fn run_exporter_query(
+    task: &BeamTask,
+    body: &String,
+    execute: bool,
+) -> Result<BeamResult, FocusError> {
+    let mut err = beam::beam_result::perm_failed(
+        CONFIG.beam_app_id_long.clone(),
+        vec![task.to_owned().from],
+        task.to_owned().id,
+        String::new(),
+    );
+
+    let exporter_result = exporter::post_exporter_query(body, execute).await?;
+
+    let result = beam_result(task.to_owned(), exporter_result).unwrap_or_else(|e| {
+        err.body = beam_lib::RawString(e.to_string());
+        err
+    });
+
+    Ok(result)
+}
+
+fn replace_cql_library(mut query: CqlQuery) -> Result<CqlQuery, FocusError> {
     let old_data_value = &query.lib["content"][0]["data"];
 
     let old_data_string = old_data_value
@@ -434,4 +472,20 @@ fn beam_result(task: BeamTask, measure_report: String) -> Result<BeamResult, Foc
         task.id,
         data,
     ))
+}
+
+mod test {
+    use super::*;
+
+    const METADATA_STRING: &str = r#"{"project": "exliquid"}"#;
+
+    #[test]
+    fn test_metadata_deserialization_default() {
+        let metadata: Metadata = serde_json::from_str(METADATA_STRING).unwrap_or(Metadata {
+            project: "default_obfuscation".to_string(),
+            execute: true,
+        });
+
+        assert!(!metadata.execute);
+    }
 }

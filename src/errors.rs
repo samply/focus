@@ -36,6 +36,10 @@ pub enum FocusError {
     SerializationError(String),
     #[error("Unable to post AST: {0}")]
     UnableToPostAst(reqwest::Error),
+    #[error("Unable to post Exporter query: {0}")]
+    UnableToPostExporterQuery(reqwest::Error),
+    #[error("Exporter query error in Reqwest: {0}")]
+    ExporterQueryErrorReqwest(String),
     #[error("AST Posting error in Reqwest: {0}")]
     AstPostingErrorReqwest(String),
     #[error("Unknown criterion in AST: {0}")]
@@ -48,5 +52,7 @@ pub enum FocusError {
     AstInvalidDateFormat(String),
     #[error("Invalid Header Value: {0}")]
     InvalidHeaderValue(http::header::InvalidHeaderValue),
+    #[error("Missing Exporter Endpoint")]
+    MissingExporterEndpoint(),
 
 }

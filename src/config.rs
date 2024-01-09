@@ -33,8 +33,6 @@ impl fmt::Display for EndpointType {
 }
 
 
-
-
 pub(crate) static CONFIG: Lazy<Config> = Lazy::new(|| {
     debug!("Loading config");
     Config::load().unwrap_or_else(|e| {
@@ -69,9 +67,17 @@ struct CliArgs {
     #[clap(long, env, value_parser, default_value = "32")]
     retry_count: usize,
 
-    /// The endpoint base URL, e.g. https://blaze.site/fhir
+    /// The endpoint base URL, e.g. https://blaze.site/fhir/
     #[clap(long, env, value_parser)]
-    endpoint_url: Uri,
+    endpoint_url: Option<Uri>,
+
+    /// The endpoint base URL, e.g. https://blaze.site/fhir/, for the sake of backward compatibility, use endpoint_url instead
+    #[clap(long, env, value_parser)]
+    blaze_url: Option<Uri>,
+
+    /// The exporter URL, e.g. https://exporter.site/
+    #[clap(long, env, value_parser)]
+    exporter_url: Option<Uri>,
 
     /// Type of the endpoint, e.g. "blaze", "omop"
     #[clap(long, env, value_parser = clap::value_parser!(EndpointType), default_value = "blaze")]
@@ -118,7 +124,7 @@ struct CliArgs {
     rounding_step: usize,
 
     /// Projects for which the results are not to be obfuscated, separated by ;
-    #[clap(long, env, value_parser, default_value = "exliquid;dktk_supervisors")]
+    #[clap(long, env, value_parser, default_value = "exliquid;dktk_supervisors;exporter")]
     projects_no_obfuscation: String,
 
     /// The path to the file containing BASE64 encoded queries whose results are to be cached
@@ -149,6 +155,7 @@ pub(crate) struct Config {
     pub api_key: String,
     pub retry_count: usize,
     pub endpoint_url: Uri,
+    pub exporter_url: Option<Uri>,
     pub endpoint_type: EndpointType,
     pub obfuscate: Obfuscate,
     pub obfuscate_zero: bool,
@@ -182,12 +189,15 @@ impl Config {
                 ))
             })?;
         let client = prepare_reqwest_client(&tls_ca_certificates)?;
+        dbg!(cli_args.endpoint_url.clone());
+        dbg!(cli_args.blaze_url.clone());
         let config = Config {
             beam_proxy_url: cli_args.beam_proxy_url,
             beam_app_id_long: AppId::new_unchecked(cli_args.beam_app_id_long),
             api_key: cli_args.api_key,
             retry_count: cli_args.retry_count,
-            endpoint_url: cli_args.endpoint_url,
+            endpoint_url: cli_args.endpoint_url.unwrap_or_else(|| cli_args.blaze_url.expect("Look, mate, you need to set endpoint-url or blaze-url, can't work without, sry")),
+            exporter_url: cli_args.exporter_url,
             endpoint_type: cli_args.endpoint_type,
             obfuscate: cli_args.obfuscate,
             obfuscate_zero: cli_args.obfuscate_zero,
