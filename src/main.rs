@@ -10,6 +10,7 @@ mod logger;
 mod omop;
 mod util;
 mod cql_alternative;
+mod projects;
 
 use beam_lib::{TaskRequest, TaskResult};
 use laplace_rs::ObfCache;
