@@ -11,16 +11,19 @@ mod logger;
 mod intermediate_rep;
 mod util;
 
-use beam_lib::{TaskRequest, TaskResult};
+use beam_lib::{TaskRequest, TaskResult, MsgId};
 use laplace_rs::ObfCache;
+use tokio::sync::Mutex;
 
 use crate::util::{is_cql_tampered_with, obfuscate_counts_mr};
 use crate::{config::CONFIG, errors::FocusError};
 use blaze::CqlQuery;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
+use std::ops::DerefMut;
 use std::process::ExitCode;
 use std::str;
+use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::{process::exit, time::Duration};
 
@@ -37,6 +40,7 @@ type Report = String;
 type Created = std::time::SystemTime; //epoch
 type BeamTask = TaskRequest<String>;
 type BeamResult = TaskResult<beam_lib::RawString>;
+type Shared<T> = Arc<Mutex<T>>;
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 struct Metadata {
@@ -45,7 +49,7 @@ struct Metadata {
     execute: bool,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 struct ReportCache {
     cache: HashMap<SearchQuery, (Report, Created)>,
 }
@@ -73,13 +77,12 @@ pub async fn main() -> ExitCode {
 }
 
 async fn main_loop() -> ExitCode {
-    let mut obf_cache: ObfCache = ObfCache {
+    let obf_cache = Arc::new(Mutex::new(ObfCache {
         cache: HashMap::new(),
-    };
+    }));
 
-    let mut report_cache: ReportCache = ReportCache {
-        cache: HashMap::new(),
-    };
+    let report_cache: Shared<ReportCache> = Default::default();
+    let mut seen_tasks = Default::default();
 
     if let Some(filename) = CONFIG.queries_to_cache_file_path.clone() {
         let lines = util::read_lines(filename.clone().to_string());
@@ -90,7 +93,7 @@ async fn main_loop() -> ExitCode {
                         warn!("A line in the file {} is not readable", filename);
                         continue;
                     };
-                    report_cache.cache.insert(ok_line, ("".into(), UNIX_EPOCH));
+                    report_cache.lock().await.cache.insert(ok_line, ("".into(), UNIX_EPOCH));
                 }
             }
             Err(_) => {
@@ -122,7 +125,7 @@ async fn main_loop() -> ExitCode {
             //TODO health check
         }
 
-        if let Err(e) = process_tasks(&mut obf_cache, &mut report_cache).await {
+        if let Err(e) = process_tasks(obf_cache.clone(),  report_cache.clone(), &mut seen_tasks).await {
             warn!("Encountered the following error, while processing tasks: {e}");
             //failures += 1;
         } else {
@@ -138,8 +141,8 @@ async fn main_loop() -> ExitCode {
 
 async fn process_task(
     task: &BeamTask,
-    obf_cache: &mut ObfCache,
-    report_cache: &mut ReportCache,
+    obf_cache: Shared<ObfCache>,
+    report_cache: Shared<ReportCache>,
 ) -> Result<BeamResult, FocusError> {
     debug!("Processing task {}", task.id);
 
@@ -201,69 +204,76 @@ async fn process_task(
 }
 
 async fn process_tasks(
-    obf_cache: &mut ObfCache,
-    report_cache: &mut ReportCache,
+    obf_cache: Shared<ObfCache>,
+    report_cache: Shared<ReportCache>,
+    seen: &mut HashSet<MsgId>,
 ) -> Result<(), FocusError> {
     debug!("Start processing tasks...");
 
     let tasks = beam::retrieve_tasks().await?;
     for task in tasks {
-        let task_cloned = task.clone();
-        let claiming = tokio::task::spawn(async move { beam::claim_task(&task_cloned).await });
-        let res = process_task(&task, obf_cache, report_cache).await;
-        let error_msg = match res {
-            Err(FocusError::DecodeError(_)) | Err(FocusError::ParsingError(_)) => {
-                Some("Cannot parse query".to_string())
-            }
-            Err(FocusError::LaplaceError(_)) => Some("Cannot obfuscate result".to_string()),
-            Err(ref e) => Some(format!("Cannot execute query: {}", e)),
-            Ok(_) => None,
-        };
-
-        let res = res.ok();
-        let res = res.as_ref();
-
-        // Make sure that claiming the task is done before we update it again.
-        match claiming.await.unwrap() {
-            Ok(_) => {}
-            Err(FocusError::ConfigurationError(s)) => {
-                error!("FATAL: Unable to report back to Beam due to a configuration issue: {s}");
-                return Err(FocusError::ConfigurationError(s));
-            }
-            Err(FocusError::UnableToAnswerTask(e)) => {
-                warn!("Unable to report claimed task to Beam: {e}");
-            }
-            Err(e) => {
-                warn!("Unknown error reporting claimed task back to Beam: {e}");
-            }
+        if seen.contains(&task.id) {
+            continue;
         }
-
-        const MAX_TRIES: u32 = 3600;
-        for attempt in 0..MAX_TRIES {
-            let comm_result = if let Some(ref err_msg) = error_msg {
-                beam::fail_task(&task, err_msg).await
-            } else {
-                beam::answer_task(task.id, res.unwrap()).await
-            };
-            match comm_result {
-                Ok(_) => break,
-                Err(FocusError::ConfigurationError(s)) => {
-                    error!(
-                        "FATAL: Unable to report back to Beam due to a configuration issue: {s}"
-                    );
-                    return Err(FocusError::ConfigurationError(s));
-                }
-                Err(FocusError::UnableToAnswerTask(e)) => {
-                    warn!("Unable to report task result to Beam: {e}. Retrying (attempt {attempt}/{MAX_TRIES}).");
-                }
-                Err(e) => {
-                    warn!("Unknown error reporting task result back to Beam: {e}. Retrying (attempt {attempt}/{MAX_TRIES}).");
-                }
-            }
-            tokio::time::sleep(Duration::from_secs(2)).await;
-        }
+        seen.insert(task.id);
+        let local_report_cache = report_cache.clone();
+        let local_obf_cache = obf_cache.clone();
+        tokio::spawn(handle_beam_task(task, local_obf_cache, local_report_cache));
     }
     Ok(())
+}
+
+async fn handle_beam_task(task: TaskRequest<String>, local_obf_cache: Shared<ObfCache>, local_report_cache: Shared<ReportCache>) {
+    let task_cloned = task.clone();
+    let claiming = tokio::task::spawn(async move { beam::claim_task(&task_cloned).await });
+    let res = process_task(&task, local_obf_cache, local_report_cache).await;
+    let error_msg = match res {
+        Err(FocusError::DecodeError(_)) | Err(FocusError::ParsingError(_)) => {
+            Some("Cannot parse query".to_string())
+        }
+        Err(FocusError::LaplaceError(_)) => Some("Cannot obfuscate result".to_string()),
+        Err(ref e) => Some(format!("Cannot execute query: {}", e)),
+        Ok(_) => None,
+    };
+
+    let res = res.ok();
+    // Make sure that claiming the task is done before we update it again.
+    match claiming.await.unwrap() {
+        Ok(_) => {}
+        Err(FocusError::ConfigurationError(s)) => {
+            error!("FATAL: Unable to report back to Beam due to a configuration issue: {s}");
+        }
+        Err(FocusError::UnableToAnswerTask(e)) => {
+            warn!("Unable to report claimed task to Beam: {e}");
+        }
+        Err(e) => {
+            warn!("Unknown error reporting claimed task back to Beam: {e}");
+        }
+    }
+
+    const MAX_TRIES: u32 = 3600;
+    for attempt in 0..MAX_TRIES {
+        let comm_result = if let Some(ref err_msg) = error_msg {
+            beam::fail_task(&task, err_msg).await
+        } else {
+            beam::answer_task(task.id, res.as_ref().unwrap()).await
+        };
+        match comm_result {
+            Ok(_) => break,
+            Err(FocusError::ConfigurationError(s)) => {
+                error!(
+                    "FATAL: Unable to report back to Beam due to a configuration issue: {s}"
+                );
+            }
+            Err(FocusError::UnableToAnswerTask(e)) => {
+                warn!("Unable to report task result to Beam: {e}. Retrying (attempt {attempt}/{MAX_TRIES}).");
+            }
+            Err(e) => {
+                warn!("Unknown error reporting task result back to Beam: {e}. Retrying (attempt {attempt}/{MAX_TRIES}).");
+            }
+        };
+        tokio::time::sleep(Duration::from_secs(2)).await;
+    }
 }
 
 fn decode_body(task: &BeamTask) -> Result<Vec<u8>, FocusError> {
@@ -286,8 +296,8 @@ fn parse_blaze_query(task: &BeamTask) -> Result<blaze::CqlQuery, FocusError> {
 async fn run_cql_query(
     task: &BeamTask,
     query: &CqlQuery,
-    obf_cache: &mut ObfCache,
-    report_cache: &mut ReportCache,
+    obf_cache: Shared<ObfCache>,
+    report_cache: Shared<ReportCache>,
     project: String,
 ) -> Result<BeamResult, FocusError> {
     let encoded_query =
@@ -300,8 +310,7 @@ async fn run_cql_query(
 
     let mut key_exists = false;
 
-    let cached_report = report_cache.cache.get(encoded_query);
-    let report_from_cache = match cached_report {
+    let report_from_cache = match report_cache.lock().await.cache.get(encoded_query) {
         Some(existing_report) => {
             key_exists = true;
             if SystemTime::now().duration_since(existing_report.1).unwrap() < REPORTCACHE_TTL {
@@ -325,7 +334,7 @@ async fn run_cql_query(
                     if !CONFIG.unobfuscated.contains(&project) {
                         obfuscate_counts_mr(
                             &cql_result,
-                            obf_cache,
+                            obf_cache.lock().await.deref_mut(),
                             CONFIG.obfuscate_zero,
                             CONFIG.obfuscate_below_10_mode,
                             CONFIG.delta_patient,
@@ -344,7 +353,7 @@ async fn run_cql_query(
             };
 
             if key_exists {
-                report_cache.cache.insert(
+                report_cache.lock().await.cache.insert(
                     encoded_query.to_string(),
                     (cql_result_new.clone(), std::time::SystemTime::now()),
                 );
