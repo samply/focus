@@ -13,10 +13,10 @@ mod task_processing;
 mod util;
 
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
-use beam_lib::{TaskRequest, TaskResult, MsgId};
+use beam_lib::{MsgId, TaskRequest, TaskResult};
 use laplace_rs::ObfCache;
-use tokio::sync::Mutex;
 use task_processing::TaskQueue;
+use tokio::sync::Mutex;
 
 use crate::util::{is_cql_tampered_with, obfuscate_counts_mr};
 use crate::{config::CONFIG, errors::FocusError};
@@ -35,6 +35,7 @@ use tracing::{debug, error, warn};
 
 // result cache
 type SearchQuery = String;
+type Obfuscated = bool;
 type Report = String;
 type Created = std::time::SystemTime; //epoch
 type BeamTask = TaskRequest<String>;
@@ -49,8 +50,36 @@ struct Metadata {
 
 #[derive(Debug, Clone, Default)]
 struct ReportCache {
-    cache: HashMap<SearchQuery, (Report, Created)>,
+    cache: HashMap<(SearchQuery, Obfuscated), (Report, Created)>,
 }
+
+impl ReportCache {
+ 
+    pub fn init() -> Self {
+        let mut cache = HashMap::new();
+ 
+        if let Some(filename) = CONFIG.queries_to_cache_file_path.clone() {
+            let lines = util::read_lines(filename.clone().to_string());
+            match lines {
+                Ok(ok_lines) => {
+                   for line in ok_lines {
+                       let Ok(ok_line) = line else {
+                           warn!("A line in the file {} is not readable", filename);
+                           continue;
+                       };
+                       cache.insert((ok_line.clone(), false), ("".into(), UNIX_EPOCH));
+                       cache.insert((ok_line, true), ("".into(), UNIX_EPOCH));
+                   }
+                },
+                Err(_) => {
+                   error!("The file {} cannot be opened", filename); //This shouldn't stop focus from running, it's just going to go to blaze every time, but that's not too slow
+                }
+            }
+        }
+ 
+        Self {cache}
+    }
+ }
 
 const REPORTCACHE_TTL: Duration = Duration::from_secs(86400); //24h
 
@@ -76,25 +105,7 @@ pub async fn main() -> ExitCode {
 
 async fn main_loop() -> ExitCode {
     // TODO: The report cache init should be an fn on the cache
-    let mut report_cache: ReportCache = Default::default();
-    if let Some(filename) = CONFIG.queries_to_cache_file_path.clone() {
-        let lines = util::read_lines(filename.clone().to_string());
-        match lines {
-            Ok(ok_lines) => {
-                for line in ok_lines {
-                    let Ok(ok_line) = line else {
-                        warn!("A line in the file {} is not readable", filename);
-                        continue;
-                    };
-                    report_cache.cache.insert(ok_line, ("".into(), UNIX_EPOCH));
-                }
-            }
-            Err(_) => {
-                error!("The file {} cannot be opened", filename);
-                exit(2);
-            }
-        }
-    }
+    let report_cache: ReportCache = ReportCache::init();
 
     let mut seen_tasks = Default::default();
     let mut task_queue = task_processing::spawn_task_workers(report_cache);
@@ -122,7 +133,7 @@ async fn main_loop() -> ExitCode {
 
         if let Err(e) = process_tasks(&mut task_queue, &mut seen_tasks).await {
             warn!("Encountered the following error, while processing tasks: {e}");
-            //failures += 1;
+            //failures += 1; //I believe this can be uncommented now
         } else {
             failures = 0;
         }
@@ -133,7 +144,6 @@ async fn main_loop() -> ExitCode {
     );
     ExitCode::from(22)
 }
-
 
 async fn process_tasks(
     task_queue: &mut TaskQueue,
@@ -147,11 +157,13 @@ async fn process_tasks(
             continue;
         }
         seen.insert(task.id);
-        task_queue.send(task).await.expect("Receiver is never dropped");
+        task_queue
+            .send(task)
+            .await
+            .expect("Receiver is never dropped");
     }
     Ok(())
 }
-
 
 async fn run_cql_query(
     task: &BeamTask,
@@ -170,7 +182,18 @@ async fn run_cql_query(
 
     let mut key_exists = false;
 
-    let report_from_cache = match report_cache.lock().await.cache.get(encoded_query) {
+    let mut obfuscate = false;
+
+    if CONFIG.obfuscate == config::Obfuscate::Yes && !CONFIG.unobfuscated.contains(&project) {
+        obfuscate = true;
+    }
+
+    let report_from_cache = match report_cache
+        .lock()
+        .await
+        .cache
+        .get(&(encoded_query.to_string(), obfuscate))
+    {
         Some(existing_report) => {
             key_exists = true;
             if SystemTime::now().duration_since(existing_report.1).unwrap() < REPORTCACHE_TTL {
@@ -189,32 +212,26 @@ async fn run_cql_query(
 
             let cql_result = blaze::run_cql_query(&query.lib, &query.measure).await?;
 
-            let cql_result_new: String = match CONFIG.obfuscate {
-                config::Obfuscate::Yes => {
-                    if !CONFIG.unobfuscated.contains(&project) {
-                        obfuscate_counts_mr(
-                            &cql_result,
-                            obf_cache.lock().await.deref_mut(),
-                            CONFIG.obfuscate_zero,
-                            CONFIG.obfuscate_below_10_mode,
-                            CONFIG.delta_patient,
-                            CONFIG.delta_specimen,
-                            CONFIG.delta_diagnosis,
-                            CONFIG.delta_procedures,
-                            CONFIG.delta_medication_statements,
-                            CONFIG.epsilon,
-                            CONFIG.rounding_step,
-                        )?
-                    } else {
-                        cql_result
-                    }
-                }
-                config::Obfuscate::No => cql_result,
+            let cql_result_new: String = match obfuscate {
+                true => obfuscate_counts_mr(
+                    &cql_result,
+                    obf_cache.lock().await.deref_mut(),
+                    CONFIG.obfuscate_zero,
+                    CONFIG.obfuscate_below_10_mode,
+                    CONFIG.delta_patient,
+                    CONFIG.delta_specimen,
+                    CONFIG.delta_diagnosis,
+                    CONFIG.delta_procedures,
+                    CONFIG.delta_medication_statements,
+                    CONFIG.epsilon,
+                    CONFIG.rounding_step,
+                )?,
+                false => cql_result,
             };
 
             if key_exists {
                 report_cache.lock().await.cache.insert(
-                    encoded_query.to_string(),
+                    (encoded_query.to_string(), obfuscate),
                     (cql_result_new.clone(), std::time::SystemTime::now()),
                 );
             }
