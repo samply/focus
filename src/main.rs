@@ -182,11 +182,7 @@ async fn run_cql_query(
 
     let mut key_exists = false;
 
-    let mut obfuscate = false;
-
-    if CONFIG.obfuscate == config::Obfuscate::Yes && !CONFIG.unobfuscated.contains(&project) {
-        obfuscate = true;
-    }
+    let obfuscate = CONFIG.obfuscate == config::Obfuscate::Yes && !CONFIG.unobfuscated.contains(&project);
 
     let report_from_cache = match report_cache
         .lock()
