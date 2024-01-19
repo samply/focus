@@ -55,7 +55,7 @@ struct ReportCache {
 
 impl ReportCache {
  
-    pub fn init() -> Self {
+    pub fn new() -> Self {
         let mut cache = HashMap::new();
  
         if let Some(filename) = CONFIG.queries_to_cache_file_path.clone() {
@@ -105,7 +105,7 @@ pub async fn main() -> ExitCode {
 
 async fn main_loop() -> ExitCode {
     // TODO: The report cache init should be an fn on the cache
-    let report_cache: ReportCache = ReportCache::init();
+    let report_cache: ReportCache = ReportCache::new();
 
     let mut seen_tasks = Default::default();
     let mut task_queue = task_processing::spawn_task_workers(report_cache);
