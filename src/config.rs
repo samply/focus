@@ -11,13 +11,13 @@ use tracing::{debug, info, warn};
 use crate::errors::FocusError;
 
 
-#[derive(clap::ValueEnum, Clone, Debug)]
+#[derive(clap::ValueEnum, Clone, PartialEq, Debug)]
 pub enum Obfuscate {
     No,
     Yes,
 }
 
-#[derive(clap::ValueEnum, Clone, Debug, PartialEq, Copy)]
+#[derive(clap::ValueEnum, Clone, PartialEq, Debug, Copy)]
 pub enum EndpointType {
     Blaze,
     Omop,
