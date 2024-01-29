@@ -239,6 +239,7 @@ pub fn obfuscate_counts_mr(
 
     let measure_report_obfuscated = serde_json::to_string_pretty(&measure_report)
         .map_err(|e| FocusError::SerializationError(e.to_string()))?;
+    dbg!(&measure_report_obfuscated);
     Ok(measure_report_obfuscated)
 }
 
