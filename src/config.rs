@@ -124,7 +124,7 @@ struct CliArgs {
     rounding_step: usize,
 
     /// Projects for which the results are not to be obfuscated, separated by ;
-    #[clap(long, env, value_parser, default_value = "exliquid;dktk_supervisors;exporter")]
+    #[clap(long, env, value_parser, default_value = "exliquid;dktk_supervisors;exporter;ehds2")]
     projects_no_obfuscation: String,
 
     /// The path to the file containing BASE64 encoded queries whose results are to be cached
