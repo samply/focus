@@ -411,7 +411,7 @@ mod test {
 
 
         let decoded_library = "BBMRI_STRAT_GENDER_STRATIFIER";
-        let expected_result = "define Gender:\n  if (Patient.gender is null) then 'unknown' else Patient.gender\n";
+        let expected_result = "define Gender:\n if (Patient.gender is null) then 'unknown'\n else if (Patient.gender != 'male' and Patient.gender != 'female' and Patient.gender != 'other' and Patient.gender != 'unknown') then 'other'\n else Patient.gender";
         assert_eq!(replace_cql(decoded_library), expected_result);
 
         let decoded_library = "BBMRI_STRAT_CUSTODIAN_STRATIFIER";
