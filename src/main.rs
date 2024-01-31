@@ -133,7 +133,7 @@ async fn main_loop() -> ExitCode {
 
         if let Err(e) = process_tasks(&mut task_queue, &mut seen_tasks).await {
             warn!("Encountered the following error, while processing tasks: {e}");
-            //failures += 1; //I believe this can be uncommented now
+            failures += 1; 
         } else {
             failures = 0;
         }
