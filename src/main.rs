@@ -238,7 +238,7 @@ async fn process_tasks(
             }
         }
 
-        const MAX_TRIES: u32 = 3600;
+        const MAX_TRIES: u32 = 150;
         for attempt in 0..MAX_TRIES {
             let comm_result = if let Some(ref err_msg) = error_msg {
                 beam::fail_task(&task, err_msg).await
