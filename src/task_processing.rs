@@ -3,7 +3,7 @@ use std::{sync::Arc, collections::HashMap, time::Duration};
 use base64::{engine::general_purpose, Engine as _};
 use laplace_rs::ObfCache;
 use tokio::sync::{mpsc, Semaphore, Mutex};
-use tracing::{error, warn, debug};
+use tracing::{error, warn, debug, Instrument, info_span};
 
 use crate::{ReportCache, errors::FocusError, beam, BeamTask, BeamResult, run_exporter_query, config::{EndpointType, CONFIG}, run_cql_query, intermediate_rep, ast, run_intermediate_rep_query, Metadata, blaze::parse_blaze_query, util};
 
@@ -13,7 +13,7 @@ const WORKER_BUFFER: usize = 32;
 pub type TaskQueue = mpsc::Sender<BeamTask>;
 
 pub fn spawn_task_workers(report_cache: ReportCache) -> TaskQueue {
-    let (tx, mut rx) = mpsc::channel(WORKER_BUFFER);
+    let (tx, mut rx) = mpsc::channel::<BeamTask>(WORKER_BUFFER);
 
     let obf_cache = Arc::new(Mutex::new(ObfCache {
         cache: HashMap::new(),
@@ -28,7 +28,8 @@ pub fn spawn_task_workers(report_cache: ReportCache) -> TaskQueue {
             let local_report_cache = report_cache.clone();
             let local_obf_cache = obf_cache.clone();
             tokio::spawn(async move {
-                handle_beam_task(task, local_obf_cache, local_report_cache).await;
+                let span = info_span!("task handling", %task.id);
+                handle_beam_task(task, local_obf_cache, local_report_cache).instrument(span).await;
                 drop(permit)
             });
         }
@@ -38,41 +39,36 @@ pub fn spawn_task_workers(report_cache: ReportCache) -> TaskQueue {
 }
 
 async fn handle_beam_task(task: BeamTask, local_obf_cache: Arc<Mutex<ObfCache>>, local_report_cache: Arc<Mutex<ReportCache>>) {
-    let task_cloned = task.clone();
-    let claiming = tokio::task::spawn(async move { beam::claim_task(&task_cloned).await });
-    let res = process_task(&task, local_obf_cache, local_report_cache).await;
-    let error_msg = match res {
-        Err(FocusError::DecodeError(_)) | Err(FocusError::ParsingError(_)) => {
-            Some("Cannot parse query".to_string())
+    let task_claiming = beam::claim_task(&task);
+    let mut task_processing = std::pin::pin!(process_task(&task, local_obf_cache, local_report_cache));
+    let task_result = tokio::select! {
+        // If task task processing happens before claiming is done drop the task claiming future  
+        task_processed = &mut task_processing => {
+            task_processed
+        },
+        task_claimed = task_claiming => {
+            if let Err(e) = task_claimed {
+                warn!("Failed to claim task: {e}");
+            } else {
+                debug!("Successfully claimed task");
+            };
+            task_processing.await
         }
-        Err(FocusError::LaplaceError(_)) => Some("Cannot obfuscate result".to_string()),
-        Err(ref e) => Some(format!("Cannot execute query: {}", e)),
-        Ok(_) => None,
     };
-
-    let res = res.ok();
-    // Make sure that claiming the task is done before we update it again.
-    match claiming.await.unwrap() {
-        Ok(_) => {}
-        Err(FocusError::ConfigurationError(s)) => {
-            error!("FATAL: Unable to report back to Beam due to a configuration issue: {s}");
-        }
-        Err(FocusError::UnableToAnswerTask(e)) => {
-            warn!("Unable to report claimed task to Beam: {e}");
-        }
+    let result = match task_result {
+        Ok(res) => res,
         Err(e) => {
-            warn!("Unknown error reporting claimed task back to Beam: {e}");
+            warn!("Failed to execute query: {e}");
+            if let Err(e) = beam::fail_task(&task, e.user_facing_error()).await {
+                warn!("Failed to report failure to beam: {e}");
+            }
+            return;
         }
-    }
+    };
 
     const MAX_TRIES: u32 = 3600;
     for attempt in 0..MAX_TRIES {
-        let comm_result = if let Some(ref err_msg) = error_msg {
-            beam::fail_task(&task, err_msg).await
-        } else {
-            beam::answer_task(task.id, res.as_ref().unwrap()).await
-        };
-        match comm_result {
+        match beam::answer_task(&result).await {
             Ok(_) => break,
             Err(FocusError::ConfigurationError(s)) => {
                 error!(
