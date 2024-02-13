@@ -51,7 +51,7 @@ pub enum FocusError {
 
 impl FocusError {
     /// Generate a descriptive error message that does not leak any sensitive data that might me contained inside the error value
-    pub fn user_faceing_error(&self) -> &'static str {
+    pub fn user_facing_error(&self) -> &'static str {
         use FocusError::*;
         // TODO: Add more match arms
         match self {

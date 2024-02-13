@@ -28,7 +28,7 @@ pub fn spawn_task_workers(report_cache: ReportCache) -> TaskQueue {
             let local_report_cache = report_cache.clone();
             let local_obf_cache = obf_cache.clone();
             tokio::spawn(async move {
-                let span = info_span!("task handeling", %task.id);
+                let span = info_span!("task handling", %task.id);
                 handle_beam_task(task, local_obf_cache, local_report_cache).instrument(span).await;
                 drop(permit)
             });
@@ -42,7 +42,7 @@ async fn handle_beam_task(task: BeamTask, local_obf_cache: Arc<Mutex<ObfCache>>,
     let task_claiming = beam::claim_task(&task);
     let mut task_processing = std::pin::pin!(process_task(&task, local_obf_cache, local_report_cache));
     let task_result = tokio::select! {
-        // If task task proccessing happens before claiming is done drop the task claiming future  
+        // If task task processing happens before claiming is done drop the task claiming future  
         task_processed = &mut task_processing => {
             task_processed
         },
@@ -59,7 +59,7 @@ async fn handle_beam_task(task: BeamTask, local_obf_cache: Arc<Mutex<ObfCache>>,
         Ok(res) => res,
         Err(e) => {
             warn!("Failed to execute query: {e}");
-            if let Err(e) = beam::fail_task(&task, e.user_faceing_error()).await {
+            if let Err(e) = beam::fail_task(&task, e.user_facing_error()).await {
                 warn!("Failed to report failure to beam: {e}");
             }
             return;
