@@ -2,29 +2,29 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum FocusError {
-    #[error("Unable to post FHIR Library")]
+    #[error("Unable to post FHIR Library: {0}")]
     UnableToPostLibrary(reqwest::Error),
-    #[error("Unable to post FHIR Measure")]
+    #[error("Unable to post FHIR Measure: {0}")]
     UnableToPostMeasure(reqwest::Error),
-    #[error("FHIR Measure evaluation error in Reqwest")]
+    #[error("FHIR Measure evaluation error in Reqwest: {0}")]
     MeasureEvaluationErrorReqwest(reqwest::Error),
-    #[error("FHIR Measure evaluation error in Blaze")]
+    #[error("FHIR Measure evaluation error in Blaze: {0}")]
     MeasureEvaluationErrorBlaze(String),
     #[error("CQL query error")]
     CQLQueryError(),
     #[error("Unable to retrieve tasks from Beam: {0}")]
     UnableToRetrieveTasksHttp(beam_lib::BeamError),
-    #[error("Unable to answer task")]
+    #[error("Unable to answer task: {0}")]
     UnableToAnswerTask(beam_lib::BeamError),
-    #[error("Unable to set proxy settings")]
+    #[error("Unable to set proxy settings: {0}")]
     InvalidProxyConfig(reqwest::Error),
-    #[error("Decode error")]
+    #[error("Decode error: {0}")]
     DecodeError(base64::DecodeError),
-    #[error("Configuration error")]
+    #[error("Configuration error: {0}")]
     ConfigurationError(String),
-    #[error("Cannot open file")]
+    #[error("Cannot open file: {0}")]
     FileOpeningError(String),
-    #[error("Parsing error")]
+    #[error("Parsing error: {0}")]
     ParsingError(String),
     #[error("CQL tampered with: {0}")]
     CQLTemperedWithError(String),
@@ -47,4 +47,17 @@ pub enum FocusError {
     #[error("Missing Exporter Endpoint")]
     MissingExporterEndpoint(),
 
+}
+
+impl FocusError {
+    /// Generate a descriptive error message that does not leak any sensitive data that might me contained inside the error value
+    pub fn user_faceing_error(&self) -> &'static str {
+        use FocusError::*;
+        // TODO: Add more match arms
+        match self {
+            DecodeError(_) | ParsingError(_) =>  "Cannot parse query.",
+            LaplaceError(_) => "Cannot obfuscate result.",
+            _ => "Failed to execute query."
+        }
+    }
 }
