@@ -86,11 +86,15 @@ pub async fn retrieve_tasks() -> Result<Vec<TaskRequest<String>>, FocusError> {
         .map_err(FocusError::UnableToRetrieveTasksHttp)
 }
 
-pub async fn answer_task<T: Serialize + 'static>(result: &TaskResult<T>) -> Result<bool, FocusError> {
+pub async fn answer_task<T: Serialize + 'static>(result: &TaskResult<T>) -> Result<(), FocusError> {
     debug!("Answer task with id: {}", result.task);
     BEAM_CLIENT.put_result(result, &result.task)
-        .await
-        .map_err(FocusError::UnableToAnswerTask)
+    .await
+    .map(|_| ())
+    .or_else(|e| match e {
+        beam_lib::BeamError::UnexpectedStatus(s) if s == StatusCode::NOT_FOUND => Ok(()),
+        other => Err(FocusError::UnableToAnswerTask(other))
+    })
 }
 
 pub async fn fail_task<T>(task: &TaskRequest<T>, body: impl Into<String>) -> Result<(), FocusError> {
