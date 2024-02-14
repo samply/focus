@@ -98,6 +98,15 @@ async fn process_task(
         execute: true,
     });
 
+    if metadata.project == "focus-healthcheck" {
+        return Ok(beam::beam_result::succeeded(
+            CONFIG.beam_app_id_long.clone(),
+            vec![task.from.clone()],
+            task.id,
+            "healthy".into()
+        ));
+    }
+
     if metadata.project == "exporter" {
         let body = &task.body;
         return Ok(run_exporter_query(task, body, metadata.execute).await)?;
