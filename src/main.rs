@@ -307,7 +307,11 @@ async fn run_exporter_query(
 }
 
 fn replace_cql_library(mut query: CqlQuery) -> Result<CqlQuery, FocusError> {
+    info!("replace_cql_library: entered");
+
     let old_data_value = &query.lib["content"][0]["data"];
+
+    info!("replace_cql_library: look for Field .content[0].data in old data");
 
     let old_data_string = old_data_value
         .as_str()
@@ -316,10 +320,16 @@ fn replace_cql_library(mut query: CqlQuery) -> Result<CqlQuery, FocusError> {
             query.lib
         )))?;
 
+    info!("replace_cql_library: do a base 64 decode on old data");
+
     let decoded_cql = util::base64_decode(old_data_string)?;
+
+    info!("replace_cql_library: convert to UTF8");
 
     let decoded_string = str::from_utf8(&decoded_cql)
         .map_err(|_| FocusError::ParsingError("CQL query was invalid".into()))?;
+
+    info!("replace_cql_library: check for unexpected defines");
 
     match is_cql_tampered_with(decoded_string) {
         false => debug!("CQL not tampered with"),
@@ -331,10 +341,14 @@ fn replace_cql_library(mut query: CqlQuery) -> Result<CqlQuery, FocusError> {
         }
     };
 
+    info!("replace_cql_library: multiple operations");
+
     let replaced_cql_str = util::replace_cql(decoded_string);
     let replaced_cql_str_base64 = BASE64.encode(replaced_cql_str);
     let new_data_value = serde_json::to_value(replaced_cql_str_base64)
         .expect("unable to turn base64 string into json value - this should not happen");
+
+    info!("replace_cql_library: Update the CqlQuery with the new data value");
 
     let a = &mut query.lib["content"][0]["data"];
     *a = new_data_value;
