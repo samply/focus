@@ -31,7 +31,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use std::{process::exit, time::Duration};
 
 use serde::{Deserialize, Serialize};
-use tracing::{debug, error, warn};
+use tracing::{debug, error, warn, info};
 
 // result cache
 type SearchQuery = String;
