@@ -1,0 +1,26 @@
+# This Dockerfile builds the Rust project and creates the final image.
+
+# Use the official Rust image as the build environment
+FROM rust:latest as builder
+
+# Set the working directory inside the container
+WORKDIR /usr/src/your_project_name
+
+# Copy the project files into the container
+COPY . .
+
+# Build the Rust project
+RUN cargo build --release
+
+# Create a smaller final image
+FROM gcr.io/distroless/cc-debian12
+
+# Set the working directory inside the container
+WORKDIR /usr/src/your_project_name
+
+# Copy the built binary from the builder stage
+COPY --from=builder /usr/src/your_project_name/target/release/focus /usr/local/bin/
+
+# Set the entry point for the final image
+ENTRYPOINT ["/usr/local/bin/focus"]
+

@@ -330,6 +330,7 @@ fn replace_cql_library(mut query: CqlQuery) -> Result<CqlQuery, FocusError> {
         .map_err(|_| FocusError::ParsingError("CQL query was invalid".into()))?;
 
     info!("replace_cql_library: check for unexpected defines");
+    info!("replace_cql_library: decoded_string  {:?}", decoded_string);
 
     match is_cql_tampered_with(decoded_string) {
         false => debug!("CQL not tampered with"),
