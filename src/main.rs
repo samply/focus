@@ -104,6 +104,8 @@ pub async fn main() -> ExitCode {
 }
 
 async fn main_loop() -> ExitCode {
+    info!("main_loop: entered");
+
     // TODO: The report cache init should be an fn on the cache
     let report_cache: ReportCache = ReportCache::new();
 
@@ -172,6 +174,8 @@ async fn run_cql_query(
     report_cache: Arc<Mutex<ReportCache>>,
     project: String,
 ) -> Result<BeamResult, FocusError> {
+    info!("run_cql_query: entered");
+
     let encoded_query =
         query.lib["content"][0]["data"]
             .as_str()
@@ -243,6 +247,8 @@ async fn run_cql_query(
             e.to_string(),
         )
     });
+
+    info!("run_cql_query: finished");
 
     Ok(result)
 }
