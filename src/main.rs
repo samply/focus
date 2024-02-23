@@ -360,6 +360,8 @@ fn replace_cql_library(mut query: CqlQuery) -> Result<CqlQuery, FocusError> {
     let a = &mut query.lib["content"][0]["data"];
     *a = new_data_value;
 
+    info!("replace_cql_library: finished");
+
     Ok(query)
 }
 
