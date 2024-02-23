@@ -1,0 +1,6 @@
+define function Antibiotic(observation FHIR.Observation):
+    case FHIRHelpers.ToCode(observation.value.coding.where(system = 'https://ecdc.amr/antibiotic-codes').first())
+        when Code 'MEM' from Antibiotic then 'MEM' 
+        when null  then 'Unknown'
+        else 'Unknown'
+    end
