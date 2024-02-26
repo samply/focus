@@ -355,7 +355,7 @@ fn replace_cql_library(mut query: CqlQuery) -> Result<CqlQuery, FocusError> {
     let new_data_value = serde_json::to_value(replaced_cql_str_base64)
         .expect("unable to turn base64 string into json value - this should not happen");
 
-    info!("replace_cql_library: new_data_value  {:?}", new_data_value);
+    info!("replace_cql_library: replaced_cql_str  {:?}", replaced_cql_str);
     info!("replace_cql_library: Update the CqlQuery with the new data value");
 
     let a = &mut query.lib["content"][0]["data"];
