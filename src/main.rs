@@ -150,11 +150,12 @@ async fn process_tasks(
     seen: &mut HashSet<MsgId>,
 ) -> Result<(), FocusError> {
     debug!("Start processing tasks...");
-
     let tasks = beam::retrieve_tasks().await?;
     for task in tasks {
+
         if seen.contains(&task.id) {
             continue;
+
         }
         seen.insert(task.id);
         task_queue
