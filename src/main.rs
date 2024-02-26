@@ -54,32 +54,31 @@ struct ReportCache {
 }
 
 impl ReportCache {
- 
     pub fn new() -> Self {
         let mut cache = HashMap::new();
- 
+
         if let Some(filename) = CONFIG.queries_to_cache_file_path.clone() {
             let lines = util::read_lines(filename.clone().to_string());
             match lines {
                 Ok(ok_lines) => {
-                   for line in ok_lines {
-                       let Ok(ok_line) = line else {
-                           warn!("A line in the file {} is not readable", filename);
-                           continue;
-                       };
-                       cache.insert((ok_line.clone(), false), ("".into(), UNIX_EPOCH));
-                       cache.insert((ok_line, true), ("".into(), UNIX_EPOCH));
-                   }
-                },
+                    for line in ok_lines {
+                        let Ok(ok_line) = line else {
+                            warn!("A line in the file {} is not readable", filename);
+                            continue;
+                        };
+                        cache.insert((ok_line.clone(), false), ("".into(), UNIX_EPOCH));
+                        cache.insert((ok_line, true), ("".into(), UNIX_EPOCH));
+                    }
+                }
                 Err(_) => {
-                   error!("The file {} cannot be opened", filename); //This shouldn't stop focus from running, it's just going to go to blaze every time, but that's not too slow
+                    error!("The file {} cannot be opened", filename); //This shouldn't stop focus from running, it's just going to go to blaze every time, but that's not too slow
                 }
             }
         }
- 
-        Self {cache}
+
+        Self { cache }
     }
- }
+}
 
 const REPORTCACHE_TTL: Duration = Duration::from_secs(86400); //24h
 
@@ -133,7 +132,7 @@ async fn main_loop() -> ExitCode {
 
         if let Err(e) = process_tasks(&mut task_queue, &mut seen_tasks).await {
             warn!("Encountered the following error, while processing tasks: {e}");
-            failures += 1; 
+            failures += 1;
         } else {
             failures = 0;
         }
@@ -150,7 +149,6 @@ async fn process_tasks(
     seen: &mut HashSet<MsgId>,
 ) -> Result<(), FocusError> {
     debug!("Start processing tasks...");
-
     let tasks = beam::retrieve_tasks().await?;
     for task in tasks {
         if seen.contains(&task.id) {
@@ -182,7 +180,8 @@ async fn run_cql_query(
 
     let mut key_exists = false;
 
-    let obfuscate = CONFIG.obfuscate == config::Obfuscate::Yes && !CONFIG.unobfuscated.contains(&project);
+    let obfuscate =
+        CONFIG.obfuscate == config::Obfuscate::Yes && !CONFIG.unobfuscated.contains(&project);
 
     let report_from_cache = match report_cache
         .lock()
