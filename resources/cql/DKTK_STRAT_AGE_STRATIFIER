@@ -1,7 +1,7 @@
 define PrimaryDiagnosis:
 First(
 from [Condition] C
-where C.extension.where(url='http://hl7.org/fhir/StructureDefinition/condition-related').empty()
+where C.extension.where(url='http://hl7.org/fhir/StructureDefinition/condition-related').empty() and C.onset is not null
 sort by date from onset asc)
 
 define AgeClass:

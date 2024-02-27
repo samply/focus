@@ -1,4 +1,6 @@
 use crate::errors::FocusError;
+use base64::Engine as _;
+use base64::engine::general_purpose;
 use laplace_rs::{get_from_cache_or_privatize, Bin, ObfCache, ObfuscateBelow10Mode};
 use rand::thread_rng;
 use serde::{Deserialize, Serialize};
@@ -79,6 +81,12 @@ pub(crate) fn read_lines(filename: String) -> Result<io::Lines<BufReader<File>>,
         FocusError::FileOpeningError(format!("Cannot open file {}: {} ", filename, e))
     })?;
     Ok(io::BufReader::new(file).lines())
+}
+
+pub(crate) fn base64_decode(data: impl AsRef<[u8]>) -> Result<Vec<u8>, FocusError> {
+    general_purpose::STANDARD
+        .decode(data)
+        .map_err(FocusError::DecodeError)
 }
 
 // REPLACE_MAP is built in build.rs
@@ -411,7 +419,7 @@ mod test {
 
 
         let decoded_library = "BBMRI_STRAT_GENDER_STRATIFIER";
-        let expected_result = "define Gender:\n  if (Patient.gender is null) then 'unknown' else Patient.gender\n";
+        let expected_result = "define Gender:\n if (Patient.gender is null) then 'unknown'\n else if (Patient.gender != 'male' and Patient.gender != 'female' and Patient.gender != 'other' and Patient.gender != 'unknown') then 'other'\n else Patient.gender";
         assert_eq!(replace_cql(decoded_library), expected_result);
 
         let decoded_library = "BBMRI_STRAT_CUSTODIAN_STRATIFIER";

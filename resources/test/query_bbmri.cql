@@ -15,8 +15,9 @@ define AgeClass:
 
 
 define Gender:
-  if (Patient.gender is null) then 'unknown' else Patient.gender
-
+ if (Patient.gender is null) then 'unknown'
+ else if (Patient.gender != 'male' and Patient.gender != 'female' and Patient.gender != 'other' and Patient.gender != 'unknown') then 'other'
+ else Patient.gender
 
 define Custodian:
  First(from Specimen.extension E
