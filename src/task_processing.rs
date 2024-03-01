@@ -66,7 +66,7 @@ async fn handle_beam_task(task: BeamTask, local_obf_cache: Arc<Mutex<ObfCache>>,
         }
     };
 
-    const MAX_TRIES: u32 = 3600;
+    const MAX_TRIES: u32 = 150;
     for attempt in 0..MAX_TRIES {
         match beam::answer_task(&result).await {
             Ok(_) => break,
