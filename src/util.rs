@@ -108,6 +108,7 @@ pub fn obfuscate_counts_mr(
     delta_diagnosis: f64,
     delta_procedures: f64,
     delta_medication_statements: f64,
+    delta_histo: f64,
     epsilon: f64,
     rounding_step: usize,
 ) -> Result<String, FocusError> {
@@ -231,6 +232,28 @@ pub fn obfuscate_counts_mr(
                     rounding_step,
                 )?;
             }
+            "Histo" => {
+                obfuscate_counts_recursive(
+                    &mut g.population,
+                    delta_histo,
+                    epsilon,
+                    1,
+                    obf_cache,
+                    obfuscate_zero,
+                    obf_10.clone(),
+                    rounding_step,
+                )?;
+                obfuscate_counts_recursive(
+                    &mut g.stratifier,
+                    delta_histo,
+                    epsilon,
+                    2,
+                    obf_cache,
+                    obfuscate_zero,
+                    obf_10.clone(),
+                    rounding_step,
+                )?;
+            }
             _ => {
                 warn!("Focus is not aware of {} type of stratifier, therefore it will not obfuscate the values.", &g.code.text[..])
             }
@@ -328,6 +351,7 @@ mod test {
     const DELTA_DIAGNOSIS: f64 = 3.;
     const DELTA_PROCEDURES: f64 = 1.7;
     const DELTA_MEDICATION_STATEMENTS: f64 = 2.1;
+    const DELTA_HISTO: f64 = 20.;
     const EPSILON: f64 = 0.1;
     const ROUNDING_STEP: usize = 10;
 
@@ -403,15 +427,13 @@ mod test {
 
     #[test]
     fn test_replace_cql() {
-
-        
         let decoded_library = QUERY_BBMRI_PLACEHOLDERS;
         let expected_result = QUERY_BBMRI;
         assert_eq!(replace_cql(decoded_library), expected_result);
 
-
         let decoded_library = "BBMRI_STRAT_GENDER_STRATIFIER";
-        let expected_result = "define Gender:\n  if (Patient.gender is null) then 'unknown' else Patient.gender\n";
+        let expected_result =
+            "define Gender:\n  if (Patient.gender is null) then 'unknown' else Patient.gender\n";
         assert_eq!(replace_cql(decoded_library), expected_result);
 
         let decoded_library = "BBMRI_STRAT_CUSTODIAN_STRATIFIER";
@@ -454,12 +476,10 @@ mod test {
         let expected_result = "define InInitialPopulation:\n  exists AnySpecimen\n      \ndefine AnySpecimen:\n  [Specimen] S\n\ndefine retrieveCondition:\n  First(from [Condition] C\n    return ('{\\\"subject_reference\\\": \\\"' + C.subject.reference \n    + '\\\", \\\"diagnosis_code\\\": \\\"' \n    + C.code.coding.where(system = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm').code.first() \n    + '\\\"}'\n  ))\n  \ndefine Diagnosis:\n  if (retrieveCondition is null) then '{\\\"subject_reference\\\": \\\"\\\", \\\"diagnosis_code\\\": \\\"\\\"}' \n  else retrieveCondition\n\ndefine function getSampletype(specimen FHIR.Specimen):\n  if (not exists specimen.type.coding.where(system = 'https://fhir.bbmri.de/CodeSystem/SampleMaterialType').code) then 'null'\n  else specimen.type.coding.where(system = 'https://fhir.bbmri.de/CodeSystem/SampleMaterialType').code.first()\n\ndefine function getRestamount(specimen FHIR.Specimen):\n  if (not exists specimen.collection.quantity.value) then '0' else specimen.collection.quantity.value.toString()\n\ndefine function getParentReference(specimen FHIR.Specimen):  \n  if (not exists specimen.parent.reference) then 'null' else specimen.parent.reference\n\ndefine function getSubjectReference(specimen FHIR.Specimen):  \n  if (not exists specimen.subject.reference) then 'null' else specimen.subject.reference\n\ndefine function SingleStrat(specimen FHIR.Specimen):\n  '{\"specimen_id\": \"' + specimen.id + \n  '\", \"sampletype\": \"' +  getSampletype(specimen) +\n  '\", \"exliquid_tag\": ' + (specimen.identifier.system contains 'http://dktk.dkfz.de/fhir/sid/exliquid-specimen').toString() +\n  ', \"rest_amount\": \"' + getRestamount(specimen) +\n  '\", \"parent_reference\": \"' + getParentReference(specimen) +\n  '\", \"subject_reference\": \"' + getSubjectReference(specimen) +\n  '\"}'";
         assert_eq!(replace_cql(decoded_library), expected_result);
 
-
         let decoded_library = "EXLIQUID_STRAT_DEF_IN_INITIAL_POPULATION";
         let expected_result = "define InInitialPopulation:\n   exists ExliquidSpecimen and\n\n";
         assert_eq!(replace_cql(decoded_library), expected_result);
 
-        
         let decoded_library = "MTBA_STRAT_GENETIC_VARIANT";
         let expected_result = "define GeneticVariantCode:\nFirst (from [Observation: Code '69548-6' from loinc] O return O.component.where(code.coding contains Code '48018-6' from loinc).value.coding.code.first())\n";
 
@@ -472,7 +492,6 @@ mod test {
         let decoded_library = "INVALID_KEY";
         let expected_result = "INVALID_KEY";
         assert_eq!(replace_cql(decoded_library), expected_result);
-
     }
 
     #[test]
@@ -490,6 +509,7 @@ mod test {
             DELTA_DIAGNOSIS,
             DELTA_PROCEDURES,
             DELTA_MEDICATION_STATEMENTS,
+            DELTA_HISTO,
             EPSILON,
             ROUNDING_STEP,
         )
@@ -512,6 +532,7 @@ mod test {
             DELTA_DIAGNOSIS,
             DELTA_PROCEDURES,
             DELTA_MEDICATION_STATEMENTS,
+            DELTA_HISTO,
             EPSILON,
             ROUNDING_STEP,
         )
@@ -534,6 +555,7 @@ mod test {
             DELTA_DIAGNOSIS,
             DELTA_PROCEDURES,
             DELTA_MEDICATION_STATEMENTS,
+            DELTA_HISTO,
             EPSILON,
             ROUNDING_STEP,
         )
@@ -556,6 +578,7 @@ mod test {
             DELTA_DIAGNOSIS,
             DELTA_PROCEDURES,
             DELTA_MEDICATION_STATEMENTS,
+            DELTA_HISTO,
             EPSILON,
             ROUNDING_STEP,
         )
@@ -578,6 +601,7 @@ mod test {
             DELTA_DIAGNOSIS,
             DELTA_PROCEDURES,
             DELTA_MEDICATION_STATEMENTS,
+            DELTA_HISTO,
             EPSILON,
             ROUNDING_STEP,
         );

@@ -115,6 +115,10 @@ struct CliArgs {
     #[clap(long, env, value_parser, default_value = "2.1")]
     delta_medication_statements: f64,
 
+    /// Sensitivity parameter for obfuscating the counts in the Histo stratifier
+    #[clap(long, env, value_parser, default_value = "20.")]
+    delta_histo: f64,
+
     /// Privacy budget parameter for obfuscating the counts in the stratifiers
     #[clap(long, env, value_parser, default_value = "0.1")]
     epsilon: f64,
@@ -165,6 +169,7 @@ pub(crate) struct Config {
     pub delta_diagnosis: f64,
     pub delta_procedures: f64,
     pub delta_medication_statements: f64,
+    pub delta_histo: f64,
     pub epsilon: f64,
     pub rounding_step: usize,
     pub unobfuscated: Vec<String>,
@@ -207,6 +212,7 @@ impl Config {
             delta_diagnosis: cli_args.delta_diagnosis,
             delta_procedures: cli_args.delta_procedures,
             delta_medication_statements: cli_args.delta_medication_statements,
+            delta_histo: cli_args.delta_histo,
             epsilon: cli_args.epsilon,
             rounding_step: cli_args.rounding_step,
             unobfuscated: cli_args.projects_no_obfuscation.split(';').map(|s| s.to_string()).collect(),
