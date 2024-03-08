@@ -4,7 +4,9 @@ use serde::Serialize;
 use serde_json::Value;
 use tracing::{debug, warn};
 
+use crate::BeamTask;
 use crate::errors::FocusError;
+use crate::util;
 use crate::util::get_json_field;
 use crate::config::CONFIG;
 
@@ -119,4 +121,10 @@ pub async fn run_cql_query(library: &Value, measure: &Value) -> Result<String, F
     post_library(library.to_string()).await?; //TODO make it with into or could change the function signature to take the library
     post_measure(measure.to_string()).await?; //ditto   &str
     evaluate_measure(url).await
+}
+
+// This could be part of an impl of Cqlquery
+pub fn parse_blaze_query(task: &BeamTask) -> Result<CqlQuery, FocusError> {
+    let decoded = util::base64_decode(&task.body)?;
+    serde_json::from_slice(&decoded).map_err(|e| FocusError::ParsingError(e.to_string()))
 }

@@ -11,13 +11,13 @@ use tracing::{debug, info, warn};
 use crate::errors::FocusError;
 
 
-#[derive(clap::ValueEnum, Clone, Debug)]
+#[derive(clap::ValueEnum, Clone, PartialEq, Debug)]
 pub enum Obfuscate {
     No,
     Yes,
 }
 
-#[derive(clap::ValueEnum, Clone, Debug, PartialEq, Copy)]
+#[derive(clap::ValueEnum, Clone, PartialEq, Debug, Copy)]
 pub enum EndpointType {
     Blaze,
     Omop,
@@ -128,7 +128,7 @@ struct CliArgs {
     rounding_step: usize,
 
     /// Projects for which the results are not to be obfuscated, separated by ;
-    #[clap(long, env, value_parser, default_value = "exliquid;dktk_supervisors;exporter")]
+    #[clap(long, env, value_parser, default_value = "exliquid;dktk_supervisors;exporter;ehds2")]
     projects_no_obfuscation: String,
 
     /// The path to the file containing BASE64 encoded queries whose results are to be cached
