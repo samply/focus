@@ -85,6 +85,8 @@ const REPORTCACHE_TTL: Duration = Duration::from_secs(86400); //24h
 
 #[tokio::main]
 pub async fn main() -> ExitCode {
+    info!("main: entered");
+
     if let Err(e) = logger::init_logger() {
         error!("Cannot initalize logger: {}", e);
         exit(1);
@@ -92,6 +94,8 @@ pub async fn main() -> ExitCode {
     banner::print_banner();
 
     let _ = CONFIG.api_key; // Initialize config
+
+    info!("main: going to Tokio");
 
     tokio::select! {
         _ = graceful_shutdown::wait_for_signal() => {
@@ -140,6 +144,7 @@ async fn main_loop() -> ExitCode {
             failures = 0;
         }
     }
+    info!("main_loop: continuing");
     error!(
         "Encountered too many errors -- exiting after {} attempts.",
         CONFIG.retry_count
@@ -186,7 +191,11 @@ async fn run_cql_query(
 
     let mut key_exists = false;
 
+    info!("run_cql_query: obfuscate");
+
     let obfuscate = CONFIG.obfuscate == config::Obfuscate::Yes && !CONFIG.unobfuscated.contains(&project);
+
+    info!("run_cql_query: get report");
 
     let report_from_cache = match report_cache
         .lock()
@@ -204,6 +213,8 @@ async fn run_cql_query(
         }
         None => None,
     };
+
+    info!("run_cql_query: match report_from_cache");
 
     let cql_result_new = match report_from_cache {
         Some(some_report_from_cache) => some_report_from_cache.to_string(),
@@ -238,6 +249,8 @@ async fn run_cql_query(
             cql_result_new
         }
     };
+
+    info!("run_cql_query: beam_result");
 
     let result = beam_result(task.to_owned(), cql_result_new).unwrap_or_else(|e| {
         beam::beam_result::perm_failed(
@@ -351,11 +364,13 @@ fn replace_cql_library(mut query: CqlQuery) -> Result<CqlQuery, FocusError> {
     info!("replace_cql_library: multiple operations");
 
     let replaced_cql_str = util::replace_cql(decoded_string);
+
+    info!("replace_cql_library: replaced_cql_str  {:?}", replaced_cql_str);
+
     let replaced_cql_str_base64 = BASE64.encode(replaced_cql_str);
     let new_data_value = serde_json::to_value(replaced_cql_str_base64)
         .expect("unable to turn base64 string into json value - this should not happen");
 
-    info!("replace_cql_library: replaced_cql_str  {:?}", replaced_cql_str);
     info!("replace_cql_library: Update the CqlQuery with the new data value");
 
     let a = &mut query.lib["content"][0]["data"];

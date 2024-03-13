@@ -10,6 +10,7 @@ WORKDIR /usr/src/your_project_name
 COPY . .
 
 # Build the Rust project
+RUN echo building project
 RUN cargo build --release
 
 # Create a smaller final image

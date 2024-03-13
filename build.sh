@@ -1,1 +1,1 @@
-docker build -f DockerfileWithBuild -t samply/focus --no-cache .
+docker build --progress=plain -f DockerfileWithBuild -t samply/focus --no-cache .

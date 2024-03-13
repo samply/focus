@@ -1,1 +1,2 @@
 define Observation:
+    if InInitialPopulation then [Observation] else {} as List<Observation>
