@@ -1,0 +1,9 @@
+define BaseHospitalUnitType:
+Patient.extension.where(url = 'https://ecdc.amr/fhir/StructureDefinition/PatientHospitalUnitType').value
+
+define HospitalUnitType:
+if (BaseHospitalUnitType is null or BaseHospitalUnitType = '-') then 'Unkown' else BaseHospitalUnitType
+
+define HospitalUnitTypeClass:
+HospitalUnitType
+

@@ -1,0 +1,9 @@
+define BaseHospitalId:
+Patient.extension.where(url = 'https://ecdc.amr/fhir/StructureDefinition/PatientHospitalId').value
+
+define HospitalId:
+if (BaseHospitalId is null or BaseHospitalId = '-') then 'Unkown' else BaseHospitalId
+
+define HospitalIdClass:
+HospitalId
+
