@@ -1,4 +1,6 @@
 use crate::errors::FocusError;
+use base64::Engine as _;
+use base64::engine::general_purpose;
 use laplace_rs::{get_from_cache_or_privatize, Bin, ObfCache, ObfuscateBelow10Mode};
 use rand::thread_rng;
 use serde::{Deserialize, Serialize};
@@ -79,6 +81,12 @@ pub(crate) fn read_lines(filename: String) -> Result<io::Lines<BufReader<File>>,
         FocusError::FileOpeningError(format!("Cannot open file {}: {} ", filename, e))
     })?;
     Ok(io::BufReader::new(file).lines())
+}
+
+pub(crate) fn base64_decode(data: impl AsRef<[u8]>) -> Result<Vec<u8>, FocusError> {
+    general_purpose::STANDARD
+        .decode(data)
+        .map_err(FocusError::DecodeError)
 }
 
 // REPLACE_MAP is built in build.rs
@@ -411,7 +419,7 @@ mod test {
 
 
         let decoded_library = "BBMRI_STRAT_GENDER_STRATIFIER";
-        let expected_result = "define Gender:\n  if (Patient.gender is null) then 'unknown' else Patient.gender\n";
+        let expected_result = "define Gender:\n if (Patient.gender is null) then 'unknown'\n else if (Patient.gender != 'male' and Patient.gender != 'female' and Patient.gender != 'other' and Patient.gender != 'unknown') then 'other'\n else Patient.gender";
         assert_eq!(replace_cql(decoded_library), expected_result);
 
         let decoded_library = "BBMRI_STRAT_CUSTODIAN_STRATIFIER";
@@ -450,24 +458,16 @@ mod test {
         let expected_result = "define Specimen:\nif InInitialPopulation then [Specimen] else {} as List<Specimen>\ndefine ExliquidSpecimen:\n  from [Specimen] S\n  where S.identifier.system contains 'http://dktk.dkfz.de/fhir/sid/exliquid-specimen'\ndefine function SampleType(specimen FHIR.Specimen):\n  specimen.type.coding.where(system = 'https://fhir.bbmri.de/CodeSystem/SampleMaterialType').code.first()\n";
         assert_eq!(replace_cql(decoded_library), expected_result);
 
-        let decoded_library = "EXLIQUID_ALIQUOTS_CQL_SPECIMEN";
-        let expected_result = "define Specimen:\nif InInitialPopulation then [Specimen] else {} as List<Specimen>\n define Aliquot:\n [Specimen] S\n where exists S.collection.quantity.value and exists S.parent.reference and S.container.specimenQuantity.value > 0 define AliquotGroupReferences: flatten Aliquot S return S.parent.reference define AliquotGroupWithAliquot: [Specimen] S where not (S.identifier.system contains 'http://dktk.dkfz.de/fhir/sid/exliquid-specimen') and not exists S.collection.quantity.value and not exists S.container.specimenQuantity.value and AliquotGroupReferences contains 'Specimen/' + S.id define PrimarySampleReferences: flatten AliquotGroupWithAliquot S return S.parent.reference define ExliquidSpecimenWithAliquot: from [Specimen] PrimarySample where PrimarySample.identifier.system contains 'http://dktk.dkfz.de/fhir/sid/exliquid-specimen'   and PrimarySampleReferences contains 'Specimen/' + PrimarySample.id \n define function SampleType(specimen FHIR.Specimen): specimen.type.coding.where(system = 'https://fhir.bbmri.de/CodeSystem/SampleMaterialType').code.first()\n";
+        let decoded_library = "EXLIQUID_STRAT_W_ALIQUOTS";
+        let expected_result = "define InInitialPopulation:\n  exists AnySpecimen\n      \ndefine AnySpecimen:\n  [Specimen] S\n\ndefine retrieveCondition:\n  First(from [Condition] C\n    return ('{\\\"subject_reference\\\": \\\"' + C.subject.reference \n    + '\\\", \\\"diagnosis_code\\\": \\\"' \n    + C.code.coding.where(system = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm').code.first() \n    + '\\\"}'\n  ))\n  \ndefine Diagnosis:\n  if (retrieveCondition is null) then '{\\\"subject_reference\\\": \\\"\\\", \\\"diagnosis_code\\\": \\\"\\\"}' \n  else retrieveCondition\n\ndefine function getSampletype(specimen FHIR.Specimen):\n  if (not exists specimen.type.coding.where(system = 'https://fhir.bbmri.de/CodeSystem/SampleMaterialType').code) then 'null'\n  else specimen.type.coding.where(system = 'https://fhir.bbmri.de/CodeSystem/SampleMaterialType').code.first()\n\ndefine function getRestamount(specimen FHIR.Specimen):\n  if (not exists specimen.collection.quantity.value) then '0' else specimen.collection.quantity.value.toString()\n\ndefine function getParentReference(specimen FHIR.Specimen):  \n  if (not exists specimen.parent.reference) then 'null' else specimen.parent.reference\n\ndefine function getSubjectReference(specimen FHIR.Specimen):  \n  if (not exists specimen.subject.reference) then 'null' else specimen.subject.reference\n\ndefine function SingleStrat(specimen FHIR.Specimen):\n  '{\"specimen_id\": \"' + specimen.id + \n  '\", \"sampletype\": \"' +  getSampletype(specimen) +\n  '\", \"exliquid_tag\": ' + (specimen.identifier.system contains 'http://dktk.dkfz.de/fhir/sid/exliquid-specimen').toString() +\n  ', \"rest_amount\": \"' + getRestamount(specimen) +\n  '\", \"parent_reference\": \"' + getParentReference(specimen) +\n  '\", \"subject_reference\": \"' + getSubjectReference(specimen) +\n  '\"}'";
         assert_eq!(replace_cql(decoded_library), expected_result);
 
-        let decoded_library = "EXLIQUID_ALIQUOTS_CQL_DIAGNOSIS";
-        let expected_result = "define retrieveCondition: First(from [Condition] C return C.code.coding.where(system = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm').code.first())\ndefine Diagnosis: if (retrieveCondition is null) then 'unknown' else retrieveCondition\n\n";
-        assert_eq!(replace_cql(decoded_library), expected_result);
 
         let decoded_library = "EXLIQUID_STRAT_DEF_IN_INITIAL_POPULATION";
         let expected_result = "define InInitialPopulation:\n   exists ExliquidSpecimen and\n\n";
         assert_eq!(replace_cql(decoded_library), expected_result);
 
-        let decoded_library = "EXLIQUID_STRAT_W_ALIQUOTS";
-        let expected_result =
-            "define InInitialPopulation: exists ExliquidSpecimenWithAliquot and \n\n";
-
-        assert_eq!(replace_cql(decoded_library), expected_result);
-
+        
         let decoded_library = "MTBA_STRAT_GENETIC_VARIANT";
         let expected_result = "define GeneticVariantCode:\nFirst (from [Observation: Code '69548-6' from loinc] O return O.component.where(code.coding contains Code '48018-6' from loinc).value.coding.code.first())\n";
 

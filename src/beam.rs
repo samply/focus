@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use beam_lib::{TaskResult, BeamClient, BlockingOptions, MsgId, TaskRequest, RawString};
+use http::StatusCode;
 use once_cell::sync::Lazy;
 use serde::Serialize;
 use tracing::{debug, warn};
@@ -85,20 +86,28 @@ pub async fn retrieve_tasks() -> Result<Vec<TaskRequest<String>>, FocusError> {
         .map_err(FocusError::UnableToRetrieveTasksHttp)
 }
 
-pub async fn answer_task<T: Serialize + 'static>(task_id: MsgId, result: &TaskResult<T>) -> Result<bool, FocusError> {
-    debug!("Answer task with id: {task_id}");
-    BEAM_CLIENT.put_result(result, &task_id)
-        .await
-        .map_err(FocusError::UnableToAnswerTask)
+pub async fn answer_task<T: Serialize + 'static>(result: &TaskResult<T>) -> Result<(), FocusError> {
+    debug!("Answer task with id: {}", result.task);
+    BEAM_CLIENT.put_result(result, &result.task)
+    .await
+    .map(|_| ())
+    .or_else(|e| match e {
+        beam_lib::BeamError::UnexpectedStatus(s) if s == StatusCode::NOT_FOUND => Ok(()),
+        other => Err(FocusError::UnableToAnswerTask(other))
+    })
 }
 
-pub async fn fail_task<T>(task: &TaskRequest<T>, body: impl Into<String>) -> Result<bool, FocusError> {
+pub async fn fail_task<T>(task: &TaskRequest<T>, body: impl Into<String>) -> Result<(), FocusError> {
     let body = body.into();
     warn!("Reporting failed task with id {}: {}", task.id, body);
     let result = beam_result::perm_failed(CONFIG.beam_app_id_long.clone(), vec![task.from.clone()], task.id, body);
     BEAM_CLIENT.put_result(&result, &task.id)
         .await
-        .map_err(FocusError::UnableToAnswerTask)
+        .map(|_| ())
+        .or_else(|e| match e {
+            beam_lib::BeamError::UnexpectedStatus(s) if s == StatusCode::NOT_FOUND => Ok(()),
+            other => Err(FocusError::UnableToAnswerTask(other))
+        })
 }
 
 pub async fn claim_task<T>(task: &TaskRequest<T>) -> Result<bool, FocusError> {
