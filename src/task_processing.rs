@@ -7,11 +7,11 @@ use crate::{errors::FocusError, beam, BeamTask, BeamResult};
 
 const NUM_WORKERS: usize = 3;
 
-pub async fn process_tasks<F>(task_hanlder: F)
+pub async fn process_tasks<F>(task_handler: F)
 where
     F: Fn(&BeamTask) -> LocalBoxFuture<'_, Result<BeamResult, FocusError>> + Clone + 'static,
 {
-    stream_task_results(task_hanlder)
+    stream_task_results(task_handler)
         .buffer_unordered(NUM_WORKERS)
         .for_each_concurrent(None, |(task, task_result)| answer_task_result(task, task_result))
         .await
