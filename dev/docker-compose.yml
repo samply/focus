@@ -86,6 +86,7 @@ services:
       BEAM_PROXY_URL: http://proxy1:8081
       RETRY_COUNT: 30
       OBFUSCATE: "no"
+      RUST_LOG: "debug,hyper=info"
   blaze:
     image: samply/blaze
     volumes:
