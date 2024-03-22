@@ -1,2 +1,6 @@
-define Observation:
+define ObservationList:
     if InInitialPopulation then [Observation] else {} as List<Observation>
+
+define function PathogenCode(observation FHIR.Observation):
+    (observation.value as CodeableConcept).coding.where(system = 'https://ecdc.amr/pathogen-codes').code.first()
+

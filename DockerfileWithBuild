@@ -1,7 +1,7 @@
 # This Dockerfile builds the Rust project and creates the final image.
 
 # Use the official Rust image as the build environment
-FROM rust:latest as builder
+FROM rust:1.76.0-bookworm as builder
 
 # Set the working directory inside the container
 WORKDIR /usr/src/your_project_name
