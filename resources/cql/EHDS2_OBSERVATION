@@ -17,7 +17,7 @@ define function BaseObservationExtensionValue(observation FHIR.Observation, url_
 
 // Return the value of the Observation extension with the given URL
 define function ObservationExtensionValue(observation FHIR.Observation, url_var String):
-    if (BaseObservationExtensionValue(observation, url_var) is null or BaseObservationExtensionValue(observation, url_var) = '-') then 'Unkown' else BaseObservationExtensionValue(observation, url_var)
+    SensibleString(BaseObservationExtensionValue(observation, url_var))
 
 define function ExistsObservationExtensionValue(url_var String, value_var String):
     exists from [Observation] O

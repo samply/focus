@@ -1,0 +1,7 @@
+// Return "val" if the supplied string value is sensible.
+// Return "Unknown" if null or empty.
+define function SensibleString(val String):
+    if (val is null or val = '' or val = '-')
+    then 'Unkown'
+    else val
+
