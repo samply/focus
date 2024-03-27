@@ -1,9 +1,0 @@
-define BaseAgeInYears:
-Patient.extension.where(url = 'https://ecdc.amr/fhir/StructureDefinition/PatientAge').value
-
-define AgeInYears:
-ToInteger(if (BaseAgeInYears is null or BaseAgeInYears = '-') then '-1' else BaseAgeInYears)
-
-define AgeClass:
-ToString((AgeInYears div 10) * 10)
-

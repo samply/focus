@@ -1,0 +1,38 @@
+define Gender:
+if (Patient.gender is null) then 'unknown' else Patient.gender
+define BaseAgeInYears:
+Patient.extension.where(url = 'https://ecdc.amr/fhir/StructureDefinition/PatientAge').value
+
+define AgeInYears:
+ToInteger(if (BaseAgeInYears is null or BaseAgeInYears = '-') then '-1' else BaseAgeInYears)
+
+define AgeClass:
+ToString((AgeInYears div 10) * 10)
+
+define BaseHospitalId:
+Patient.extension.where(url = 'https://ecdc.amr/fhir/StructureDefinition/PatientHospitalId').value
+
+define HospitalId:
+if (BaseHospitalId is null or BaseHospitalId = '-') then 'Unkown' else BaseHospitalId
+
+define HospitalIdClass:
+HospitalId
+
+define BaseHospitalUnitType:
+Patient.extension.where(url = 'https://ecdc.amr/fhir/StructureDefinition/PatientHospitalUnitType').value
+
+define HospitalUnitType:
+if (BaseHospitalUnitType is null or BaseHospitalUnitType = '-') then 'Unkown' else BaseHospitalUnitType
+
+define HospitalUnitTypeClass:
+HospitalUnitType
+
+define BaseLaboratoryCode:
+Patient.extension.where(url = 'https://ecdc.amr/fhir/StructureDefinition/PatientLaboratoryCode').value
+
+define LaboratoryCode:
+if (BaseLaboratoryCode is null or BaseLaboratoryCode = '-') then 'Unkown' else BaseLaboratoryCode
+
+define LaboratoryCodeClass:
+LaboratoryCode
+

@@ -1,9 +1,0 @@
-define BaseLaboratoryCode:
-Patient.extension.where(url = 'https://ecdc.amr/fhir/StructureDefinition/PatientLaboratoryCode').value
-
-define LaboratoryCode:
-if (BaseLaboratoryCode is null or BaseLaboratoryCode = '-') then 'Unkown' else BaseLaboratoryCode
-
-define LaboratoryCodeClass:
-LaboratoryCode
-
