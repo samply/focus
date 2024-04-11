@@ -486,7 +486,7 @@ mod test {
         assert_eq!(replace_cql(decoded_library), expected_result);
 
         let decoded_library = "DKTK_STRAT_HISTOLOGY_STRATIFIER";
-        let expected_result = "define Histo:\nif InInitialPopulation then [Observation] else {} as List <Observation>\n\ndefine function Histlogoy(histo FHIR.Observation):\n if histo.code.coding.where(code = '59847-4').code.first() is null then 0 else 1\n";
+        let expected_result = "define Histo:\nif InInitialPopulation then [Observation] else {} as List <Observation>\n\ndefine function Histology(histo FHIR.Observation):\n if histo.code.coding.where(code = '59847-4').code.first() is null then 0 else 1\n";
         assert_eq!(replace_cql(decoded_library), expected_result);
 
         let decoded_library = "INVALID_KEY";
