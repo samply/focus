@@ -1,6 +1,9 @@
 define ObservationList:
     if InInitialPopulation then [Observation] else {} as List<Observation>
 
+define ObservationListCopy:
+    ObservationList
+
 // Return the value in the given system for the given Observation
 define function ObservationValueCode(observation FHIR.Observation, system_var String):
     (observation.value as CodeableConcept).coding.where(system = system_var).code.first()
@@ -94,4 +97,22 @@ define function ReportingCountry(observation FHIR.Observation):
 // given reporting country.
 define function ExistsReportingCountry(value_var String):
     ExistsObservationExtensionValue('https://ecdc.amr/fhir/StructureDefinition/ObservationReportingCountry', value_var)
+
+// Using list without "from"
+define CountryIDs:
+  ObservationList O
+      return (O.extension.where(url = 'https://ecdc.amr/fhir/StructureDefinition/ObservationReportingCountry').value).distinct()
+
+define GroupObservationsByCountryId:
+  distinct CountryIDs CI
+    return ObservationList O
+      where O.extension.where(url = 'https://ecdc.amr/fhir/StructureDefinition/ObservationReportingCountry').value = CI
+
+define FirstObservationForEachCountryId:
+  distinct GroupObservationsByCountryId OL
+    return OL.last()
+
+define ObservationForCountryId:
+  distinct CountryIDs CI
+    return First(ObservationList)
 

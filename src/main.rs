@@ -31,6 +31,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use std::{process::exit, time::Duration};
 
 use serde::{Deserialize, Serialize};
+use serde_json::to_string_pretty;
 use tracing::{debug, error, warn, info};
 
 // result cache
@@ -220,6 +221,10 @@ async fn run_cql_query(
         Some(some_report_from_cache) => some_report_from_cache.to_string(),
         None => {
             let query = replace_cql_library(query.clone())?;
+
+            //let measure_json = to_string_pretty(&query.measure);
+            //println!("Measure JSON: {}", measure_json);
+            info!("run_cql_query: query.measure: {}", query.measure);
 
             let cql_result = blaze::run_cql_query(&query.lib, &query.measure).await?;
 

@@ -1,0 +1,7 @@
+define LocationList:
+    //if InInitialPopulation then [Location] else {} as List<Location>
+    [Location]
+
+define function LocationFunction(location FHIR.Location):
+    location.id
+
