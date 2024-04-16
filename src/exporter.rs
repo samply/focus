@@ -61,7 +61,25 @@ pub async fn post_exporter_query(body: &String, execute: bool) -> Result<String,
 
     let text = match resp.status() {
         StatusCode::OK => {
-            format!("Query successfully {}", exporter_params.done)
+            let text = resp.text().await;
+            match text {
+                Ok(ok_text) => {
+                    format!("{}", ok_text)
+
+                }
+                Err(e) => {
+                    warn!(
+                        "The code was 200 OK, but can't get the body of the Exporter's response, while {} query; reply was `{}`, error: {}",
+                        exporter_params.doing, body, e
+                    );
+                    return Err(FocusError::ExporterQueryErrorReqwest(format!(
+                        "Error while {} query, the code was 200 OK, but can't get the body of the Exporter's response: {:?}",
+                        exporter_params.doing, body
+                    )));
+
+                }
+            }
+            
         }
         code => {
             warn!(
