@@ -63,10 +63,7 @@ pub async fn post_exporter_query(body: &String, execute: bool) -> Result<String,
         StatusCode::OK => {
             let text = resp.text().await;
             match text {
-                Ok(ok_text) => {
-                    format!("{}", ok_text)
-
-                }
+                Ok(ok_text) => ok_text,
                 Err(e) => {
                     warn!(
                         "The code was 200 OK, but can't get the body of the Exporter's response, while {} query; reply was `{}`, error: {}",
