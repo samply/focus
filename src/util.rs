@@ -436,10 +436,8 @@ mod test {
 
     #[test]
     fn test_replace_cql_all() {
-        for (key, value) in REPLACE_MAP.iter() {
-            let decoded_library: &str = key;
-            let expected_result: &str = value;
-            pretty_assertions::assert_eq!(replace_cql(decoded_library), expected_result);
+        for (decoded_library, expected_result) in REPLACE_MAP.iter() {
+            pretty_assertions::assert_eq!(replace_cql(*decoded_library).as_str(), *expected_result);
         }
     }
 
