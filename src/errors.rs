@@ -38,6 +38,8 @@ pub enum FocusError {
     UnableToPostAst(reqwest::Error),
     #[error("Unable to post Exporter query: {0}")]
     UnableToPostExporterQuery(reqwest::Error),
+    #[error("Unable to get Exporter query status: {0}")]
+    UnableToGetExporterQueryStatus(reqwest::Error),
     #[error("Exporter query error in Reqwest: {0}")]
     ExporterQueryErrorReqwest(String),
     #[error("AST Posting error in Reqwest: {0}")]
@@ -46,7 +48,8 @@ pub enum FocusError {
     InvalidHeaderValue(http::header::InvalidHeaderValue),
     #[error("Missing Exporter Endpoint")]
     MissingExporterEndpoint(),
-
+    #[error("Missing Exporter Task Type")]
+    MissingExporterTaskType(),
 }
 
 impl FocusError {
