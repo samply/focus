@@ -7,10 +7,13 @@
 
 FROM alpine AS chmodder
 ARG TARGETARCH
-COPY /artifacts/binaries-$TARGETARCH/focus /app/
+ARG COMPONENT
+ARG FEATURE
+COPY /artifacts/binaries-$TARGETARCH$FEATURE/$COMPONENT /app/$COMPONENT
 RUN chmod +x /app/*
 
 FROM gcr.io/distroless/cc-debian12
-COPY --from=chmodder /app/* /usr/local/bin/
+ARG COMPONENT
+COPY --from=chmodder /app/$COMPONENT /usr/local/bin/samply
 ENTRYPOINT [ "/usr/local/bin/focus" ]
 
