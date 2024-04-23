@@ -4,7 +4,7 @@ use beam_lib::{TaskResult, BeamClient, BlockingOptions, MsgId, TaskRequest, RawS
 use http::StatusCode;
 use once_cell::sync::Lazy;
 use serde::Serialize;
-use tracing::{debug, warn};
+use tracing::{debug, warn, info};
 
 use crate::{config::CONFIG, errors::FocusError};
 
@@ -87,7 +87,7 @@ pub async fn retrieve_tasks() -> Result<Vec<TaskRequest<String>>, FocusError> {
 }
 
 pub async fn answer_task<T: Serialize + 'static>(result: &TaskResult<T>) -> Result<(), FocusError> {
-    debug!("Answer task with id: {}", result.task);
+    info!("Answer task with id: {}", result.task);
     BEAM_CLIENT.put_result(result, &result.task)
     .await
     .map(|_| ())

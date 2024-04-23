@@ -1,6 +1,6 @@
 use crate::errors::FocusError;
-use base64::Engine as _;
 use base64::engine::general_purpose;
+use base64::Engine as _;
 use laplace_rs::{get_from_cache_or_privatize, Bin, ObfCache, ObfuscateBelow10Mode};
 use rand::thread_rng;
 use serde::{Deserialize, Serialize};
@@ -116,6 +116,7 @@ pub fn obfuscate_counts_mr(
     delta_diagnosis: f64,
     delta_procedures: f64,
     delta_medication_statements: f64,
+    delta_histo: f64,
     epsilon: f64,
     rounding_step: usize,
 ) -> Result<String, FocusError> {
@@ -129,7 +130,7 @@ pub fn obfuscate_counts_mr(
         .map_err(|e| FocusError::DeserializationError(format!(r#"{}. Is obfuscation turned on when it shouldn't be? Is the metadata in the task formatted correctly, like this {{"project": "name"}}? Are there any other projects stated in the projects_no_obfuscation parameter in the bridgehead?"#, e)))?;
     for g in &mut measure_report.group {
         match &g.code.text[..] {
-            "patients" => {
+            "patient" | "patients" => { // Prism used "patient" for catalogue, Lens uses "patients"
                 obfuscate_counts_recursive(
                     &mut g.population,
                     delta_patient,
@@ -239,6 +240,28 @@ pub fn obfuscate_counts_mr(
                     rounding_step,
                 )?;
             }
+            "Histo" => {
+                obfuscate_counts_recursive(
+                    &mut g.population,
+                    delta_histo,
+                    epsilon,
+                    1,
+                    obf_cache,
+                    obfuscate_zero,
+                    obf_10.clone(),
+                    rounding_step,
+                )?;
+                obfuscate_counts_recursive(
+                    &mut g.stratifier,
+                    delta_histo,
+                    epsilon,
+                    2,
+                    obf_cache,
+                    obfuscate_zero,
+                    obf_10.clone(),
+                    rounding_step,
+                )?;
+            }
             _ => {
                 warn!("Focus is not aware of {} type of stratifier, therefore it will not obfuscate the values.", &g.code.text[..])
             }
@@ -326,8 +349,9 @@ mod test {
         include_str!("../resources/test/query_bbmri_placeholders.cql");
     const QUERY_BBMRI: &str = include_str!("../resources/test/query_bbmri.cql");
     const EXAMPLE_MEASURE_REPORT_BBMRI: &str =
-        include_str!("../resources/measure_report_bbmri.json");
-    const EXAMPLE_MEASURE_REPORT_DKTK: &str = include_str!("../resources/measure_report_dktk.json");
+        include_str!("../resources/test/measure_report_bbmri.json");
+    const EXAMPLE_MEASURE_REPORT_DKTK: &str =
+        include_str!("../resources/test/measure_report_dktk.json");
     const EXAMPLE_MEASURE_REPORT_EXLIQUID: &str =
         include_str!("../resources/test/measure_report_exliquid.json");
 
@@ -336,6 +360,7 @@ mod test {
     const DELTA_DIAGNOSIS: f64 = 3.;
     const DELTA_PROCEDURES: f64 = 1.7;
     const DELTA_MEDICATION_STATEMENTS: f64 = 2.1;
+    const DELTA_HISTO: f64 = 20.;
     const EPSILON: f64 = 0.1;
     const ROUNDING_STEP: usize = 10;
 
@@ -363,7 +388,7 @@ mod test {
         // Call the function and assert that it returns the expected result
         let result = get_json_field(json_string, "address");
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), expected_result);
+        pretty_assertions::assert_eq!(result.unwrap(), expected_result);
     }
 
     #[test]
@@ -384,7 +409,7 @@ mod test {
         // Call the function and assert that it returns json null
         let result = get_json_field(json_string, "phone");
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), json!(null));
+        pretty_assertions::assert_eq!(result.unwrap(), json!(null));
     }
 
     #[test]
@@ -410,77 +435,21 @@ mod test {
     }
 
     #[test]
-    fn test_replace_cql() {
+    fn test_replace_cql_all() {
+        for (decoded_library, expected_result) in REPLACE_MAP.iter() {
+            pretty_assertions::assert_eq!(replace_cql(*decoded_library).as_str(), *expected_result);
+        }
+    }
 
-        
+    #[test]
+    fn test_replace_cql() {
         let decoded_library = QUERY_BBMRI_PLACEHOLDERS;
         let expected_result = QUERY_BBMRI;
-        assert_eq!(replace_cql(decoded_library), expected_result);
-
-
-        let decoded_library = "BBMRI_STRAT_GENDER_STRATIFIER";
-        let expected_result = "define Gender:\n if (Patient.gender is null) then 'unknown'\n else if (Patient.gender != 'male' and Patient.gender != 'female' and Patient.gender != 'other' and Patient.gender != 'unknown') then 'other'\n else Patient.gender";
-        assert_eq!(replace_cql(decoded_library), expected_result);
-
-        let decoded_library = "BBMRI_STRAT_CUSTODIAN_STRATIFIER";
-        let expected_result = "define Custodian:\n First(from Specimen.extension E\n where E.url = 'https://fhir.bbmri.de/StructureDefinition/Custodian'\n return (E.value as Reference).identifier.value)\n";
-        assert_eq!(replace_cql(decoded_library), expected_result);
-
-        let decoded_library = "BBMRI_STRAT_DIAGNOSIS_STRATIFIER";
-        let expected_result = "define Diagnosis:\n if InInitialPopulation then [Condition] else {} as List<Condition> \n define function DiagnosisCode(condition FHIR.Condition, specimen FHIR.Specimen):\n Coalesce(condition.code.coding.where(system = 'http://hl7.org/fhir/sid/icd-10').code.first(), condition.code.coding.where(system = 'http://fhir.de/CodeSystem/dimdi/icd-10-gm').code.first(), specimen.extension.where(url='https://fhir.bbmri.de/StructureDefinition/SampleDiagnosis').value.coding.code.first(), condition.code.coding.where(system = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm').code.first())\n\n";
-        assert_eq!(replace_cql(decoded_library), expected_result);
-
-        let decoded_library = "BBMRI_STRAT_AGE_STRATIFIER";
-        let expected_result = "define AgeClass:\n     (AgeInYears() div 10) * 10\n";
-        assert_eq!(replace_cql(decoded_library), expected_result);
-
-        let decoded_library = "BBMRI_STRAT_DEF_SPECIMEN";
-        let expected_result = "define Specimen:\n";
-        assert_eq!(replace_cql(decoded_library), expected_result);
-
-        let decoded_library = "BBMRI_STRAT_DEF_IN_INITIAL_POPULATION";
-        let expected_result = "define InInitialPopulation:\n";
-        assert_eq!(replace_cql(decoded_library), expected_result);
-
-        let decoded_library = "DKTK_STRAT_PRIMARY_DIAGNOSIS_STRATIFIER";
-        let expected_result = "define PrimaryDiagnosis:\nFirst(\nfrom [Condition] C\nwhere C.extension.where(url='http://hl7.org/fhir/StructureDefinition/condition-related').empty()\nsort by date from onset asc)\n\n";
-        assert_eq!(replace_cql(decoded_library), expected_result);
-
-        let decoded_library = "DKTK_STRAT_AGE_CLASS_STRATIFIER";
-        let expected_result = "define AgeClass:\nif (PrimaryDiagnosis.onset is null) then 'unknown' else ToString((AgeInYearsAt(FHIRHelpers.ToDateTime(PrimaryDiagnosis.onset)) div 10) * 10)\n";
-        assert_eq!(replace_cql(decoded_library), expected_result);
-
-        let decoded_library = "EXLIQUID_CQL_DIAGNOSIS";
-        let expected_result = "define retrieveCondition: First(from [Condition] C return C.code.coding.where(system = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm').code.first())\ndefine Diagnosis: if (retrieveCondition is null) then 'unknown' else retrieveCondition\n\n";
-        assert_eq!(replace_cql(decoded_library), expected_result);
-
-        let decoded_library = "EXLIQUID_CQL_SPECIMEN";
-        let expected_result = "define Specimen:\nif InInitialPopulation then [Specimen] else {} as List<Specimen>\ndefine ExliquidSpecimen:\n  from [Specimen] S\n  where S.identifier.system contains 'http://dktk.dkfz.de/fhir/sid/exliquid-specimen'\ndefine function SampleType(specimen FHIR.Specimen):\n  specimen.type.coding.where(system = 'https://fhir.bbmri.de/CodeSystem/SampleMaterialType').code.first()\n";
-        assert_eq!(replace_cql(decoded_library), expected_result);
-
-        let decoded_library = "EXLIQUID_STRAT_W_ALIQUOTS";
-        let expected_result = "define InInitialPopulation:\n  exists AnySpecimen\n      \ndefine AnySpecimen:\n  [Specimen] S\n\ndefine retrieveCondition:\n  First(from [Condition] C\n    return ('{\\\"subject_reference\\\": \\\"' + C.subject.reference \n    + '\\\", \\\"diagnosis_code\\\": \\\"' \n    + C.code.coding.where(system = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm').code.first() \n    + '\\\"}'\n  ))\n  \ndefine Diagnosis:\n  if (retrieveCondition is null) then '{\\\"subject_reference\\\": \\\"\\\", \\\"diagnosis_code\\\": \\\"\\\"}' \n  else retrieveCondition\n\ndefine function getSampletype(specimen FHIR.Specimen):\n  if (not exists specimen.type.coding.where(system = 'https://fhir.bbmri.de/CodeSystem/SampleMaterialType').code) then 'null'\n  else specimen.type.coding.where(system = 'https://fhir.bbmri.de/CodeSystem/SampleMaterialType').code.first()\n\ndefine function getRestamount(specimen FHIR.Specimen):\n  if (not exists specimen.collection.quantity.value) then '0' else specimen.collection.quantity.value.toString()\n\ndefine function getParentReference(specimen FHIR.Specimen):  \n  if (not exists specimen.parent.reference) then 'null' else specimen.parent.reference\n\ndefine function getSubjectReference(specimen FHIR.Specimen):  \n  if (not exists specimen.subject.reference) then 'null' else specimen.subject.reference\n\ndefine function SingleStrat(specimen FHIR.Specimen):\n  '{\"specimen_id\": \"' + specimen.id + \n  '\", \"sampletype\": \"' +  getSampletype(specimen) +\n  '\", \"exliquid_tag\": ' + (specimen.identifier.system contains 'http://dktk.dkfz.de/fhir/sid/exliquid-specimen').toString() +\n  ', \"rest_amount\": \"' + getRestamount(specimen) +\n  '\", \"parent_reference\": \"' + getParentReference(specimen) +\n  '\", \"subject_reference\": \"' + getSubjectReference(specimen) +\n  '\"}'";
-        assert_eq!(replace_cql(decoded_library), expected_result);
-
-
-        let decoded_library = "EXLIQUID_STRAT_DEF_IN_INITIAL_POPULATION";
-        let expected_result = "define InInitialPopulation:\n   exists ExliquidSpecimen and\n\n";
-        assert_eq!(replace_cql(decoded_library), expected_result);
-
-        
-        let decoded_library = "MTBA_STRAT_GENETIC_VARIANT";
-        let expected_result = "define GeneticVariantCode:\nFirst (from [Observation: Code '69548-6' from loinc] O return O.component.where(code.coding contains Code '48018-6' from loinc).value.coding.code.first())\n";
-
-        assert_eq!(replace_cql(decoded_library), expected_result);
-
-        let decoded_library = "DKTK_STRAT_HISTOLOGY_STRATIFIER";
-        let expected_result = "define Histo:\nif InInitialPopulation then [Observation] else {} as List <Observation>\n\ndefine function Histology(histo FHIR.Observation):\n if histo.code.coding.where(code = '59847-4').code.first() is null then 0 else 1\n";
-        assert_eq!(replace_cql(decoded_library), expected_result);
+        pretty_assertions::assert_eq!(replace_cql(decoded_library), expected_result);
 
         let decoded_library = "INVALID_KEY";
         let expected_result = "INVALID_KEY";
-        assert_eq!(replace_cql(decoded_library), expected_result);
-
+        pretty_assertions::assert_eq!(replace_cql(decoded_library), expected_result);
     }
 
     #[test]
@@ -498,6 +467,7 @@ mod test {
             DELTA_DIAGNOSIS,
             DELTA_PROCEDURES,
             DELTA_MEDICATION_STATEMENTS,
+            DELTA_HISTO,
             EPSILON,
             ROUNDING_STEP,
         )
@@ -520,11 +490,12 @@ mod test {
             DELTA_DIAGNOSIS,
             DELTA_PROCEDURES,
             DELTA_MEDICATION_STATEMENTS,
+            DELTA_HISTO,
             EPSILON,
             ROUNDING_STEP,
         )
         .unwrap();
-        assert_eq!(obfuscated_json, obfuscated_json_2);
+        pretty_assertions::assert_eq!(obfuscated_json, obfuscated_json_2);
     }
 
     #[test]
@@ -542,6 +513,7 @@ mod test {
             DELTA_DIAGNOSIS,
             DELTA_PROCEDURES,
             DELTA_MEDICATION_STATEMENTS,
+            DELTA_HISTO,
             EPSILON,
             ROUNDING_STEP,
         )
@@ -551,7 +523,7 @@ mod test {
         let _: MeasureReport = serde_json::from_str(&obfuscated_json).unwrap();
 
         // Check that the obfuscated JSON is different from the original JSON
-        assert_ne!(obfuscated_json, EXAMPLE_MEASURE_REPORT_DKTK);
+        pretty_assertions::assert_ne!(obfuscated_json, EXAMPLE_MEASURE_REPORT_DKTK);
 
         // Check that obfuscating the same JSON twice with the same obfuscation cache gives the same result
         let obfuscated_json_2 = obfuscate_counts_mr(
@@ -564,11 +536,12 @@ mod test {
             DELTA_DIAGNOSIS,
             DELTA_PROCEDURES,
             DELTA_MEDICATION_STATEMENTS,
+            DELTA_HISTO,
             EPSILON,
             ROUNDING_STEP,
         )
         .unwrap();
-        assert_eq!(obfuscated_json, obfuscated_json_2);
+        pretty_assertions::assert_eq!(obfuscated_json, obfuscated_json_2);
     }
 
     #[test]
@@ -586,11 +559,12 @@ mod test {
             DELTA_DIAGNOSIS,
             DELTA_PROCEDURES,
             DELTA_MEDICATION_STATEMENTS,
+            DELTA_HISTO,
             EPSILON,
             ROUNDING_STEP,
         );
 
-        assert_eq!(
+        pretty_assertions::assert_eq!(
             obfuscated_json.unwrap_err().to_string(),
             r#"Deserialization error: missing field `text` at line 42 column 13. Is obfuscation turned on when it shouldn't be? Is the metadata in the task formatted correctly, like this {"project": "name"}? Are there any other projects stated in the projects_no_obfuscation parameter in the bridgehead?"#
         );

@@ -2,7 +2,7 @@ use http::StatusCode;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_json::Value;
-use tracing::{debug, warn};
+use tracing::{debug, warn, info};
 
 use crate::BeamTask;
 use crate::errors::FocusError;
@@ -93,7 +93,7 @@ pub async fn evaluate_measure(url: String) -> Result<String, FocusError> {
         .map_err(FocusError::MeasureEvaluationErrorReqwest)?;
 
     if resp.status() == StatusCode::OK {
-        debug!(
+        info!(
             "Successfully evaluated the Measure with canonical URL: {}",
             url
         );
