@@ -130,7 +130,7 @@ pub fn obfuscate_counts_mr(
         .map_err(|e| FocusError::DeserializationError(format!(r#"{}. Is obfuscation turned on when it shouldn't be? Is the metadata in the task formatted correctly, like this {{"project": "name"}}? Are there any other projects stated in the projects_no_obfuscation parameter in the bridgehead?"#, e)))?;
     for g in &mut measure_report.group {
         match &g.code.text[..] {
-            "patients" => {
+            "patient" | "patients" => { // Prism used "patient" for catalogue, Lens uses "patients"
                 obfuscate_counts_recursive(
                     &mut g.population,
                     delta_patient,
