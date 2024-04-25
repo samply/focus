@@ -11,7 +11,6 @@ mod logger;
 mod intermediate_rep;
 mod task_processing;
 mod util;
-mod cql_alternative;
 mod projects;
 mod exporter;
 
@@ -222,6 +221,7 @@ async fn run_cql_query(
                     CONFIG.delta_diagnosis,
                     CONFIG.delta_procedures,
                     CONFIG.delta_medication_statements,
+                    CONFIG.delta_histo,
                     CONFIG.epsilon,
                     CONFIG.rounding_step,
                 )?,
