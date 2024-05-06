@@ -6,21 +6,21 @@ use chrono::offset::Utc;
 use chrono::DateTime;
 use indexmap::set::IndexSet;
 
-pub fn generate_cql(ast: ast::Ast, project: Project) -> Result<String, FocusError> {
+pub fn generate_cql(ast: ast::Ast, project: impl Project) -> Result<String, FocusError> {
     let mut retrieval_criteria: String = "".to_string(); // main selection criteria (Patient)
 
     let mut filter_criteria: String = "".to_string(); // criteria for filtering specimens
 
     let mut lists: String = "".to_string(); // needed code lists, defined
 
-    let mut cql = CQL_TEMPLATES.get(&project).expect("missing project").to_string();
+    let mut cql = CQL_TEMPLATES.get(project.name()).expect("missing project").to_string();
 
     let operator_str = match ast.ast.operand {
         ast::Operand::And => " and ",
         ast::Operand::Or => " or ",
     };
 
-    let mut mandatory_codes = MANDATORY_CODE_SYSTEMS.get(&project)
+    let mut mandatory_codes = MANDATORY_CODE_SYSTEMS.get(project.name())
         .expect("non-existent project")
         .clone();
 
@@ -75,7 +75,7 @@ pub fn process(
     retrieval_criteria: &mut String,
     filter_criteria: &mut String,
     code_systems: &mut IndexSet<&str>,
-    project: Project,
+    project: impl Project,
 ) -> Result<(), FocusError> {
     let mut retrieval_cond: String = "(".to_string();
     let mut filter_cond: String = "".to_string();
@@ -85,7 +85,7 @@ pub fn process(
             let condition_key_trans = condition.key.as_str();
 
             let condition_snippet =
-                CQL_SNIPPETS.get(&(condition_key_trans, CriterionRole::Query, project.clone()));
+                CQL_SNIPPETS.get(&(condition_key_trans, CriterionRole::Query, project.name()));
 
             if let Some(snippet) = condition_snippet {
                 let mut condition_string = (*snippet).to_string();
@@ -94,10 +94,10 @@ pub fn process(
                 let filter_snippet = CQL_SNIPPETS.get(&(
                     condition_key_trans,
                     CriterionRole::Filter,
-                    project.clone(),
+                    project.name(),
                 ));
 
-                let code_lists_option = CRITERION_CODE_LISTS.get(&(condition_key_trans, project));
+                let code_lists_option = CRITERION_CODE_LISTS.get(&(condition_key_trans, project.name()));
                 if let Some(code_lists_vec) = code_lists_option {
                     for (index, code_list) in code_lists_vec.iter().enumerate() {
                         code_systems.insert(code_list);
@@ -320,8 +320,10 @@ mod test {
     const EMPTY: &str =
         r#"{"ast":{"children":[],"operand":"OR"}, "id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
 
+    #[cfg(feature = "bbmri")]
     #[test]
     fn test_bbmri() {
+        use crate::projects::bbmri::Bbmri;
         // println!(
         //     "{:?}",
         //     bbmri(serde_json::from_str(AST).expect("Failed to deserialize JSON"))
@@ -368,7 +370,7 @@ mod test {
 
         println!(
             "{:?}",
-            generate_cql(serde_json::from_str(LENS2).expect("Failed to deserialize JSON"), Project::Bbmri)
+            generate_cql(serde_json::from_str(LENS2).expect("Failed to deserialize JSON"), Bbmri)
         );
 
         // println!(
@@ -376,7 +378,7 @@ mod test {
         //     bbmri(serde_json::from_str(EMPTY).expect("Failed to deserialize JSON"))
         // );
 
-        pretty_assertions::assert_eq!(generate_cql(serde_json::from_str(EMPTY).unwrap(), Project::Bbmri).unwrap(), include_str!("../resources/test/result_empty.cql").to_string());
+        pretty_assertions::assert_eq!(generate_cql(serde_json::from_str(EMPTY).unwrap(), Bbmri).unwrap(), include_str!("../resources/test/result_empty.cql").to_string());
 
     }
 }
