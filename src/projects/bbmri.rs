@@ -13,7 +13,7 @@ pub fn append_observation_loinc_codes(_map: &mut HashMap<&'static str, &'static 
 pub fn append_criterion_code_lists(map: &mut HashMap<(&str, Project), Vec<&str>>) {
     for (key, value) in 
     [
-        ("diagnosis", vec!["icd10", "icd10gm"]),
+        ("diagnosis", vec!["icd10", "icd10gm", "icd10gmnew"]),
         ("body_weight", vec!["loinc"]),
         ("bmi", vec!["loinc"]),
         ("smoking_status", vec!["loinc"]),
@@ -107,4 +107,23 @@ pub fn append_mandatory_code_lists(map: &mut HashMap<Project, IndexSet<&str>>) {
 
 pub(crate) fn append_cql_templates(map: &mut HashMap<Project, &str>) {
     map.insert(PROJECT, include_str!("../../resources/template_bbmri.cql"));
+}
+
+pub fn append_sample_type_workarounds(map: &mut HashMap<&str, Vec<&str>>) {
+    for (key, value) in 
+    [
+        ("blood-plasma", vec!["plasma-edta", "plasma-citrat", "plasma-heparin", "plasma-cell-free", "plasma-other", "plasma"]),
+        ("blood-serum", vec!["serum"]),
+        ("tissue-ffpe", vec!["tumor-tissue-ffpe", "normal-tissue-ffpe", "other-tissue-ffpe", "tissue-formalin"]),
+        ("tissue-frozen", vec!["tumor-tissue-frozen", "normal-tissue-frozen", "other-tissue-frozen"]),
+        ("dna", vec!["cf-dna", "g-dna"]),
+        ("tissue-other", vec!["tissue-paxgene-or-else", "tissue"]),
+        ("derivative-other", vec!["derivative"]),
+        ("liquid-other", vec!["liquid"]),
+    ] {
+        map.insert(
+            key,
+            value
+        );
+    }   
 }

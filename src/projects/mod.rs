@@ -15,13 +15,19 @@ pub enum Project {
     Bbmri,
     #[cfg(feature="dktk")]
     Dktk,
+    #[cfg(not(any(feature = "dktk", feature = "bbmri")))]
+    NoCql
 }
 
 impl Display for Project {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let name = match self {
+            #[cfg(feature="bbmri")]
             Project::Bbmri => "bbmri",
+            #[cfg(feature="dktk")]
             Project::Dktk => "dktk",
+            #[cfg(not(any(feature = "bbmri", feature = "dktk")))]
+            Project::NoCql => "nocql"
         };
         write!(f, "{name}")
     }
@@ -56,6 +62,19 @@ pub static OBSERVATION_LOINC_CODE: Lazy<HashMap<&str, &str>> = Lazy::new(|| {
 
     #[cfg(feature="dktk")]
     dktk::append_observation_loinc_codes(&mut map);
+
+    map
+});
+
+pub static SAMPLE_TYPE_WORKAROUNDS: Lazy<HashMap<&str, Vec<&str>>> = Lazy::new(|| {
+    let mut map: HashMap<&'static str, Vec<&'static str>> = HashMap::new();
+    common::append_sample_type_workarounds(&mut map);
+    
+    #[cfg(feature="bbmri")]
+    bbmri::append_sample_type_workarounds(&mut map);
+
+    #[cfg(feature="dktk")]
+    dktk::append_sample_type_workarounds(&mut map);
 
     map
 });

@@ -1,6 +1,6 @@
 use crate::ast;
 use crate::errors::FocusError;
-use crate::projects::{Project, CriterionRole, CQL_TEMPLATES, MANDATORY_CODE_SYSTEMS, CODE_LISTS, CQL_SNIPPETS, CRITERION_CODE_LISTS, OBSERVATION_LOINC_CODE};
+use crate::projects::{Project, CriterionRole, CQL_TEMPLATES, MANDATORY_CODE_SYSTEMS, CODE_LISTS, CQL_SNIPPETS, CRITERION_CODE_LISTS, OBSERVATION_LOINC_CODE, SAMPLE_TYPE_WORKAROUNDS};
 
 use chrono::offset::Utc;
 use chrono::DateTime;
@@ -63,7 +63,7 @@ pub fn generate_cql(ast: ast::Ast, project: Project) -> Result<String, FocusErro
         cql = cql.replace("{{filter_criteria}}", "");
     } else {
         let formatted_filter_criteria = format!("where ({})", filter_criteria);
-        dbg!(formatted_filter_criteria.clone());
+        //dbg!(formatted_filter_criteria.clone());
         cql = cql.replace("{{filter_criteria}}", formatted_filter_criteria.as_str());
     }
 
@@ -181,10 +181,18 @@ pub fn process(
 
                         match condition.value {
                             ast::ConditionValue::StringArray(string_array) => {
+                                let mut string_array_with_workarounds = string_array.clone();
+                                    for value in string_array {
+                                    if let Some(additional_values) = SAMPLE_TYPE_WORKAROUNDS.get(value.as_str()){
+                                        for additional_value in additional_values {
+                                            string_array_with_workarounds.push((*additional_value).into());
+                                        }
+                                    }
+                                }
                                 let mut condition_humongous_string = "(".to_string();
                                 let mut filter_humongous_string = "(".to_string();
 
-                                for (index, string) in string_array.iter().enumerate() {
+                                for (index, string) in string_array_with_workarounds.iter().enumerate() {
                                     condition_humongous_string = condition_humongous_string
                                         + "("
                                         + condition_string.as_str()
@@ -200,7 +208,7 @@ pub fn process(
                                         filter_humongous_string.replace("{{C}}", string.as_str());
 
                                     // Only concatenate operator if it's not the last element
-                                    if index < string_array.len() - 1 {
+                                    if index < string_array_with_workarounds.len() - 1 {
                                         condition_humongous_string += operator_str;
                                         filter_humongous_string += operator_str;
                                     }
@@ -218,8 +226,44 @@ pub fn process(
                     } // this becomes or of all
                     ast::ConditionType::Equals => match condition.value {
                         ast::ConditionValue::String(string) => {
-                            condition_string = condition_string.replace("{{C}}", string.as_str());
-                            filter_string = filter_string.replace("{{C}}", string.as_str()); // no condition needed, "" stays ""
+                            let operator_str = " or ";
+                            let mut string_array_with_workarounds = vec![string.clone()];
+                            if let Some(additional_values) = SAMPLE_TYPE_WORKAROUNDS.get(string.as_str()){
+                                for additional_value in additional_values {
+                                    string_array_with_workarounds.push((*additional_value).into());
+                                }
+                            }
+                            //condition_string = condition_string.replace("{{C}}", string.as_str());
+                            //filter_string = filter_string.replace("{{C}}", string.as_str()); // no condition needed, "" stays ""
+                            let mut condition_humongous_string = "(".to_string();
+                            let mut filter_humongous_string = "(".to_string();
+
+                            for (index, string) in string_array_with_workarounds.iter().enumerate() {
+                                condition_humongous_string = condition_humongous_string
+                                    + "("
+                                    + condition_string.as_str()
+                                    + ")";
+                                condition_humongous_string = condition_humongous_string
+                                    .replace("{{C}}", string.as_str());
+
+                                filter_humongous_string = filter_humongous_string
+                                    + "("
+                                    + filter_string.as_str()
+                                    + ")";
+                                filter_humongous_string =
+                                    filter_humongous_string.replace("{{C}}", string.as_str());
+
+                                // Only concatenate operator if it's not the last element
+                                if index < string_array_with_workarounds.len() - 1 {
+                                    condition_humongous_string += operator_str;
+                                    filter_humongous_string += operator_str;
+                                }
+                            }
+                            condition_string = condition_humongous_string + ")";
+
+                            if !filter_string.is_empty() {
+                                filter_string = filter_humongous_string + ")";
+                            }
                         }
                         _ => {
                             return Err(FocusError::AstOperatorValueMismatch());
@@ -271,7 +315,7 @@ pub fn process(
                     retrieval_cond += operator_str;
                     if !filter_cond.is_empty() {
                         filter_cond += operator_str;
-                        dbg!(filter_cond.clone());
+                        //dbg!(filter_cond.clone());
                     }
                 }
             }
@@ -283,12 +327,14 @@ pub fn process(
     *retrieval_criteria += retrieval_cond.as_str();
 
     if !filter_cond.is_empty() { 
-        dbg!(filter_cond.clone());
+        //dbg!(filter_cond.clone());
         *filter_criteria += "(";
         *filter_criteria += filter_cond.as_str();
         *filter_criteria += ")";
 
-        dbg!(filter_criteria.clone());
+        *filter_criteria = filter_criteria.replace(")(", ") or ("); 
+
+        //dbg!(filter_criteria.clone());
     }
 
     Ok(())
@@ -317,10 +363,15 @@ mod test {
 
     const LENS2: &str = r#"{"ast":{"children":[{"children":[{"children":[{"key":"gender","system":"","type":"EQUALS","value":"male"},{"key":"gender","system":"","type":"EQUALS","value":"female"}],"operand":"OR"},{"children":[{"key":"diagnosis","system":"","type":"EQUALS","value":"C41"},{"key":"diagnosis","system":"","type":"EQUALS","value":"C50"}],"operand":"OR"},{"children":[{"key":"sample_kind","system":"","type":"EQUALS","value":"tissue-frozen"},{"key":"sample_kind","system":"","type":"EQUALS","value":"blood-serum"}],"operand":"OR"}],"operand":"AND"},{"children":[{"children":[{"key":"gender","system":"","type":"EQUALS","value":"male"}],"operand":"OR"},{"children":[{"key":"diagnosis","system":"","type":"EQUALS","value":"C41"},{"key":"diagnosis","system":"","type":"EQUALS","value":"C50"}],"operand":"OR"},{"children":[{"key":"sample_kind","system":"","type":"EQUALS","value":"liquid-other"},{"key":"sample_kind","system":"","type":"EQUALS","value":"rna"},{"key":"sample_kind","system":"","type":"EQUALS","value":"urine"}],"operand":"OR"},{"children":[{"key":"storage_temperature","system":"","type":"EQUALS","value":"temperatureRoom"},{"key":"storage_temperature","system":"","type":"EQUALS","value":"four_degrees"}],"operand":"OR"}],"operand":"AND"}],"operand":"OR"},"id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
 
-    const EMPTY: &str =
-        r#"{"ast":{"children":[],"operand":"OR"}, "id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
+    const EMPTY: &str = r#"{"ast":{"children":[],"operand":"OR"}, "id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
 
     #[test]
+    fn test_common() {
+        // maybe nothing here
+    }
+
+    #[test]
+    #[cfg(feature="bbmri")]
     fn test_bbmri() {
         // println!(
         //     "{:?}",
@@ -331,6 +382,7 @@ mod test {
         //     "{:?}",
         //     bbmri(serde_json::from_str(MALE_OR_FEMALE).expect("Failed to deserialize JSON"))
         // );
+
 
         // println!(
         //     "{:?}",
@@ -366,17 +418,19 @@ mod test {
 
         // println!();
 
-        println!(
-            "{:?}",
-            generate_cql(serde_json::from_str(LENS2).expect("Failed to deserialize JSON"), Project::Bbmri)
-        );
-
         // println!(
         //     "{:?}",
-        //     bbmri(serde_json::from_str(EMPTY).expect("Failed to deserialize JSON"))
+        //     generate_cql(serde_json::from_str(LENS2).expect("Failed to deserialize JSON"), Project::Bbmri)
         // );
 
-        pretty_assertions::assert_eq!(generate_cql(serde_json::from_str(EMPTY).unwrap(), Project::Bbmri).unwrap(), include_str!("../resources/test/result_empty.cql").to_string());
+        pretty_assertions::assert_eq!(generate_cql(serde_json::from_str(LENS2).unwrap(), Project::Bbmri).unwrap(), include_str!("../resources/test/result_lens2.cql").to_string());
+
+        /* println!(
+            "{:?}",
+            generate_cql(serde_json::from_str(EMPTY).expect("Failed to deserialize JSON"), Project::Bbmri)
+        ); */
+
+        //pretty_assertions::assert_eq!(generate_cql(serde_json::from_str(EMPTY).unwrap(), Project::Bbmri).unwrap(), include_str!("../resources/test/result_empty.cql").to_string());
 
     }
 }

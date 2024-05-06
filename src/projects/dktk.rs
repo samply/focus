@@ -14,6 +14,8 @@ pub fn append_criterion_code_lists(_map: &mut HashMap<(&str, Project), Vec<&str>
 
 pub fn append_cql_snippets(_map: &mut HashMap<(&str, CriterionRole, Project), &str>) { }
 
+pub fn append_sample_type_workarounds(_map: &mut HashMap<&str, Vec<&str>>) {}
+
 pub fn append_mandatory_code_lists(map: &mut HashMap<Project, IndexSet<&str>>) {
     let mut set = map.remove(&PROJECT).unwrap_or(IndexSet::new());
     for value in ["icd10", "SampleMaterialType", "loinc"] {
