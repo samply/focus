@@ -1,3 +1,5 @@
+use crate::projects::shared::Shared;
+
 use std::collections::HashMap;
 
 use indexmap::IndexSet;
@@ -9,9 +11,13 @@ pub(crate) struct Dktk;
 
 // TODO: Include entries from shared
 impl Project for Dktk {
-    fn append_code_lists(&self, _map: &mut HashMap<&'static str, &'static str>) { }
+    fn append_code_lists(&self, map: &mut HashMap<&'static str, &'static str>) {
+        Shared::append_code_lists(&Shared, map)
+     }
 
-    fn append_observation_loinc_codes(&self, _map: &mut HashMap<&'static str, &'static str>) { }
+    fn append_observation_loinc_codes(&self, map: &mut HashMap<&'static str, &'static str>) {
+        Shared::append_observation_loinc_codes(&Shared, map)
+     }
     
     fn append_criterion_code_lists(&self, _map: &mut HashMap<(&str, &ProjectName), Vec<&str>>) { }
     
@@ -33,3 +39,5 @@ impl Project for Dktk {
         &ProjectName::Dktk
     }
 }
+
+pub fn append_sample_type_workarounds(map: &mut HashMap<&str, Vec<&str>>) {}

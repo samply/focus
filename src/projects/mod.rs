@@ -71,6 +71,19 @@ pub static OBSERVATION_LOINC_CODE: Lazy<HashMap<&str, &str>> = Lazy::new(|| {
     map
 });
 
+//workarounds to search for subtypes and older codes of types
+pub static SAMPLE_TYPE_WORKAROUNDS: Lazy<HashMap<&str, Vec<&str>>> = Lazy::new(|| {
+    let mut map: HashMap<&'static str, Vec<&'static str>> = HashMap::new();
+    
+    #[cfg(feature="bbmri")]
+    bbmri::append_sample_type_workarounds(&mut map);
+
+    #[cfg(feature="dktk")]
+    dktk::append_sample_type_workarounds(&mut map);
+
+    map
+});
+
 // code lists needed depending on the criteria selected
 pub static CRITERION_CODE_LISTS: Lazy<HashMap<(&str, &ProjectName), Vec<&str>>> = Lazy::new(|| {
     let mut map = HashMap::new();

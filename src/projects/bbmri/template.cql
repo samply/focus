@@ -75,8 +75,8 @@ define function DiagnosisCode(condition FHIR.Condition, specimen FHIR.Specimen):
 Coalesce(
   condition.code.coding.where(system = 'http://hl7.org/fhir/sid/icd-10').code.first(),
   condition.code.coding.where(system = 'http://fhir.de/CodeSystem/dimdi/icd-10-gm').code.first(),
-  condition.code.coding.where(system = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm').code.first()
-  specimen.extension.where(url='https://fhir.bbmri.de/StructureDefinition/SampleDiagnosis').value.coding.code.first(),
+  condition.code.coding.where(system = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm').code.first(),
+  specimen.extension.where(url='https://fhir.bbmri.de/StructureDefinition/SampleDiagnosis').value.coding.code.first()
   )
 
 define InInitialPopulation:

@@ -13,6 +13,7 @@ impl Project for Shared {
         [
             ("icd10", "http://hl7.org/fhir/sid/icd-10"),
             ("icd10gm", "http://fhir.de/CodeSystem/dimdi/icd-10-gm"),
+            ("icd10gmnew", "http://fhir.de/CodeSystem/bfarm/icd-10-gm"),
             ("loinc", "http://loinc.org"),
             (
                 "SampleMaterialType",

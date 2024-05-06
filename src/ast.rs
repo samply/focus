@@ -11,7 +11,7 @@ pub enum Child {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "UPPERCASE")]
-pub enum Operand {
+pub enum Operand { //this is operator, of course, but rename would need to be coordinated with all the Lenses, EUCAIM providers, etc
     And,
     Or,
 }

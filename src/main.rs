@@ -4,6 +4,7 @@ mod beam;
 mod blaze;
 mod config;
 mod cql;
+//mod cql_new;
 mod errors;
 mod graceful_shutdown;
 mod logger;

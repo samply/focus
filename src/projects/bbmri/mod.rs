@@ -1,3 +1,5 @@
+use crate::projects::shared::Shared;
+
 use std::collections::HashMap;
 
 use indexmap::IndexSet;
@@ -9,18 +11,18 @@ pub(crate) struct Bbmri;
 
 // TODO: Include entries from shared
 impl Project for Bbmri {
-    fn append_code_lists(&self, _map: &mut HashMap<&'static str, &'static str>) {
-        // none
+    fn append_code_lists(&self, map: &mut HashMap<&'static str, &'static str>) {
+        Shared::append_code_lists(&Shared, map)
     }
 
-    fn append_observation_loinc_codes(&self, _map: &mut HashMap<&'static str, &'static str>) {
-        // none
+    fn append_observation_loinc_codes(&self, map: &mut HashMap<&'static str, &'static str>) {
+        Shared::append_observation_loinc_codes(&Shared, map)
     }
 
     fn append_criterion_code_lists(&self, map: &mut HashMap<(&str, &ProjectName), Vec<&str>>) {
         for (key, value) in 
         [
-            ("diagnosis", vec!["icd10", "icd10gm"]),
+            ("diagnosis", vec!["icd10", "icd10gm", "icd10gmnew"]),
             ("body_weight", vec!["loinc"]),
             ("bmi", vec!["loinc"]),
             ("smoking_status", vec!["loinc"]),
@@ -119,4 +121,23 @@ impl Project for Bbmri {
     fn name(&self) -> &'static ProjectName {
         &ProjectName::Bbmri
     }
+}
+
+pub fn append_sample_type_workarounds(map: &mut HashMap<&str, Vec<&str>>) {
+    for (key, value) in 
+    [
+        ("blood-plasma", vec!["plasma-edta", "plasma-citrat", "plasma-heparin", "plasma-cell-free", "plasma-other", "plasma"]),
+        ("blood-serum", vec!["serum"]),
+        ("tissue-ffpe", vec!["tumor-tissue-ffpe", "normal-tissue-ffpe", "other-tissue-ffpe", "tissue-formalin"]),
+        ("tissue-frozen", vec!["tumor-tissue-frozen", "normal-tissue-frozen", "other-tissue-frozen"]),
+        ("dna", vec!["cf-dna", "g-dna"]),
+        ("tissue-other", vec!["tissue-paxgene-or-else", "tissue"]),
+        ("derivative-other", vec!["derivative"]),
+        ("liquid-other", vec!["liquid"]),
+    ] {
+        map.insert(
+            key,
+            value
+        );
+    }   
 }
