@@ -82,4 +82,5 @@ Coalesce(
   )
 
 define InInitialPopulation:
-((((((Patient.gender = 'male'))) or (((Patient.gender = 'female'))))))
+((((exists from [Condition] C
+where AgeInYearsAt(FHIRHelpers.ToDateTime(C.onset)) between Ceiling(30) and Ceiling(70)))))

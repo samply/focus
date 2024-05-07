@@ -63,10 +63,8 @@ pub fn generate_cql(ast: ast::Ast, project: impl Project) -> Result<String, Focu
         cql = cql.replace("{{filter_criteria}}", "");
     } else {
         let formatted_filter_criteria = format!("where ({})", filter_criteria);
-        //dbg!(formatted_filter_criteria.clone());
         cql = cql.replace("{{filter_criteria}}", formatted_filter_criteria.as_str());
     }
-
     Ok(cql)
 }
 
@@ -233,8 +231,6 @@ pub fn process(
                                     string_array_with_workarounds.push((*additional_value).into());
                                 }
                             }
-                            //condition_string = condition_string.replace("{{C}}", string.as_str());
-                            //filter_string = filter_string.replace("{{C}}", string.as_str()); // no condition needed, "" stays ""
                             let mut condition_humongous_string = "(".to_string();
                             let mut filter_humongous_string = "(".to_string();
 
@@ -269,12 +265,12 @@ pub fn process(
                             return Err(FocusError::AstOperatorValueMismatch());
                         }
                     },
-                    ast::ConditionType::NotEquals => { // won't get it from Lens
+                    ast::ConditionType::NotEquals => { // won't get it from Lens yet
                     }
-                    ast::ConditionType::Contains => { // won't get it from Lens
+                    ast::ConditionType::Contains => { // won't get it from Lens yet
                     }
-                    ast::ConditionType::GreaterThan => {} // guess Lens won't send me this
-                    ast::ConditionType::LowerThan => {}   // guess Lens won't send me this
+                    ast::ConditionType::GreaterThan => {} // won't get it from Lens yet
+                    ast::ConditionType::LowerThan => {}   // won't get it from Lens yet
                 };
 
                 retrieval_cond += condition_string.as_str();
@@ -290,9 +286,8 @@ pub fn process(
                 ));
             }
             if !filter_cond.is_empty() {
-            //    filter_cond += " ";
+                //for historical reasons
             }
-            //retrieval_cond += " ";
         }
 
         ast::Child::Operation(operation) => {
@@ -315,7 +310,6 @@ pub fn process(
                     retrieval_cond += operator_str;
                     if !filter_cond.is_empty() {
                         filter_cond += operator_str;
-                        //dbg!(filter_cond.clone());
                     }
                 }
             }
@@ -327,14 +321,12 @@ pub fn process(
     *retrieval_criteria += retrieval_cond.as_str();
 
     if !filter_cond.is_empty() { 
-        //dbg!(filter_cond.clone());
         *filter_criteria += "(";
         *filter_criteria += filter_cond.as_str();
         *filter_criteria += ")";
 
         *filter_criteria = filter_criteria.replace(")(", ") or ("); 
 
-        //dbg!(filter_criteria.clone());
     }
 
     Ok(())
@@ -351,11 +343,11 @@ mod test {
 
     const ALL_GLIOMS: &str = r#"{"ast": {"operand":"OR","children":[{"operand":"AND","children":[{"operand":"OR","children":[{"operand":"AND","children":[{"operand":"OR","children":[{"key":"diagnosis","type":"EQUALS","system":"","value":"D43.%"}]},{"operand":"OR","children":[{"key":"59847-4","type":"EQUALS","system":"","value":"9383/1"},{"key":"59847-4","type":"EQUALS","system":"","value":"9384/1"},{"key":"59847-4","type":"EQUALS","system":"","value":"9394/1"},{"key":"59847-4","type":"EQUALS","system":"","value":"9421/1"}]}]},{"operand":"AND","children":[{"operand":"OR","children":[{"key":"diagnosis","type":"EQUALS","system":"","value":"C71.%"},{"key":"diagnosis","type":"EQUALS","system":"","value":"C72.%"}]},{"operand":"OR","children":[{"key":"59847-4","type":"EQUALS","system":"","value":"9382/3"},{"key":"59847-4","type":"EQUALS","system":"","value":"9391/3"},{"key":"59847-4","type":"EQUALS","system":"","value":"9400/3"},{"key":"59847-4","type":"EQUALS","system":"","value":"9424/3"},{"key":"59847-4","type":"EQUALS","system":"","value":"9425/3"},{"key":"59847-4","type":"EQUALS","system":"","value":"9450/3"}]}]},{"operand":"AND","children":[{"operand":"OR","children":[{"key":"diagnosis","type":"EQUALS","system":"","value":"C71.%"},{"key":"diagnosis","type":"EQUALS","system":"","value":"C72.%"}]},{"operand":"OR","children":[{"key":"59847-4","type":"EQUALS","system":"","value":"9440/3"},{"key":"59847-4","type":"EQUALS","system":"","value":"9441/3"},{"key":"59847-4","type":"EQUALS","system":"","value":"9442/3"}]}]},{"operand":"AND","children":[{"operand":"OR","children":[{"key":"diagnosis","type":"EQUALS","system":"","value":"C71.%"},{"key":"diagnosis","type":"EQUALS","system":"","value":"C72.%"}]},{"operand":"OR","children":[{"key":"59847-4","type":"EQUALS","system":"","value":"9381/3"},{"key":"59847-4","type":"EQUALS","system":"","value":"9382/3"},{"key":"59847-4","type":"EQUALS","system":"","value":"9401/3"},{"key":"59847-4","type":"EQUALS","system":"","value":"9451/3"}]}]}]}]}]},"id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
 
-    const AGE_AT_DIAGNOSIS_30_TO_70: &str = r#"{"ast": {"operand":"OR","children":[{"operand":"AND","children":[{"operand":"OR","children":[{"key":"age_at_primary_diagnosis","type":"BETWEEN","system":"","value":{"min":30,"max":70}}]}]}]}, "id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
+    const AGE_AT_DIAGNOSIS_30_TO_70: &str = r#"{"ast": {"operand":"OR","children":[{"operand":"AND","children":[{"operand":"OR","children":[{"key":"diagnosis_age_donor","type":"BETWEEN","system":"","value":{"min":30,"max":70}}]}]}]}, "id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
 
-    const AGE_AT_DIAGNOSIS_LOWER_THAN_70: &str = r#"{"ast": {"operand":"OR","children":[{"operand":"AND","children":[{"operand":"OR","children":[{"key":"age_at_primary_diagnosis","type":"BETWEEN","system":"","value":{"min":0,"max":70}}]}]}]}, "id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
+    const AGE_AT_DIAGNOSIS_LOWER_THAN_70: &str = r#"{"ast": {"operand":"OR","children":[{"operand":"AND","children":[{"operand":"OR","children":[{"key":"diagnosis_age_donor","type":"BETWEEN","system":"","value":{"min":0,"max":70}}]}]}]}, "id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
 
-    const C61_OR_MALE: &str = r#"{"ast": {"operand":"OR","children":[{"operand":"AND","children":[{"operand":"OR","children":[{"key":"diagnosis","type":"EQUALS","system":"http://fhir.de/CodeSystem/dimdi/icd-10-gm","value":"C61"}]},{"operand":"OR","children":[{"key":"gender","type":"EQUALS","system":"","value":"male"}]}]}]}, "id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
+    const C61_AND_MALE: &str = r#"{"ast": {"operand":"OR","children":[{"operand":"AND","children":[{"operand":"OR","children":[{"key":"diagnosis","type":"EQUALS","system":"http://fhir.de/CodeSystem/dimdi/icd-10-gm","value":"C61"}]},{"operand":"OR","children":[{"key":"gender","type":"EQUALS","system":"","value":"male"}]}]}]}, "id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
 
     const ALL_GBN: &str = r#"{"ast":{"children":[{"key":"gender","system":"","type":"IN","value":["male","other"]},{"children":[{"key":"diagnosis","system":"http://fhir.de/CodeSystem/dimdi/icd-10-gm","type":"EQUALS","value":"C25"},{"key":"diagnosis","system":"http://fhir.de/CodeSystem/dimdi/icd-10-gm","type":"EQUALS","value":"C56"}],"de":"Diagnose ICD-10","en":"Diagnosis ICD-10","key":"diagnosis","operand":"OR"},{"key":"diagnosis_age_donor","system":"","type":"BETWEEN","value":{"max":100,"min":10}},{"key":"date_of_diagnosis","system":"","type":"BETWEEN","value":{"max":"2023-10-29T23:00:00.000Z","min":"2023-09-30T22:00:00.000Z"}},{"key":"bmi","system":"","type":"BETWEEN","value":{"max":100,"min":10}},{"key":"body_weight","system":"","type":"BETWEEN","value":{"max":1100,"min":10}},{"key":"fasting_status","system":"","type":"IN","value":["Sober","Other fasting status"]},{"key":"smoking_status","system":"","type":"IN","value":["Smoker","Never smoked"]},{"key":"donor_age","system":"","type":"BETWEEN","value":{"max":10000,"min":100}},{"key":"sample_kind","system":"","type":"IN","value":["blood-serum","blood-plasma","buffy-coat"]},{"key":"sampling_date","system":"","type":"BETWEEN","value":{"max":"2023-10-29T23:00:00.000Z","min":"2023-10-03T22:00:00.000Z"}},{"key":"storage_temperature","system":"","type":"IN","value":["temperature-18to-35","temperature-60to-85"]}],"de":"haupt","en":"main","key":"main","operand":"AND"},"id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
 
@@ -375,64 +367,36 @@ mod test {
     #[cfg(feature="bbmri")]
     fn test_bbmri() {
         use crate::projects::{self, bbmri::Bbmri};
-        // println!(
-        //     "{:?}",
-        //     bbmri(serde_json::from_str(AST).expect("Failed to deserialize JSON"))
-        // );
 
-        // println!(
-        //     "{:?}",
-        //     bbmri(serde_json::from_str(MALE_OR_FEMALE).expect("Failed to deserialize JSON"))
-        // );
+        pretty_assertions::assert_eq!(generate_cql(serde_json::from_str(MALE_OR_FEMALE).unwrap(), Bbmri).unwrap(), include_str!("../resources/test/result_male_or_female.cql").to_string());
 
+        pretty_assertions::assert_eq!(generate_cql(serde_json::from_str(AGE_AT_DIAGNOSIS_30_TO_70).unwrap(), Bbmri).unwrap(), include_str!("../resources/test/result_age_at_diagnosis_30_to_70.cql").to_string());
 
-        // println!(
-        //     "{:?}",
-        //     bbmri(serde_json::from_str(ALL_GLIOMS).expect("Failed to deserialize JSON"))
-        // );
+        pretty_assertions::assert_eq!(generate_cql(serde_json::from_str(AGE_AT_DIAGNOSIS_LOWER_THAN_70).unwrap(), Bbmri).unwrap(), include_str!("../resources/test/result_age_at_diagnosis_lower_than_70.cql").to_string());
 
-        // println!(
-        //     "{:?}",
-        //     bbmri(serde_json::from_str(AGE_AT_DIAGNOSIS_30_TO_70).expect("Failed to deserialize JSON"))
-        // );
+        pretty_assertions::assert_eq!(generate_cql(serde_json::from_str(C61_AND_MALE).unwrap(), Bbmri).unwrap(), include_str!("../resources/test/result_c61_and_male.cql").to_string());
 
-        // println!(
-        //     "{:?}",
-        //     bbmri(serde_json::from_str(AGE_AT_DIAGNOSIS_LOWER_THAN_70).expect("Failed to deserialize JSON"))
-        // );
+        pretty_assertions::assert_eq!(generate_cql(serde_json::from_str(ALL_GBN).unwrap(), Bbmri).unwrap(), include_str!("../resources/test/result_all_gbn.cql").to_string());
 
-        // println!(
-        //     "{:?}",
-        //     bbmri(serde_json::from_str(C61_OR_MALE).expect("Failed to deserialize JSON"))
-        // );
-
-        // println!(
-        //     "{:?}",
-        //     bbmri(serde_json::from_str(ALL_GBN).expect("Failed to deserialize JSON"))
-        // );
-
-        // println!();
-
-        // println!(
-        //     "{:?}",
-        //     bbmri(serde_json::from_str(SOME_GBN).expect("Failed to deserialize JSON"))
-        // );
-
-        // println!();
-
-        // println!(
-        //     "{:?}",
-        //     generate_cql(serde_json::from_str(LENS2).expect("Failed to deserialize JSON"), Project::Bbmri)
-        // );
+        pretty_assertions::assert_eq!(generate_cql(serde_json::from_str(SOME_GBN).unwrap(), Bbmri).unwrap(), include_str!("../resources/test/result_some_gbn.cql").to_string());
 
         pretty_assertions::assert_eq!(generate_cql(serde_json::from_str(LENS2).unwrap(), Bbmri).unwrap(), include_str!("../resources/test/result_lens2.cql").to_string());
 
-        /* println!(
-            "{:?}",
-            generate_cql(serde_json::from_str(EMPTY).expect("Failed to deserialize JSON"), Project::Bbmri)
-        ); */
-
-        //pretty_assertions::assert_eq!(generate_cql(serde_json::from_str(EMPTY).unwrap(), Project::Bbmri).unwrap(), include_str!("../resources/test/result_empty.cql").to_string());
+        pretty_assertions::assert_eq!(generate_cql(serde_json::from_str(EMPTY).unwrap(), Bbmri).unwrap(), include_str!("../resources/test/result_empty.cql").to_string());
 
     }
+
+    #[test]
+    #[cfg(feature="dktk")]
+    fn test_dktk() {
+        use crate::projects::{self, dktk::Dktk};
+
+        todo!("Implement DKTK CQL generation and create files with results");
+
+        pretty_assertions::assert_eq!(generate_cql(serde_json::from_str(AST).unwrap(), Bbmri).unwrap(), include_str!("../resources/test/result_ast.cql").to_string());
+
+        pretty_assertions::assert_eq!(generate_cql(serde_json::from_str(ALL_GLIOMS).unwrap(), Bbmri).unwrap(), include_str!("../resources/test/result_all_glioms.cql").to_string());
+
+    }
+
 }

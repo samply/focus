@@ -4,6 +4,8 @@ include FHIRHelpers version '4.0.0'
 
 codesystem icd10: 'http://hl7.org/fhir/sid/icd-10'
 codesystem SampleMaterialType: 'https://fhir.bbmri.de/CodeSystem/SampleMaterialType'
+codesystem icd10gm: 'http://fhir.de/CodeSystem/dimdi/icd-10-gm'
+codesystem icd10gmnew: 'http://fhir.de/CodeSystem/bfarm/icd-10-gm'
 
 
 context Patient
@@ -82,4 +84,4 @@ Coalesce(
   )
 
 define InInitialPopulation:
-true
+((((((((exists[Condition: Code 'C61' from icd10]) or (exists[Condition: Code 'C61' from icd10gm]) or (exists[Condition: Code 'C61' from icd10gmnew])) or (exists from [Specimen] S where (S.extension.where(url='https://fhir.bbmri.de/StructureDefinition/SampleDiagnosis').value.coding.code contains 'C61')))))) and ((((Patient.gender = 'male'))))))
