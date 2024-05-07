@@ -6,9 +6,6 @@ license = "Apache-2.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[workspace]
-members = ["libs/focus_api"]
-
 [dependencies]
 base64 = { version = "0.21.0", default_features = false }
 http = "0.2"
@@ -22,9 +19,6 @@ indexmap = "2.1.0"
 tokio = { version = "1.25.0", default_features = false, features = ["signal", "rt-multi-thread", "macros"] }
 beam-lib = { git = "https://github.com/samply/beam", branch = "develop", features = ["http-util"] }
 laplace_rs = {version = "0.2.0", git = "https://github.com/samply/laplace-rs.git", branch = "main" }
-validated = "0.4.0"
-nonempty-collections = "0.1.4"
-focus_api = { version = "0.1.0", path = "libs/focus_api" }
 
 # Logging
 tracing = { version = "0.1.37", default_features = false }
