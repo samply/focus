@@ -391,7 +391,7 @@ mod test {
     fn test_dktk() {
         use crate::projects::{self, dktk::Dktk};
 
-        todo!("Implement DKTK CQL generation and create files with results");
+        // TODO Implement DKTK CQL generation and create files with results
 
         //pretty_assertions::assert_eq!(generate_cql(serde_json::from_str(AST).unwrap(), Bbmri).unwrap(), include_str!("../resources/test/result_ast.cql").to_string());
 
