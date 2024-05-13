@@ -388,7 +388,7 @@ mod test {
     #[test]
     #[cfg(feature = "bbmri")]
     fn test_bbmri() {
-        use crate::projects::{self, bbmri::Bbmri};
+        
 
         pretty_assertions::assert_eq!(
             generate_cql(serde_json::from_str(MALE_OR_FEMALE).unwrap()).unwrap(),
@@ -438,7 +438,7 @@ mod test {
     #[test]
     #[cfg(feature = "dktk")]
     fn test_dktk() {
-        use crate::projects::{self, dktk::Dktk};
+        //use crate::projects::{self, dktk::Dktk};
 
         // TODO Implement DKTK CQL generation and create files with results
 
