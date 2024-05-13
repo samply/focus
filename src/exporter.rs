@@ -5,10 +5,12 @@ use http::StatusCode;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_json::Value;
+use std::str;
 use tracing::{debug, warn};
 
 use crate::config::CONFIG;
 use crate::errors::FocusError;
+use crate::util;
 
 #[derive(Clone, PartialEq, Debug, Copy, Serialize, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
@@ -52,7 +54,17 @@ pub async fn post_exporter_query(body: &String, task_type: TaskType) -> Result<S
     }
 
     if task_type == TaskType::Status {
-        let value: Value = serde_json::from_str(body).map_err(|e| {
+        let value: Value = serde_json::from_str(
+            String::from_utf8(util::base64_decode(&body)?)
+                .map_err(|e| {
+                    FocusError::DeserializationError(format!(
+                        r#"Task body is not a valid string {}"#,
+                        e
+                    ))
+                })?
+                .as_str(),
+        )
+        .map_err(|e| {
             FocusError::DeserializationError(format!(r#"Task body is not a valid JSON: {}"#, e))
         })?;
         let id = value["query-execution-id"].as_str();
