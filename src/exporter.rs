@@ -11,6 +11,7 @@ use crate::config::CONFIG;
 use crate::errors::FocusError;
 
 #[derive(Clone, PartialEq, Debug, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "UPPERCASE")]
 pub enum TaskType {
     Execute,
     Create,
