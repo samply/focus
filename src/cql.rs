@@ -388,7 +388,7 @@ mod test {
     #[test]
     #[cfg(feature = "bbmri")]
     fn test_bbmri() {
-        
+        use crate::projects::{self, bbmri::Bbmri};
 
         pretty_assertions::assert_eq!(
             generate_cql(serde_json::from_str(MALE_OR_FEMALE).unwrap()).unwrap(),
