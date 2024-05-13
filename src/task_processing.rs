@@ -1,11 +1,13 @@
-use std::{sync::Arc, collections::HashMap, time::Duration};
+use std::{collections::HashMap, sync::Arc, time::Duration};
 
 use base64::{engine::general_purpose, Engine as _};
 use laplace_rs::ObfCache;
-use tokio::sync::{mpsc, Semaphore, Mutex};
-use tracing::{error, warn, debug, info, Instrument, info_span};
+use tokio::sync::{mpsc, Mutex, Semaphore};
+use tracing::{debug, error, info, info_span, warn, Instrument};
 
-use crate::{ReportCache, errors::FocusError, beam, BeamTask, BeamResult, run_exporter_query, config::{EndpointType, CONFIG}, run_cql_query, intermediate_rep, ast, run_intermediate_rep_query, Metadata, blaze::parse_blaze_query, util};
+use crate::{
+    ast, beam, blaze::{parse_blaze_query_ast, parse_blaze_query_cql}, config::{EndpointType, CONFIG}, cql, errors::FocusError, intermediate_rep, run_cql_query, run_exporter_query, run_intermediate_rep_query, util, BeamResult, BeamTask, Metadata, ReportCache
+};
 
 const NUM_WORKERS: usize = 3;
 const WORKER_BUFFER: usize = 32;
@@ -20,7 +22,7 @@ pub fn spawn_task_workers(report_cache: ReportCache) -> TaskQueue {
     }));
 
     let report_cache: Arc<Mutex<ReportCache>> = Arc::new(Mutex::new(report_cache));
-    
+
     tokio::spawn(async move {
         let semaphore = Arc::new(Semaphore::new(NUM_WORKERS));
         while let Some(task) = rx.recv().await {
@@ -29,7 +31,9 @@ pub fn spawn_task_workers(report_cache: ReportCache) -> TaskQueue {
             let local_obf_cache = obf_cache.clone();
             tokio::spawn(async move {
                 let span = info_span!("task handling", %task.id);
-                handle_beam_task(task, local_obf_cache, local_report_cache).instrument(span).await;
+                handle_beam_task(task, local_obf_cache, local_report_cache)
+                    .instrument(span)
+                    .await;
                 drop(permit)
             });
         }
@@ -38,11 +42,16 @@ pub fn spawn_task_workers(report_cache: ReportCache) -> TaskQueue {
     tx
 }
 
-async fn handle_beam_task(task: BeamTask, local_obf_cache: Arc<Mutex<ObfCache>>, local_report_cache: Arc<Mutex<ReportCache>>) {
+async fn handle_beam_task(
+    task: BeamTask,
+    local_obf_cache: Arc<Mutex<ObfCache>>,
+    local_report_cache: Arc<Mutex<ReportCache>>,
+) {
     let task_claiming = beam::claim_task(&task);
-    let mut task_processing = std::pin::pin!(process_task(&task, local_obf_cache, local_report_cache));
+    let mut task_processing =
+        std::pin::pin!(process_task(&task, local_obf_cache, local_report_cache));
     let task_result = tokio::select! {
-        // If task task processing happens before claiming is done drop the task claiming future  
+        // If task task processing happens before claiming is done drop the task claiming future
         task_processed = &mut task_processing => {
             task_processed
         },
@@ -71,9 +80,7 @@ async fn handle_beam_task(task: BeamTask, local_obf_cache: Arc<Mutex<ObfCache>>,
         match beam::answer_task(&result).await {
             Ok(_) => break,
             Err(FocusError::ConfigurationError(s)) => {
-                error!(
-                    "FATAL: Unable to report back to Beam due to a configuration issue: {s}"
-                );
+                error!("FATAL: Unable to report back to Beam due to a configuration issue: {s}");
             }
             Err(FocusError::UnableToAnswerTask(e)) => {
                 warn!("Unable to report task result to Beam: {e}. Retrying (attempt {attempt}/{MAX_TRIES}).");
@@ -103,7 +110,7 @@ async fn process_task(
             CONFIG.beam_app_id_long.clone(),
             vec![task.from.clone()],
             task.id,
-            "healthy".into()
+            "healthy".into(),
         ));
     }
 
@@ -113,7 +120,14 @@ async fn process_task(
     }
 
     if CONFIG.endpoint_type == EndpointType::Blaze {
-        let query = parse_blaze_query(task)?;
+        let mut query_maybe = parse_blaze_query_cql(task);
+        if let Err(_e) = query_maybe {
+           let query_string = cql::generate_body(parse_blaze_query_ast(task)?.payload)?;
+           query_maybe = serde_json::from_str(&query_string).map_err(|e| FocusError::ParsingError(e.to_string())) 
+        }
+
+        let query = query_maybe.unwrap();
+
         if query.lang == "cql" {
             // TODO: Change query.lang to an enum
 
@@ -133,13 +147,14 @@ async fn process_task(
     } else if CONFIG.endpoint_type == EndpointType::Omop {
         let decoded = util::base64_decode(&task.body)?;
         let intermediate_rep_query: intermediate_rep::IntermediateRepQuery =
-            serde_json::from_slice(&decoded).map_err(|e| FocusError::ParsingError(e.to_string()))?;
+            serde_json::from_slice(&decoded)
+                .map_err(|e| FocusError::ParsingError(e.to_string()))?;
         //TODO check that the language is ast
         let query_decoded = general_purpose::STANDARD
             .decode(intermediate_rep_query.query)
             .map_err(FocusError::DecodeError)?;
-        let ast: ast::Ast =
-            serde_json::from_slice(&query_decoded).map_err(|e| FocusError::ParsingError(e.to_string()))?;
+        let ast: ast::Ast = serde_json::from_slice(&query_decoded)
+            .map_err(|e| FocusError::ParsingError(e.to_string()))?;
 
         Ok(run_intermediate_rep_query(task, ast).await)?
     } else {

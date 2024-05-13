@@ -14,11 +14,13 @@ pub(crate) mod dktk;
 pub(crate) trait Project: PartialEq + Eq + PartialOrd + Ord + Clone + Copy + Hash {
     fn append_code_lists(&self, _map: &mut HashMap<&'static str, &'static str>);
     fn append_observation_loinc_codes(&self, _map: &mut HashMap<&'static str, &'static str>);
-    fn append_criterion_code_lists(&self, _map: &mut HashMap<(&str, &ProjectName), Vec<&str>>);
-    fn append_cql_snippets(&self, _map: &mut HashMap<(&str, CriterionRole, &ProjectName), &str>);
-    fn append_mandatory_code_lists(&self, map: &mut HashMap<&ProjectName, IndexSet<&str>>);
-    fn append_cql_templates(&self, map: &mut HashMap<&ProjectName, &str>);
+    fn append_criterion_code_lists(&self, _map: &mut HashMap<&str, Vec<&str>>);
+    fn append_cql_snippets(&self, _map: &mut HashMap<(&str, CriterionRole), &str>);
+    fn append_mandatory_code_lists(&self, set: &mut IndexSet<&str>);
+    fn append_cql_template(&self, _template: &mut String);
     fn name(&self) -> &'static ProjectName;
+    fn append_body(&self, _body: &mut String);
+    fn append_sample_type_workarounds(&self, _map: &mut HashMap<&str, Vec<&str>>);
 }
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Copy)]
@@ -29,16 +31,6 @@ pub enum ProjectName {
     Dktk,
     NotSpecified
 }
-
-// impl Display for ProjectName {
-//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//         let name = match self {
-//             ProjectName::Bbmri => "bbmri",
-//             ProjectName::Dktk => "dktk"
-//         };
-//         write!(f, "{name}")
-//     }
-// }
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
 pub enum CriterionRole {
@@ -76,16 +68,16 @@ pub static SAMPLE_TYPE_WORKAROUNDS: Lazy<HashMap<&str, Vec<&str>>> = Lazy::new(|
     let mut map: HashMap<&'static str, Vec<&'static str>> = HashMap::new();
     
     #[cfg(feature="bbmri")]
-    bbmri::append_sample_type_workarounds(&mut map);
+    bbmri::Bbmri.append_sample_type_workarounds(&mut map);
 
     #[cfg(feature="dktk")]
-    dktk::append_sample_type_workarounds(&mut map);
+    dktk::Dktk.append_sample_type_workarounds(&mut map);
 
     map
 });
 
 // code lists needed depending on the criteria selected
-pub static CRITERION_CODE_LISTS: Lazy<HashMap<(&str, &ProjectName), Vec<&str>>> = Lazy::new(|| {
+pub static CRITERION_CODE_LISTS: Lazy<HashMap<&str, Vec<&str>>> = Lazy::new(|| {
     let mut map = HashMap::new();
 
     #[cfg(feature="bbmri")]
@@ -98,7 +90,7 @@ pub static CRITERION_CODE_LISTS: Lazy<HashMap<(&str, &ProjectName), Vec<&str>>> 
 });
 
 // CQL snippets depending on the criteria
-pub static CQL_SNIPPETS: Lazy<HashMap<(&str, CriterionRole, &ProjectName), &str>> = Lazy::new(|| {
+pub static CQL_SNIPPETS: Lazy<HashMap<(&str, CriterionRole), &str>> = Lazy::new(|| {
     let mut map = HashMap::new();
 
     #[cfg(feature="bbmri")]
@@ -110,26 +102,39 @@ pub static CQL_SNIPPETS: Lazy<HashMap<(&str, CriterionRole, &ProjectName), &str>
     map
 });
 
-pub static MANDATORY_CODE_SYSTEMS: Lazy<HashMap<&ProjectName, IndexSet<&str>>> = Lazy::new(|| {
-    let mut map = HashMap::new();
+pub static MANDATORY_CODE_SYSTEMS: Lazy<IndexSet<&str>> = Lazy::new(|| {
+    let mut set = IndexSet::new();
 
     #[cfg(feature="bbmri")]
-    bbmri::Bbmri.append_mandatory_code_lists(&mut map);
+    bbmri::Bbmri.append_mandatory_code_lists(&mut set);
 
     #[cfg(feature="dktk")]
-    dktk::Dktk.append_mandatory_code_lists(&mut map);
+    dktk::Dktk.append_mandatory_code_lists(&mut set);
 
-    map
+    set
 });
 
-pub static CQL_TEMPLATES: Lazy<HashMap<&ProjectName, &'static str>> = Lazy::new(|| {
-    let mut map = HashMap::new();
+pub static CQL_TEMPLATE: Lazy<&'static str> = Lazy::new(|| {
+    let mut template = String::new();
 
     #[cfg(feature="bbmri")]
-    bbmri::Bbmri.append_cql_templates(&mut map);
+    bbmri::Bbmri.append_cql_template(&mut template);
 
     #[cfg(feature="dktk")]
-    dktk::Dktk.append_cql_templates(&mut map);
+    dktk::Dktk.append_cql_template(&mut template);
 
-    map
+    template.leak()
+});
+
+pub static BODY: Lazy<&'static str> = Lazy::new(|| {
+
+    let mut body = String::new();
+
+    #[cfg(feature="bbmri")]
+    bbmri::Bbmri.append_body(&mut body);
+
+    #[cfg(feature="dktk")]
+    dktk::Dktk.append_body(&mut body);
+
+    body.leak()
 });

@@ -43,23 +43,33 @@ impl Project for Shared {
         ]);
     }
     
-    fn append_criterion_code_lists(&self, _map: &mut HashMap<(&str, &ProjectName), Vec<&str>>) {
+    fn append_criterion_code_lists(&self, _map: &mut HashMap<&str, Vec<&str>>) {
         // none
     }
     
-    fn append_cql_snippets(&self, _map: &mut HashMap<(&str, CriterionRole, &ProjectName), &str>) {
+    fn append_cql_snippets(&self, _map: &mut HashMap<(&str, CriterionRole), &str>) {
         // none
     }
     
-    fn append_mandatory_code_lists(&self, _map: &mut HashMap<&ProjectName, IndexSet<&str>>) {
+    fn append_mandatory_code_lists(&self, _set: &mut IndexSet<&str>) {
         // none
     }
     
-    fn append_cql_templates(&self, _map: &mut HashMap<&ProjectName, &str>) {
+    fn append_cql_template(&self, _template:  &mut String) {
+        // none
+    }
+
+    fn append_body(&self, _body:  &mut String) {
         // none
     }
 
     fn name(&self) -> &'static ProjectName {
         &ProjectName::NotSpecified
     }
+    
+    fn append_sample_type_workarounds(&self, _map: &mut HashMap<&str, Vec<&str>>) {
+        //none
+    }
+    
+
 }

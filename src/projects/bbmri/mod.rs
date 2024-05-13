@@ -19,7 +19,7 @@ impl Project for Bbmri {
         Shared::append_observation_loinc_codes(&Shared, map)
     }
 
-    fn append_criterion_code_lists(&self, map: &mut HashMap<(&str, &ProjectName), Vec<&str>>) {
+    fn append_criterion_code_lists(&self, map: &mut HashMap<&str, Vec<&str>>) {
         for (key, value) in 
         [
             ("diagnosis", vec!["icd10", "icd10gm", "icd10gmnew"]),
@@ -30,14 +30,12 @@ impl Project for Bbmri {
             ("storage_temperature", vec!["StorageTemperature"]),
             ("fasting_status", vec!["FastingStatus"]),
         ] {
-            map.insert(
-                (key, self.name()),
-                value
-            );
+            map.insert(key, value );
         }    
     }
 
-    fn append_cql_snippets(&self, map: &mut HashMap<(&str, CriterionRole, &ProjectName), &str>) {
+    fn append_cql_snippets(&self, map: &mut HashMap<(&str, CriterionRole), &str>) {
+        Shared::append_cql_snippets(&Shared, map);
         for (key, value) in
         [
             (("gender", CriterionRole::Query), "Patient.gender = '{{C}}'"),
@@ -100,44 +98,48 @@ impl Project for Bbmri {
             ),
         ] {
             map.insert(
-                (key.0, key.1, self.name()),
+                (key.0, key.1),
                 value
             );
         }    
     }
 
-    fn append_mandatory_code_lists(&self, map: &mut HashMap<&ProjectName, IndexSet<&str>>) {
-        let mut set = map.remove(self.name()).unwrap_or(IndexSet::new());
+    fn append_mandatory_code_lists(&self, set: &mut IndexSet<&str>) {
+        Shared::append_mandatory_code_lists(&Shared, set);
         for value in ["icd10", "SampleMaterialType"] {
             set.insert(value);
         }
-        map.insert(self.name(), set);
     }
 
-    fn append_cql_templates(&self, map: &mut HashMap<&ProjectName, &str>) {
-        map.insert(self.name(), include_str!("template.cql"));
+    fn append_cql_template(&self, template: &mut String) {
+        template.push_str(include_str!("template.cql"));
     }
 
     fn name(&self) -> &'static ProjectName {
         &ProjectName::Bbmri
     }
-}
 
-pub fn append_sample_type_workarounds(map: &mut HashMap<&str, Vec<&str>>) {
-    for (key, value) in 
-    [
-        ("blood-plasma", vec!["plasma-edta", "plasma-citrat", "plasma-heparin", "plasma-cell-free", "plasma-other", "plasma"]),
-        ("blood-serum", vec!["serum"]),
-        ("tissue-ffpe", vec!["tumor-tissue-ffpe", "normal-tissue-ffpe", "other-tissue-ffpe", "tissue-formalin"]),
-        ("tissue-frozen", vec!["tumor-tissue-frozen", "normal-tissue-frozen", "other-tissue-frozen"]),
-        ("dna", vec!["cf-dna", "g-dna"]),
-        ("tissue-other", vec!["tissue-paxgene-or-else", "tissue"]),
-        ("derivative-other", vec!["derivative"]),
-        ("liquid-other", vec!["liquid"]),
-    ] {
-        map.insert(
-            key,
-            value
-        );
-    }   
+    fn append_body(&self, body: &mut String) {
+        body.push_str(include_str!("body.json"));
+    }
+
+    fn append_sample_type_workarounds(&self, map: &mut HashMap<&str, Vec<&str>>) {
+        for (key, value) in 
+        [
+            ("blood-plasma", vec!["plasma-edta", "plasma-citrat", "plasma-heparin", "plasma-cell-free", "plasma-other", "plasma"]),
+            ("blood-serum", vec!["serum"]),
+            ("tissue-ffpe", vec!["tumor-tissue-ffpe", "normal-tissue-ffpe", "other-tissue-ffpe", "tissue-formalin"]),
+            ("tissue-frozen", vec!["tumor-tissue-frozen", "normal-tissue-frozen", "other-tissue-frozen"]),
+            ("dna", vec!["cf-dna", "g-dna"]),
+            ("tissue-other", vec!["tissue-paxgene-or-else", "tissue"]),
+            ("derivative-other", vec!["derivative"]),
+            ("liquid-other", vec!["liquid"]),
+        ] {
+            map.insert(
+                key,
+                value
+            );
+        }   
+    }
+
 }

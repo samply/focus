@@ -1,36 +1,51 @@
 use crate::ast;
 use crate::errors::FocusError;
-use crate::projects::{Project, CriterionRole, CQL_TEMPLATES, MANDATORY_CODE_SYSTEMS, CODE_LISTS, CQL_SNIPPETS, CRITERION_CODE_LISTS, OBSERVATION_LOINC_CODE, SAMPLE_TYPE_WORKAROUNDS};
+use crate::projects::{
+    CriterionRole, BODY, CODE_LISTS, CQL_SNIPPETS, CQL_TEMPLATE, CRITERION_CODE_LISTS,
+    MANDATORY_CODE_SYSTEMS, OBSERVATION_LOINC_CODE, SAMPLE_TYPE_WORKAROUNDS,
+};
 
+use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use chrono::offset::Utc;
 use chrono::DateTime;
 use indexmap::set::IndexSet;
+use uuid::Uuid;
 
-pub fn generate_cql(ast: ast::Ast, project: impl Project) -> Result<String, FocusError> {
+pub fn generate_body(ast: ast::Ast) -> Result<String, FocusError> {
+    Ok(BASE64.encode(
+        BODY.clone()
+            .to_string()
+            .replace("{{LIBRARY_UUID}}", Uuid::new_v4().to_string().as_str())
+            .replace("{{MEASURE_UUID}}", Uuid::new_v4().to_string().as_str())
+            .replace(
+                "{{LIBRARY_ENCODED}}",
+                BASE64.encode(generate_cql(ast)?).as_str(),
+            ),
+    ))
+}
+
+fn generate_cql(ast: ast::Ast) -> Result<String, FocusError> {
     let mut retrieval_criteria: String = "".to_string(); // main selection criteria (Patient)
 
     let mut filter_criteria: String = "".to_string(); // criteria for filtering specimens
 
     let mut lists: String = "".to_string(); // needed code lists, defined
 
-    let mut cql = CQL_TEMPLATES.get(project.name()).expect("missing project").to_string();
+    let mut cql = CQL_TEMPLATE.clone().to_string();
 
     let operator_str = match ast.ast.operand {
         ast::Operand::And => " and ",
         ast::Operand::Or => " or ",
     };
 
-    let mut mandatory_codes = MANDATORY_CODE_SYSTEMS.get(project.name())
-        .expect("non-existent project")
-        .clone();
+    let mut mandatory_codes = MANDATORY_CODE_SYSTEMS.clone();
 
     for (index, grandchild) in ast.ast.children.iter().enumerate() {
         process(
             grandchild.clone(),
             &mut retrieval_criteria,
             &mut filter_criteria,
-            &mut mandatory_codes,
-            project,
+            &mut mandatory_codes
         )?;
 
         // Only concatenate operator if it's not the last element
@@ -48,16 +63,17 @@ pub fn generate_cql(ast: ast::Ast, project: impl Project) -> Result<String, Focu
         .as_str();
     }
 
-    cql = cql
-        .replace("{{lists}}", lists.as_str());
+    cql = cql.replace("{{lists}}", lists.as_str());
 
     if retrieval_criteria.is_empty() {
         cql = cql.replace("{{retrieval_criteria}}", "true"); //()?
     } else {
         let formatted_retrieval_criteria = format!("({})", retrieval_criteria);
-        cql = cql.replace("{{retrieval_criteria}}", formatted_retrieval_criteria.as_str());
+        cql = cql.replace(
+            "{{retrieval_criteria}}",
+            formatted_retrieval_criteria.as_str(),
+        );
     }
-
 
     if filter_criteria.is_empty() {
         cql = cql.replace("{{filter_criteria}}", "");
@@ -72,8 +88,7 @@ pub fn process(
     child: ast::Child,
     retrieval_criteria: &mut String,
     filter_criteria: &mut String,
-    code_systems: &mut IndexSet<&str>,
-    project: impl Project,
+    code_systems: &mut IndexSet<&str>
 ) -> Result<(), FocusError> {
     let mut retrieval_cond: String = "(".to_string();
     let mut filter_cond: String = "".to_string();
@@ -83,19 +98,17 @@ pub fn process(
             let condition_key_trans = condition.key.as_str();
 
             let condition_snippet =
-                CQL_SNIPPETS.get(&(condition_key_trans, CriterionRole::Query, project.name()));
+                CQL_SNIPPETS.get(&(condition_key_trans, CriterionRole::Query));
 
             if let Some(snippet) = condition_snippet {
                 let mut condition_string = (*snippet).to_string();
                 let mut filter_string: String = "".to_string();
 
-                let filter_snippet = CQL_SNIPPETS.get(&(
-                    condition_key_trans,
-                    CriterionRole::Filter,
-                    project.name(),
-                ));
+                let filter_snippet =
+                    CQL_SNIPPETS.get(&(condition_key_trans, CriterionRole::Filter));
 
-                let code_lists_option = CRITERION_CODE_LISTS.get(&(condition_key_trans, project.name()));
+                let code_lists_option =
+                    CRITERION_CODE_LISTS.get(&(condition_key_trans));
                 if let Some(code_lists_vec) = code_lists_option {
                     for (index, code_list) in code_lists_vec.iter().enumerate() {
                         code_systems.insert(code_list);
@@ -106,7 +119,7 @@ pub fn process(
                     }
                 }
 
-                if condition_string.contains("{{K}}") { 
+                if condition_string.contains("{{K}}") {
                     //observation loinc code, those only apply to query criteria, we don't filter specimens by observations
                     let observation_code_option = OBSERVATION_LOINC_CODE.get(&condition_key_trans);
 
@@ -119,12 +132,13 @@ pub fn process(
                     }
                 }
 
-                if let Some(filtret) = filter_snippet { 
+                if let Some(filtret) = filter_snippet {
                     filter_string = (*filtret).to_string();
                 }
 
                 match condition.type_ {
-                    ast::ConditionType::Between => { // both min and max values stated
+                    ast::ConditionType::Between => {
+                        // both min and max values stated
                         match condition.value {
                             ast::ConditionValue::DateRange(date_range) => {
                                 let datetime_str_min = date_range.min.as_str();
@@ -138,7 +152,8 @@ pub fn process(
                                     condition_string =
                                         condition_string.replace("{{D1}}", date_str_min.as_str());
                                     filter_string =
-                                        filter_string.replace("{{D1}}", date_str_min.as_str()); // no condition needed, "" stays ""
+                                        filter_string.replace("{{D1}}", date_str_min.as_str());
+                                // no condition needed, "" stays ""
                                 } else {
                                     return Err(FocusError::AstInvalidDateFormat(date_range.min));
                                 }
@@ -153,7 +168,8 @@ pub fn process(
                                     condition_string =
                                         condition_string.replace("{{D2}}", date_str_max.as_str());
                                     filter_string =
-                                        filter_string.replace("{{D2}}", date_str_max.as_str()); // no condition needed, "" stays ""
+                                        filter_string.replace("{{D2}}", date_str_max.as_str());
+                                // no condition needed, "" stays ""
                                 } else {
                                     return Err(FocusError::AstInvalidDateFormat(date_range.max));
                                 }
@@ -166,7 +182,8 @@ pub fn process(
                                 filter_string = filter_string
                                     .replace("{{D1}}", num_range.min.to_string().as_str()); // no condition needed, "" stays ""
                                 filter_string = filter_string
-                                    .replace("{{D2}}", num_range.max.to_string().as_str()); // no condition needed, "" stays ""
+                                    .replace("{{D2}}", num_range.max.to_string().as_str());
+                                // no condition needed, "" stays ""
                             }
                             _ => {
                                 return Err(FocusError::AstOperatorValueMismatch());
@@ -180,17 +197,22 @@ pub fn process(
                         match condition.value {
                             ast::ConditionValue::StringArray(string_array) => {
                                 let mut string_array_with_workarounds = string_array.clone();
-                                    for value in string_array {
-                                    if let Some(additional_values) = SAMPLE_TYPE_WORKAROUNDS.get(value.as_str()){
+                                for value in string_array {
+                                    if let Some(additional_values) =
+                                        SAMPLE_TYPE_WORKAROUNDS.get(value.as_str())
+                                    {
                                         for additional_value in additional_values {
-                                            string_array_with_workarounds.push((*additional_value).into());
+                                            string_array_with_workarounds
+                                                .push((*additional_value).into());
                                         }
                                     }
                                 }
                                 let mut condition_humongous_string = "(".to_string();
                                 let mut filter_humongous_string = "(".to_string();
 
-                                for (index, string) in string_array_with_workarounds.iter().enumerate() {
+                                for (index, string) in
+                                    string_array_with_workarounds.iter().enumerate()
+                                {
                                     condition_humongous_string = condition_humongous_string
                                         + "("
                                         + condition_string.as_str()
@@ -226,7 +248,9 @@ pub fn process(
                         ast::ConditionValue::String(string) => {
                             let operator_str = " or ";
                             let mut string_array_with_workarounds = vec![string.clone()];
-                            if let Some(additional_values) = SAMPLE_TYPE_WORKAROUNDS.get(string.as_str()){
+                            if let Some(additional_values) =
+                                SAMPLE_TYPE_WORKAROUNDS.get(string.as_str())
+                            {
                                 for additional_value in additional_values {
                                     string_array_with_workarounds.push((*additional_value).into());
                                 }
@@ -234,18 +258,17 @@ pub fn process(
                             let mut condition_humongous_string = "(".to_string();
                             let mut filter_humongous_string = "(".to_string();
 
-                            for (index, string) in string_array_with_workarounds.iter().enumerate() {
+                            for (index, string) in string_array_with_workarounds.iter().enumerate()
+                            {
                                 condition_humongous_string = condition_humongous_string
                                     + "("
                                     + condition_string.as_str()
                                     + ")";
-                                condition_humongous_string = condition_humongous_string
-                                    .replace("{{C}}", string.as_str());
+                                condition_humongous_string =
+                                    condition_humongous_string.replace("{{C}}", string.as_str());
 
-                                filter_humongous_string = filter_humongous_string
-                                    + "("
-                                    + filter_string.as_str()
-                                    + ")";
+                                filter_humongous_string =
+                                    filter_humongous_string + "(" + filter_string.as_str() + ")";
                                 filter_humongous_string =
                                     filter_humongous_string.replace("{{C}}", string.as_str());
 
@@ -301,8 +324,7 @@ pub fn process(
                     grandchild.clone(),
                     &mut retrieval_cond,
                     &mut filter_cond,
-                    code_systems,
-                    project.clone(),
+                    code_systems
                 )?;
 
                 // Only concatenate operator if it's not the last element
@@ -320,13 +342,12 @@ pub fn process(
 
     *retrieval_criteria += retrieval_cond.as_str();
 
-    if !filter_cond.is_empty() { 
+    if !filter_cond.is_empty() {
         *filter_criteria += "(";
         *filter_criteria += filter_cond.as_str();
         *filter_criteria += ")";
 
-        *filter_criteria = filter_criteria.replace(")(", ") or ("); 
-
+        *filter_criteria = filter_criteria.replace(")(", ") or (");
     }
 
     Ok(())
@@ -355,7 +376,8 @@ mod test {
 
     const LENS2: &str = r#"{"ast":{"children":[{"children":[{"children":[{"key":"gender","system":"","type":"EQUALS","value":"male"},{"key":"gender","system":"","type":"EQUALS","value":"female"}],"operand":"OR"},{"children":[{"key":"diagnosis","system":"","type":"EQUALS","value":"C41"},{"key":"diagnosis","system":"","type":"EQUALS","value":"C50"}],"operand":"OR"},{"children":[{"key":"sample_kind","system":"","type":"EQUALS","value":"tissue-frozen"},{"key":"sample_kind","system":"","type":"EQUALS","value":"blood-serum"}],"operand":"OR"}],"operand":"AND"},{"children":[{"children":[{"key":"gender","system":"","type":"EQUALS","value":"male"}],"operand":"OR"},{"children":[{"key":"diagnosis","system":"","type":"EQUALS","value":"C41"},{"key":"diagnosis","system":"","type":"EQUALS","value":"C50"}],"operand":"OR"},{"children":[{"key":"sample_kind","system":"","type":"EQUALS","value":"liquid-other"},{"key":"sample_kind","system":"","type":"EQUALS","value":"rna"},{"key":"sample_kind","system":"","type":"EQUALS","value":"urine"}],"operand":"OR"},{"children":[{"key":"storage_temperature","system":"","type":"EQUALS","value":"temperatureRoom"},{"key":"storage_temperature","system":"","type":"EQUALS","value":"four_degrees"}],"operand":"OR"}],"operand":"AND"}],"operand":"OR"},"id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
 
-    const EMPTY: &str = r#"{"ast":{"children":[],"operand":"OR"}, "id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
+    const EMPTY: &str =
+        r#"{"ast":{"children":[],"operand":"OR"}, "id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
 
     #[cfg(feature = "bbmri")]
     #[test]
@@ -364,30 +386,57 @@ mod test {
     }
 
     #[test]
-    #[cfg(feature="bbmri")]
+    #[cfg(feature = "bbmri")]
     fn test_bbmri() {
         use crate::projects::{self, bbmri::Bbmri};
 
-        pretty_assertions::assert_eq!(generate_cql(serde_json::from_str(MALE_OR_FEMALE).unwrap(), Bbmri).unwrap(), include_str!("../resources/test/result_male_or_female.cql").to_string());
+        pretty_assertions::assert_eq!(
+            generate_cql(serde_json::from_str(MALE_OR_FEMALE).unwrap()).unwrap(),
+            include_str!("../resources/test/result_male_or_female.cql").to_string()
+        );
 
-        pretty_assertions::assert_eq!(generate_cql(serde_json::from_str(AGE_AT_DIAGNOSIS_30_TO_70).unwrap(), Bbmri).unwrap(), include_str!("../resources/test/result_age_at_diagnosis_30_to_70.cql").to_string());
+        pretty_assertions::assert_eq!(
+            generate_cql(
+                serde_json::from_str(AGE_AT_DIAGNOSIS_30_TO_70).unwrap())
+            .unwrap(),
+            include_str!("../resources/test/result_age_at_diagnosis_30_to_70.cql").to_string()
+        );
 
-        pretty_assertions::assert_eq!(generate_cql(serde_json::from_str(AGE_AT_DIAGNOSIS_LOWER_THAN_70).unwrap(), Bbmri).unwrap(), include_str!("../resources/test/result_age_at_diagnosis_lower_than_70.cql").to_string());
+        pretty_assertions::assert_eq!(
+            generate_cql(
+                serde_json::from_str(AGE_AT_DIAGNOSIS_LOWER_THAN_70).unwrap())
+            .unwrap(),
+            include_str!("../resources/test/result_age_at_diagnosis_lower_than_70.cql").to_string()
+        );
 
-        pretty_assertions::assert_eq!(generate_cql(serde_json::from_str(C61_AND_MALE).unwrap(), Bbmri).unwrap(), include_str!("../resources/test/result_c61_and_male.cql").to_string());
+        pretty_assertions::assert_eq!(
+            generate_cql(serde_json::from_str(C61_AND_MALE).unwrap()).unwrap(),
+            include_str!("../resources/test/result_c61_and_male.cql").to_string()
+        );
 
-        pretty_assertions::assert_eq!(generate_cql(serde_json::from_str(ALL_GBN).unwrap(), Bbmri).unwrap(), include_str!("../resources/test/result_all_gbn.cql").to_string());
+        pretty_assertions::assert_eq!(
+            generate_cql(serde_json::from_str(ALL_GBN).unwrap()).unwrap(),
+            include_str!("../resources/test/result_all_gbn.cql").to_string()
+        );
 
-        pretty_assertions::assert_eq!(generate_cql(serde_json::from_str(SOME_GBN).unwrap(), Bbmri).unwrap(), include_str!("../resources/test/result_some_gbn.cql").to_string());
+        pretty_assertions::assert_eq!(
+            generate_cql(serde_json::from_str(SOME_GBN).unwrap()).unwrap(),
+            include_str!("../resources/test/result_some_gbn.cql").to_string()
+        );
 
-        pretty_assertions::assert_eq!(generate_cql(serde_json::from_str(LENS2).unwrap(), Bbmri).unwrap(), include_str!("../resources/test/result_lens2.cql").to_string());
+        pretty_assertions::assert_eq!(
+            generate_cql(serde_json::from_str(LENS2).unwrap()).unwrap(),
+            include_str!("../resources/test/result_lens2.cql").to_string()
+        );
 
-        pretty_assertions::assert_eq!(generate_cql(serde_json::from_str(EMPTY).unwrap(), Bbmri).unwrap(), include_str!("../resources/test/result_empty.cql").to_string());
-
+        pretty_assertions::assert_eq!(
+            generate_cql(serde_json::from_str(EMPTY).unwrap()).unwrap(),
+            include_str!("../resources/test/result_empty.cql").to_string()
+        );
     }
 
     #[test]
-    #[cfg(feature="dktk")]
+    #[cfg(feature = "dktk")]
     fn test_dktk() {
         use crate::projects::{self, dktk::Dktk};
 
@@ -396,7 +445,5 @@ mod test {
         //pretty_assertions::assert_eq!(generate_cql(serde_json::from_str(AST).unwrap(), Bbmri).unwrap(), include_str!("../resources/test/result_ast.cql").to_string());
 
         //pretty_assertions::assert_eq!(generate_cql(serde_json::from_str(ALL_GLIOMS).unwrap(), Bbmri).unwrap(), include_str!("../resources/test/result_all_glioms.cql").to_string());
-
     }
-
 }

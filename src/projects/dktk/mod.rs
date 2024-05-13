@@ -19,25 +19,32 @@ impl Project for Dktk {
         Shared::append_observation_loinc_codes(&Shared, map)
      }
     
-    fn append_criterion_code_lists(&self, _map: &mut HashMap<(&str, &ProjectName), Vec<&str>>) { }
+    fn append_criterion_code_lists(&self, _map: &mut HashMap<&str, Vec<&str>>) { }
     
-    fn append_cql_snippets(&self, _map: &mut HashMap<(&str, CriterionRole, &ProjectName), &str>) { }
+    fn append_cql_snippets(&self, _map: &mut HashMap<(&str, CriterionRole), &str>) { }
     
-    fn append_mandatory_code_lists(&self, map: &mut HashMap<&ProjectName, IndexSet<&str>>) {
-        let mut set = map.remove(self.name()).unwrap_or(IndexSet::new());
+    fn append_mandatory_code_lists(&self, map: &mut IndexSet<&str>) {
+        //let mut set = map.remove(self.name()).unwrap_or(IndexSet::new());
         for value in ["icd10", "SampleMaterialType", "loinc"] {
-            set.insert(value);
+            map.insert(value);
         }
-        map.insert(self.name(), set);
+        //map.insert(self.name(), set);
     }
     
-    fn append_cql_templates(&self, map: &mut HashMap<&ProjectName, &str>) {
-        //map.insert(&Self, include_str!("template.cql"));
+    fn append_cql_template(&self, _template: &mut String) {
+        //include_str!("template.cql")
     }
     
     fn name(&self) -> &'static ProjectName {
         &ProjectName::Dktk
     }
+
+    fn append_body(&self, str: &mut String) {
+        str.push_str(include_str!("body.json"));
+    }
+
+    fn append_sample_type_workarounds(&self, _map: &mut HashMap<&str, Vec<&str>>) {
+        //none
+    }
 }
 
-pub fn append_sample_type_workarounds(map: &mut HashMap<&str, Vec<&str>>) {}
