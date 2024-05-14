@@ -1,30 +1,22 @@
 use std::{rc::Rc, time::Duration};
 
-use futures_util::{future::LocalBoxFuture, FutureExt, Stream, StreamExt};
-use tracing::{error, warn, debug, Instrument, info_span};
+use futures_util::{future::LocalBoxFuture, FutureExt, StreamExt};
+use tracing::{debug, error, info_span, warn, Instrument};
 
-use crate::{errors::FocusError, beam, BeamTask, BeamResult};
+use crate::{beam, errors::FocusError, BeamResult, BeamTask};
 
 const NUM_WORKERS: usize = 3;
 
-pub async fn process_tasks<F>(task_handler: F)
+pub async fn process_tasks<F>(task_hanlder: F)
 where
     F: Fn(&BeamTask) -> LocalBoxFuture<'_, Result<BeamResult, FocusError>> + Clone + 'static,
 {
-    stream_task_results(task_handler)
-        .buffer_unordered(NUM_WORKERS)
-        .for_each_concurrent(None, |(task, task_result)| answer_task_result(task, task_result))
-        .await
-}
-
-fn stream_task_results<F>(on_task: F) -> impl Stream<Item = LocalBoxFuture<'static, (BeamTask, Result<BeamResult, FocusError>)>>
-where
-    F: Fn(&BeamTask) -> LocalBoxFuture<'_, Result<BeamResult, FocusError>> + Clone + 'static,
-{
-    let on_task_claimed = |res| if let Err(e) = res {
-        warn!("Failed to claim task: {e}");
-    } else {
-        debug!("Successfully claimed task");
+    let on_task_claimed = |res: &Result<bool, FocusError>| {
+        if let Err(e) = res {
+            warn!("Failed to claim task: {e}");
+        } else {
+            debug!("Successfully claimed task");
+        }
     };
     futures_util::stream::repeat_with(beam::retrieve_tasks)
         .filter_map(|v| async {
@@ -34,43 +26,49 @@ where
                     warn!("Failed to get tasks from beam: {e}");
                     tokio::time::sleep(Duration::from_secs(10)).await;
                     None
-                },
+                }
             }
         })
         .then(move |t| {
             let id = t.id;
             let span = info_span!("task", %id);
             let span_for_handler = span.clone();
+            let on_task = task_hanlder.clone();
             let task = Rc::new(t);
-            let on_task = on_task.clone();
+            let t1 = Rc::clone(&task);
+            let t2 = Rc::clone(&task);
+            #[allow(clippy::async_yields_async)]
             async move {
-                let task1 = Rc::clone(&task);
-                let task2 = Rc::clone(&task);
-                let mut task_claiming = std::pin::pin!(beam::claim_task(&task2));
-                let mut task_processing = async move {
-                    on_task(&task1).instrument(span_for_handler).await
-                }.boxed_local();
+                let mut task_claiming = std::pin::pin!(beam::claim_task(&t1));
+                let mut task_processing = async move { on_task(&t2).await }.boxed_local();
                 tokio::select! {
                     task_processed = &mut task_processing => {
-                        tracing::debug!("Proccessed task before claimed");
-                        on_task_claimed(task_claiming.as_mut().await);
-                        futures_util::future::ready((Rc::try_unwrap(task).unwrap(), task_processed)).boxed_local()
+                        debug!("Proccessed task before it was claimed");
+                        answer_task_result(&task, task_processed).await;
+                        futures_util::future::ready(()).boxed_local()
                     },
                     task_claimed = &mut task_claiming => {
-                        on_task_claimed(task_claimed);
-                        task_processing.map(|v| (Rc::try_unwrap(task).unwrap(), v)).boxed_local()
+                        on_task_claimed(&task_claimed);
+                        task_processing
+                            .then(move |res| async move { answer_task_result(&task, res).await })
+                            .instrument(span_for_handler)
+                            .boxed_local()
                     }
                 }
-            }.instrument(span)
+            }
+            .instrument(span)
         })
+        .buffer_unordered(NUM_WORKERS)
+        .for_each(|_| async {})
+        .await
 }
 
-async fn answer_task_result(task: BeamTask, task_result: Result<BeamResult, FocusError>) {
+async fn answer_task_result(task: &BeamTask, task_result: Result<BeamResult, FocusError>) {
     let result = match task_result {
         Ok(res) => res,
         Err(e) => {
             warn!("Failed to execute query: {e}");
-            if let Err(e) = beam::fail_task(&task, e.user_facing_error()).await {
+            if let Err(e) = beam::fail_task(task, e.user_facing_error()).await {
                 warn!("Failed to report failure to beam: {e}");
             }
             return;
@@ -82,9 +80,7 @@ async fn answer_task_result(task: BeamTask, task_result: Result<BeamResult, Focu
         match beam::answer_task(&result).await {
             Ok(_) => break,
             Err(FocusError::ConfigurationError(s)) => {
-                error!(
-                    "FATAL: Unable to report back to Beam due to a configuration issue: {s}"
-                );
+                error!("FATAL: Unable to report back to Beam due to a configuration issue: {s}");
             }
             Err(FocusError::UnableToAnswerTask(e)) => {
                 warn!("Unable to report task result to Beam: {e}. Retrying (attempt {attempt}/{MAX_TRIES}).");

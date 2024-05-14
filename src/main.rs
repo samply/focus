@@ -135,7 +135,7 @@ async fn main_loop() -> ExitCode {
     task_processing::process_tasks(move |task| {
         let obf_cache = obf_cache.clone();
         let report_cache = report_cache.clone();
-        process_task(&task, obf_cache, report_cache).boxed_local()
+        process_task(task, obf_cache, report_cache).boxed_local()
     }).await;
     ExitCode::FAILURE
 }
