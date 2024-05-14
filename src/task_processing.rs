@@ -3,7 +3,7 @@ use std::{sync::Arc, collections::HashMap, time::Duration};
 use base64::{engine::general_purpose, Engine as _};
 use laplace_rs::ObfCache;
 use tokio::sync::{mpsc, Semaphore, Mutex};
-use tracing::{error, warn, debug, Instrument, info_span};
+use tracing::{error, warn, debug, info, Instrument, info_span};
 
 use crate::{ReportCache, errors::FocusError, beam, BeamTask, BeamResult, run_exporter_query, config::{EndpointType, CONFIG}, run_cql_query, intermediate_rep, ast, run_intermediate_rep_query, Metadata, blaze::parse_blaze_query, util};
 
@@ -91,7 +91,7 @@ async fn process_task(
     obf_cache: Arc<Mutex<ObfCache>>,
     report_cache: Arc<Mutex<ReportCache>>,
 ) -> Result<BeamResult, FocusError> {
-    debug!("Processing task {}", task.id);
+    info!("Processing task {}", task.id);
 
     let metadata: Metadata = serde_json::from_value(task.metadata.clone()).unwrap_or(Metadata {
         project: "default_obfuscation".to_string(),
