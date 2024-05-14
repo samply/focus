@@ -5341,6 +5341,71 @@
                     ]
                 }
             ]
+        },
+        {
+          "code": {
+            "text": "Histo"
+          },
+          "population": [
+            {
+              "code": {
+                "coding": [
+                  {
+                    "code": "initial-population",
+                    "system": "http://terminology.hl7.org/CodeSystem/measure-population"
+                  }
+                ]
+              },
+              "count": 44000
+            }
+          ],
+          "stratifier": [
+            {
+              "code": [
+                {
+                  "text": "Histologies"
+                }
+              ],
+              "stratum": [
+                {
+                  "population": [
+                    {
+                      "code": {
+                        "coding": [
+                          {
+                            "code": "initial-population",
+                            "system": "http://terminology.hl7.org/CodeSystem/measure-population"
+                          }
+                        ]
+                      },
+                      "count": 33694
+                    }
+                  ],
+                  "value": {
+                    "text": "0"
+                  }
+                },
+                {
+                  "population": [
+                    {
+                      "code": {
+                        "coding": [
+                          {
+                            "code": "initial-population",
+                            "system": "http://terminology.hl7.org/CodeSystem/measure-population"
+                          }
+                        ]
+                      },
+                      "count": 10306
+                    }
+                  ],
+                  "value": {
+                    "text": "1"
+                  }
+                }
+              ]
+            }
+          ]
         }
     ],
     "resourceType": "MeasureReport"
