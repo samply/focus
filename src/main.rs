@@ -356,7 +356,7 @@ mod test {
     use super::*;
 
     const METADATA_STRING: &str = r#"{"project": "exliquid"}"#;
-    const METADATA_STRING_EXPORTER: &str = r#"{"project": "exporter", "taskType": "EXECUTE"}"#;
+    const METADATA_STRING_EXPORTER: &str = r#"{"project": "exporter", "task_type": "EXECUTE"}"#;
 
     #[test]
     fn test_metadata_deserialization_default() {
