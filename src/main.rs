@@ -42,7 +42,6 @@ type BeamTask = TaskRequest<String>;
 type BeamResult = TaskResult<beam_lib::RawString>;
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
-#[serde(rename_all = "camelCase")]
 struct Metadata {
     project: String,
     task_type: Option<exporter::TaskType>,
