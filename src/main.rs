@@ -42,9 +42,10 @@ type BeamTask = TaskRequest<String>;
 type BeamResult = TaskResult<beam_lib::RawString>;
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
 struct Metadata {
     project: String,
-    type_: Option<exporter::TaskType>,
+    task_type: Option<exporter::TaskType>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -356,14 +357,22 @@ mod test {
     use super::*;
 
     const METADATA_STRING: &str = r#"{"project": "exliquid"}"#;
+    const METADATA_STRING_EXPORTER: &str = r#"{"project": "exporter", "taskType": "EXECUTE"}"#;
 
     #[test]
     fn test_metadata_deserialization_default() {
         let metadata: Metadata = serde_json::from_str(METADATA_STRING).unwrap_or(Metadata {
             project: "default_obfuscation".to_string(),
-            type_: None
+            task_type: None
         });
 
-        assert_eq!(metadata.type_,  None);
+        assert_eq!(metadata.task_type,  None);
+    }
+
+    #[test]
+    fn test_metadata_deserialization_exporter() {
+        let metadata: Metadata = serde_json::from_str(METADATA_STRING_EXPORTER).unwrap();
+
+        assert_eq!(metadata.task_type,  Some(exporter::TaskType::Execute));
     }
 }

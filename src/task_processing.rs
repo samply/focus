@@ -95,7 +95,7 @@ async fn process_task(
 
     let metadata: Metadata = serde_json::from_value(task.metadata.clone()).unwrap_or(Metadata {
         project: "default_obfuscation".to_string(),
-        type_: None
+        task_type: None
     });
 
     if metadata.project == "focus-healthcheck" {
@@ -108,11 +108,11 @@ async fn process_task(
     }
 
     if metadata.project == "exporter" {
-        if metadata.type_.is_none() {
+        if metadata.task_type.is_none() {
             return Err(FocusError::MissingExporterTaskType())
         }
         let body = &task.body;
-        return Ok(run_exporter_query(task, body, metadata.type_.unwrap()).await)?;
+        return Ok(run_exporter_query(task, body, metadata.task_type.unwrap()).await)?;
     }
 
     if CONFIG.endpoint_type == EndpointType::Blaze {
