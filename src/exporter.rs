@@ -74,7 +74,7 @@ pub async fn post_exporter_query(body: &String, task_type: TaskType) -> Result<S
                 value
             )));
         }
-        let id: &str = id.unwrap();
+        let id: &str = id.unwrap(); //we already made sure that it is not None
 
         let resp = CONFIG
             .client
