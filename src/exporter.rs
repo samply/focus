@@ -54,7 +54,7 @@ pub async fn post_exporter_query(body: &String, task_type: TaskType) -> Result<S
     }
 
     if task_type == TaskType::Status {
-        let value: Value = serde_json::from_slice(&(util::base64_decode(&body))?)
+        let value: Value = serde_json::from_slice(&(util::base64_decode(body))?)
         .map_err(|e| {
             FocusError::DeserializationError(format!(r#"Task body is not a valid JSON: {}"#, e))
         })?;
