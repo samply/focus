@@ -114,7 +114,7 @@ pub async fn run_cql_query(library: &Value, measure: &Value) -> Result<String, F
     let url: String = if let Ok(value) = get_json_field(&measure.to_string(), "url") {
         value.to_string().replace('"', "")
     } else {
-        return Err(FocusError::CQLQueryError());
+        return Err(FocusError::CQLQueryError);
     };
     debug!("Evaluating the Measure with canonical URL: {}", url);
 

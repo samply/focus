@@ -48,8 +48,7 @@ type BeamResult = TaskResult<beam_lib::RawString>;
 #[derive(Debug, Deserialize, Serialize, Clone)]
 struct Metadata {
     project: String,
-    #[serde(default)]
-    execute: bool,
+    task_type: Option<exporter::TaskType>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -149,7 +148,7 @@ async fn process_task(
 
     let metadata: Metadata = serde_json::from_value(task.metadata.clone()).unwrap_or(Metadata {
         project: "default_obfuscation".to_string(),
-        execute: true,
+        task_type: None
     });
 
     if metadata.project == "focus-healthcheck" {
@@ -160,10 +159,12 @@ async fn process_task(
             "healthy".into()
         ));
     }
-
     if metadata.project == "exporter" {
+        if metadata.task_type.is_none() {
+            return Err(FocusError::MissingExporterTaskType)
+        }
         let body = &task.body;
-        return Ok(run_exporter_query(task, body, metadata.execute).await)?;
+        return Ok(run_exporter_query(task, body, metadata.task_type.unwrap()).await)?; //we already made sure that it is not None
     }
 
     if CONFIG.endpoint_type == EndpointType::Blaze {
@@ -337,7 +338,7 @@ async fn run_intermediate_rep_query(
 async fn run_exporter_query(
     task: &BeamTask,
     body: &String,
-    execute: bool,
+    task_type: exporter::TaskType,
 ) -> Result<BeamResult, FocusError> {
     let mut err = beam::beam_result::perm_failed(
         CONFIG.beam_app_id_long.clone(),
@@ -346,7 +347,7 @@ async fn run_exporter_query(
         String::new(),
     );
 
-    let exporter_result = exporter::post_exporter_query(body, execute).await?;
+    let exporter_result = exporter::post_exporter_query(body, task_type).await?;
 
     let result = beam_result(task.to_owned(), exporter_result).unwrap_or_else(|e| {
         err.body = beam_lib::RawString(e.to_string());
@@ -402,19 +403,28 @@ fn beam_result(task: BeamTask, measure_report: String) -> Result<BeamResult, Foc
     ))
 }
 
+
 #[cfg(test)]
 mod test {
     use super::*;
 
     const METADATA_STRING: &str = r#"{"project": "exliquid"}"#;
+    const METADATA_STRING_EXPORTER: &str = r#"{"project": "exporter", "task_type": "EXECUTE"}"#;
 
     #[test]
     fn test_metadata_deserialization_default() {
         let metadata: Metadata = serde_json::from_str(METADATA_STRING).unwrap_or(Metadata {
             project: "default_obfuscation".to_string(),
-            execute: true,
+            task_type: None
         });
 
-        assert!(!metadata.execute);
+        assert_eq!(metadata.task_type,  None);
+    }
+
+    #[test]
+    fn test_metadata_deserialization_exporter() {
+        let metadata: Metadata = serde_json::from_str(METADATA_STRING_EXPORTER).unwrap();
+
+        assert_eq!(metadata.task_type,  Some(exporter::TaskType::Execute));
     }
 }
