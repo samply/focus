@@ -160,11 +160,11 @@ async fn process_task(
         ));
     }
     if metadata.project == "exporter" {
-        if metadata.task_type.is_none() {
-            return Err(FocusError::MissingExporterTaskType)
-        }
+        let Some(task_type) = metadata.task_type else {
+            return Err(FocusError::MissingExporterTaskType);
+        };
         let body = &task.body;
-        return Ok(run_exporter_query(task, body, metadata.task_type.unwrap()).await)?; //we already made sure that it is not None
+        return Ok(run_exporter_query(task, body, task_type).await)?; //we already made sure that it is not None
     }
 
     if CONFIG.endpoint_type == EndpointType::Blaze {
