@@ -54,27 +54,17 @@ pub async fn post_exporter_query(body: &String, task_type: TaskType) -> Result<S
     }
 
     if task_type == TaskType::Status {
-        let value: Value = serde_json::from_str(
-            String::from_utf8(util::base64_decode(&body)?)
-                .map_err(|e| {
-                    FocusError::DeserializationError(format!(
-                        r#"Task body is not a valid string {}"#,
-                        e
-                    ))
-                })?
-                .as_str(),
-        )
+        let value: Value = serde_json::from_slice(&(util::base64_decode(&body))?)
         .map_err(|e| {
             FocusError::DeserializationError(format!(r#"Task body is not a valid JSON: {}"#, e))
         })?;
         let id = value["query-execution-id"].as_str();
-        if id.is_none() {
+        let Some(id) = id else {
             return Err(FocusError::ParsingError(format!(
                 r#"Body does not contain the id of the query to check the status of: {}"#,
                 value
             )));
-        }
-        let id: &str = id.unwrap(); //we already made sure that it is not None
+        };
 
         let resp = CONFIG
             .client
