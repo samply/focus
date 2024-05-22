@@ -40,7 +40,7 @@ const EXECUTE: Params = Params {
 
 pub async fn post_exporter_query(body: &String, task_type: TaskType) -> Result<String, FocusError> {
     let Some(exporter_url) = &CONFIG.exporter_url else {
-        return Err(FocusError::MissingExporterEndpoint());
+        return Err(FocusError::MissingExporterEndpoint);
     };
 
     let mut headers = HeaderMap::new();
