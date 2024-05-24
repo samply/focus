@@ -378,7 +378,6 @@ mod test {
     const EMPTY: &str =
         r#"{"ast":{"children":[],"operand":"OR"}, "id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
 
-    #[cfg(feature = "bbmri")]
     #[test]
     fn test_common() {
         // maybe nothing here
