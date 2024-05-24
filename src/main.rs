@@ -23,9 +23,9 @@ use futures_util::FutureExt;
 use laplace_rs::ObfCache;
 use tokio::sync::Mutex;
 
-use crate::blaze::{parse_blaze_query_ast, parse_blaze_query_cql};
+use crate::blaze::{parse_blaze_query_payload_ast, AstQuery};
 use crate::config::EndpointType;
-use crate::util::{is_cql_tampered_with, obfuscate_counts_mr};
+use crate::util::{base64_decode, is_cql_tampered_with, obfuscate_counts_mr};
 use crate::{config::CONFIG, errors::FocusError};
 use blaze::CqlQuery;
 
@@ -167,46 +167,39 @@ async fn process_task(
             return Err(FocusError::MissingExporterTaskType);
         };
         let body = &task.body;
-        return Ok(run_exporter_query(task, body, task_type).await)?; //we already made sure that it is not None
+        return Ok(run_exporter_query(task, body, task_type).await?);
     }
 
     if CONFIG.endpoint_type == EndpointType::Blaze {
-        let mut query_maybe = parse_blaze_query_cql(task);
-        if let Err(_e) = query_maybe {
-           let query_string = cql::generate_body(parse_blaze_query_ast(task)?.payload)?;
-           query_maybe = serde_json::from_str(&query_string).map_err(|e| FocusError::ParsingError(e.to_string())) 
+        #[derive(Deserialize, Debug)]
+        #[serde(tag = "lang", rename_all = "lowercase")]
+        enum Language {
+            Cql(CqlQuery),
+            Ast(AstQuery)
         }
+        let mut generated_from_ast: bool = false;
+        let data = base64_decode(&task.body)?;
+        let query: CqlQuery = match serde_json::from_slice::<Language>(&data)? {
+            Language::Cql(cql_query) => cql_query,
+            Language::Ast(ast_query) => {
+                generated_from_ast = true;
+                serde_json::from_str(&cql::generate_body(parse_blaze_query_payload_ast(&ast_query.payload)?)?)?
+            }
+        };
+        run_cql_query(task, &query, obf_cache, report_cache, metadata.project, generated_from_ast).await
 
-        let query = query_maybe.unwrap();
-
-        if query.lang == "cql" {
-            // TODO: Change query.lang to an enum
-
-            Ok(run_cql_query(task, &query, obf_cache, report_cache, metadata.project).await)?
-        } else {
-            warn!("Can't run queries with language {} in Blaze", query.lang);
-            Ok(beam::beam_result::perm_failed(
-                CONFIG.beam_app_id_long.clone(),
-                vec![task.from.clone()],
-                task.id,
-                format!(
-                    "Can't run queries with language {} and/or endpoint type {}",
-                    query.lang, CONFIG.endpoint_type
-                ),
-            ))
-        }
     } else if CONFIG.endpoint_type == EndpointType::Omop {
         let decoded = util::base64_decode(&task.body)?;
         let intermediate_rep_query: intermediate_rep::IntermediateRepQuery =
-            serde_json::from_slice(&decoded).map_err(|e| FocusError::ParsingError(e.to_string()))?;
+            serde_json::from_slice(&decoded)?;
         //TODO check that the language is ast
         let query_decoded = general_purpose::STANDARD
             .decode(intermediate_rep_query.query)
             .map_err(FocusError::DecodeError)?;
         let ast: ast::Ast =
-            serde_json::from_slice(&query_decoded).map_err(|e| FocusError::ParsingError(e.to_string()))?;
+            serde_json::from_slice(&query_decoded)?;
 
-        Ok(run_intermediate_rep_query(task, ast).await)?
+        Ok(run_intermediate_rep_query(task, ast).await?)
     } else {
         warn!(
             "Can't run queries with endpoint type {}",
@@ -230,6 +223,7 @@ async fn run_cql_query(
     obf_cache: Arc<Mutex<ObfCache>>,
     report_cache: Arc<Mutex<ReportCache>>,
     project: String,
+    generated_from_ast: bool
 ) -> Result<BeamResult, FocusError> {
     let encoded_query =
         query.lib["content"][0]["data"]
@@ -264,7 +258,12 @@ async fn run_cql_query(
     let cql_result_new = match report_from_cache {
         Some(some_report_from_cache) => some_report_from_cache.to_string(),
         None => {
-            let query = replace_cql_library(query.clone())?;
+            let query =
+            if generated_from_ast {
+               query.clone()
+            } else {
+                replace_cql_library(query.clone())?
+            };
 
             let cql_result = blaze::run_cql_query(&query.lib, &query.measure).await?;
 

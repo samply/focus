@@ -12,16 +12,15 @@ use indexmap::set::IndexSet;
 use uuid::Uuid;
 
 pub fn generate_body(ast: ast::Ast) -> Result<String, FocusError> {
-    Ok(BASE64.encode(
-        BODY.clone()
-            .to_string()
-            .replace("{{LIBRARY_UUID}}", Uuid::new_v4().to_string().as_str())
-            .replace("{{MEASURE_UUID}}", Uuid::new_v4().to_string().as_str())
-            .replace(
-                "{{LIBRARY_ENCODED}}",
-                BASE64.encode(generate_cql(ast)?).as_str(),
-            ),
-    ))
+    Ok(BODY.clone()
+        .to_string()
+        .replace("{{LIBRARY_UUID}}", format!("urn:uuid:{}", Uuid::new_v4().to_string()).as_str())
+        .replace("{{MEASURE_UUID}}", format!("urn:uuid:{}", Uuid::new_v4().to_string()).as_str())
+        .replace(
+            "{{LIBRARY_ENCODED}}",
+            BASE64.encode(generate_cql(ast)?).as_str(),
+        )
+)
 }
 
 fn generate_cql(ast: ast::Ast) -> Result<String, FocusError> {

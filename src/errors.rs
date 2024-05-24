@@ -24,6 +24,8 @@ pub enum FocusError {
     ConfigurationError(String),
     #[error("Cannot open file: {0}")]
     FileOpeningError(String),
+    #[error("Serde parsing error: {0}")]
+    SerdeParsingError(#[from] serde_json::Error),
     #[error("Parsing error: {0}")]
     ParsingError(String),
     #[error("CQL tampered with: {0}")]
@@ -66,7 +68,7 @@ impl FocusError {
         use FocusError::*;
         // TODO: Add more match arms
         match self {
-            DecodeError(_) | ParsingError(_) =>  "Cannot parse query.",
+            DecodeError(_) | SerdeParsingError(_) =>  "Cannot parse query.",
             LaplaceError(_) => "Cannot obfuscate result.",
             _ => "Failed to execute query."
         }
