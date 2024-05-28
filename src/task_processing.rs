@@ -92,4 +92,3 @@ async fn answer_task_result(task: &BeamTask, task_result: Result<BeamResult, Foc
         tokio::time::sleep(Duration::from_secs(2)).await;
     }
 }
-

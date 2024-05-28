@@ -1,0 +1,172 @@
+{
+	"lang": "cql",
+	"lib": {
+		"content": [
+			{
+				"contentType": "text/cql",
+				"data": "{{LIBRARY_ENCODED}}"
+			}
+		],
+		"resourceType": "Library",
+		"status": "active",
+		"type": {
+			"coding": [
+				{
+					"code": "logic-library",
+					"system": "http://terminology.hl7.org/CodeSystem/library-type"
+				}
+			]
+		},
+		"url": "{{LIBRARY_UUID}}"
+	},
+	"measure": {
+		"group": [
+			{
+				"code": {
+					"text": "patient"
+				},
+				"population": [
+					{
+						"code": {
+							"coding": [
+								{
+									"code": "initial-population",
+									"system": "http://terminology.hl7.org/CodeSystem/measure-population"
+								}
+							]
+						},
+						"criteria": {
+							"expression": "InInitialPopulation",
+							"language": "text/cql-identifier"
+						}
+					}
+				],
+				"stratifier": [
+					{
+						"code": {
+							"text": "gender"
+						},
+						"criteria": {
+							"expression": "Gender",
+							"language": "text/cql"
+						}
+					},
+					{
+						"code": {
+							"text": "Age"
+						},
+						"criteria": {
+							"expression": "AgeClass",
+							"language": "text/cql"
+						}
+					},
+					{
+						"code": {
+							"text": "Custodian"
+						},
+						"criteria": {
+							"expression": "Custodian",
+							"language": "text/cql"
+						}
+					}
+				]
+			},
+			{
+				"code": {
+					"text": "diagnosis"
+				},
+				"extension": [
+					{
+						"url": "http://hl7.org/fhir/us/cqfmeasures/StructureDefinition/cqfm-populationBasis",
+						"valueCode": "Condition"
+					}
+				],
+				"population": [
+					{
+						"code": {
+							"coding": [
+								{
+									"code": "initial-population",
+									"system": "http://terminology.hl7.org/CodeSystem/measure-population"
+								}
+							]
+						},
+						"criteria": {
+							"expression": "Diagnosis",
+							"language": "text/cql-identifier"
+						}
+					}
+				],
+				"stratifier": [
+					{
+						"code": {
+							"text": "diagnosis"
+						},
+						"criteria": {
+							"expression": "DiagnosisCode",
+							"language": "text/cql-identifier"
+						}
+					}
+				]
+			},
+			{
+				"code": {
+					"text": "specimen"
+				},
+				"extension": [
+					{
+						"url": "http://hl7.org/fhir/us/cqfmeasures/StructureDefinition/cqfm-populationBasis",
+						"valueCode": "Specimen"
+					}
+				],
+				"population": [
+					{
+						"code": {
+							"coding": [
+								{
+									"code": "initial-population",
+									"system": "http://terminology.hl7.org/CodeSystem/measure-population"
+								}
+							]
+						},
+						"criteria": {
+							"expression": "Specimen",
+							"language": "text/cql-identifier"
+						}
+					}
+				],
+				"stratifier": [
+					{
+						"code": {
+							"text": "sample_kind"
+						},
+						"criteria": {
+							"expression": "SampleType",
+							"language": "text/cql"
+						}
+					}
+				]
+			}
+		],
+		"library": "{{LIBRARY_UUID}}",
+		"resourceType": "Measure",
+		"scoring": {
+			"coding": [
+				{
+					"code": "cohort",
+					"system": "http://terminology.hl7.org/CodeSystem/measure-scoring"
+				}
+			]
+		},
+		"status": "active",
+		"subjectCodeableConcept": {
+			"coding": [
+				{
+					"code": "Patient",
+					"system": "http://hl7.org/fhir/resource-types"
+				}
+			]
+		},
+		"url": "{{MEASURE_UUID}}"
+	}
+}

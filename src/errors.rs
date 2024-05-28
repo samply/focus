@@ -24,6 +24,8 @@ pub enum FocusError {
     ConfigurationError(String),
     #[error("Cannot open file: {0}")]
     FileOpeningError(String),
+    #[error("Serde parsing error: {0}")]
+    SerdeParsingError(#[from] serde_json::Error),
     #[error("Parsing error: {0}")]
     ParsingError(String),
     #[error("CQL tampered with: {0}")]
@@ -44,6 +46,14 @@ pub enum FocusError {
     ExporterQueryErrorReqwest(String),
     #[error("AST Posting error in Reqwest: {0}")]
     AstPostingErrorReqwest(String),
+    #[error("Unknown criterion in AST: {0}")]
+    AstUnknownCriterion(String),
+    #[error("Unknown option in AST: {0}")]
+    AstUnknownOption(String),
+    #[error("Mismatch between operator and value type")]
+    AstOperatorValueMismatch(String),
+    #[error("Invalid date format: {0}")]
+    AstInvalidDateFormat(String),
     #[error("Invalid Header Value: {0}")]
     InvalidHeaderValue(http::header::InvalidHeaderValue),
     #[error("Missing Exporter Endpoint")]
@@ -58,7 +68,7 @@ impl FocusError {
         use FocusError::*;
         // TODO: Add more match arms
         match self {
-            DecodeError(_) | ParsingError(_) =>  "Cannot parse query.",
+            DecodeError(_) | ParsingError(_) | SerdeParsingError(_) =>  "Cannot parse query.",
             LaplaceError(_) => "Cannot obfuscate result.",
             _ => "Failed to execute query."
         }
