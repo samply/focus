@@ -10,17 +10,23 @@ use chrono::offset::Utc;
 use chrono::DateTime;
 use indexmap::set::IndexSet;
 use uuid::Uuid;
+use tracing::info;
 
 pub fn generate_body(ast: ast::Ast) -> Result<String, FocusError> {
-    Ok(BODY.clone()
+    Ok(BODY
         .to_string()
-        .replace("{{LIBRARY_UUID}}", format!("urn:uuid:{}", Uuid::new_v4().to_string()).as_str())
-        .replace("{{MEASURE_UUID}}", format!("urn:uuid:{}", Uuid::new_v4().to_string()).as_str())
+        .replace(
+            "{{LIBRARY_UUID}}",
+            format!("urn:uuid:{}", Uuid::new_v4().to_string()).as_str(),
+        )
+        .replace(
+            "{{MEASURE_UUID}}",
+            format!("urn:uuid:{}", Uuid::new_v4().to_string()).as_str(),
+        )
         .replace(
             "{{LIBRARY_ENCODED}}",
             BASE64.encode(generate_cql(ast)?).as_str(),
-        )
-)
+        ))
 }
 
 fn generate_cql(ast: ast::Ast) -> Result<String, FocusError> {
@@ -44,7 +50,7 @@ fn generate_cql(ast: ast::Ast) -> Result<String, FocusError> {
             grandchild.clone(),
             &mut retrieval_criteria,
             &mut filter_criteria,
-            &mut mandatory_codes
+            &mut mandatory_codes,
         )?;
 
         // Only concatenate operator if it's not the last element
@@ -87,7 +93,7 @@ pub fn process(
     child: ast::Child,
     retrieval_criteria: &mut String,
     filter_criteria: &mut String,
-    code_systems: &mut IndexSet<&str>
+    code_systems: &mut IndexSet<&str>,
 ) -> Result<(), FocusError> {
     let mut retrieval_cond: String = "(".to_string();
     let mut filter_cond: String = "".to_string();
@@ -96,8 +102,7 @@ pub fn process(
         ast::Child::Condition(condition) => {
             let condition_key_trans = condition.key.as_str();
 
-            let condition_snippet =
-                CQL_SNIPPETS.get(&(condition_key_trans, CriterionRole::Query));
+            let condition_snippet = CQL_SNIPPETS.get(&(condition_key_trans, CriterionRole::Query));
 
             if let Some(snippet) = condition_snippet {
                 let mut condition_string = (*snippet).to_string();
@@ -106,13 +111,11 @@ pub fn process(
                 let filter_snippet =
                     CQL_SNIPPETS.get(&(condition_key_trans, CriterionRole::Filter));
 
-                let code_lists_option =
-                    CRITERION_CODE_LISTS.get(&(condition_key_trans));
+                let code_lists_option = CRITERION_CODE_LISTS.get(&(condition_key_trans));
                 if let Some(code_lists_vec) = code_lists_option {
                     for (index, code_list) in code_lists_vec.iter().enumerate() {
                         code_systems.insert(code_list);
-                        let placeholder =
-                            "{{A".to_string() + (index + 1).to_string().as_str() + "}}"; //to keep compatibility with snippets in typescript
+                        let placeholder = format!("{{{{A{}}}}}", (index + 1).to_string()); //to keep compatibility with snippets in typescript
                         condition_string =
                             condition_string.replace(placeholder.as_str(), code_list);
                     }
@@ -142,36 +145,32 @@ pub fn process(
                             ast::ConditionValue::DateRange(date_range) => {
                                 let datetime_str_min = date_range.min.as_str();
                                 let datetime_result_min: Result<DateTime<Utc>, _> =
-                                    datetime_str_min.parse();
+                                    datetime_str_min.parse().map_err(|_| {
+                                        FocusError::AstInvalidDateFormat(date_range.min)
+                                    });
 
-                                if let Ok(datetime_min) = datetime_result_min {
-                                    let date_str_min =
-                                        format!("@{}", datetime_min.format("%Y-%m-%d"));
+                                let datetime_min = datetime_result_min.unwrap(); // we returned if Err
+                                let date_str_min = format!("@{}", datetime_min.format("%Y-%m-%d"));
 
-                                    condition_string =
-                                        condition_string.replace("{{D1}}", date_str_min.as_str());
-                                    filter_string =
-                                        filter_string.replace("{{D1}}", date_str_min.as_str());
+                                condition_string =
+                                    condition_string.replace("{{D1}}", date_str_min.as_str());
+                                filter_string =
+                                    filter_string.replace("{{D1}}", date_str_min.as_str());
                                 // no condition needed, "" stays ""
-                                } else {
-                                    return Err(FocusError::AstInvalidDateFormat(date_range.min));
-                                }
 
                                 let datetime_str_max = date_range.max.as_str();
                                 let datetime_result_max: Result<DateTime<Utc>, _> =
-                                    datetime_str_max.parse();
-                                if let Ok(datetime_max) = datetime_result_max {
-                                    let date_str_max =
-                                        format!("@{}", datetime_max.format("%Y-%m-%d"));
+                                    datetime_str_max.parse().map_err(|_| {
+                                        FocusError::AstInvalidDateFormat(date_range.max)
+                                    });
+                                let datetime_max = datetime_result_max.unwrap(); // we returned if Err
+                                let date_str_max = format!("@{}", datetime_max.format("%Y-%m-%d"));
 
-                                    condition_string =
-                                        condition_string.replace("{{D2}}", date_str_max.as_str());
-                                    filter_string =
-                                        filter_string.replace("{{D2}}", date_str_max.as_str());
+                                condition_string =
+                                    condition_string.replace("{{D2}}", date_str_max.as_str());
+                                filter_string =
+                                    filter_string.replace("{{D2}}", date_str_max.as_str());
                                 // no condition needed, "" stays ""
-                                } else {
-                                    return Err(FocusError::AstInvalidDateFormat(date_range.max));
-                                }
                             }
                             ast::ConditionValue::NumRange(num_range) => {
                                 condition_string = condition_string
@@ -184,8 +183,8 @@ pub fn process(
                                     .replace("{{D2}}", num_range.max.to_string().as_str());
                                 // no condition needed, "" stays ""
                             }
-                            _ => {
-                                return Err(FocusError::AstOperatorValueMismatch());
+                            other => {
+                                return Err(FocusError::AstOperatorValueMismatch(format!("Operator BETWEEN can only be used for numerical and date values, not for {:?}", other)));
                             }
                         }
                     } // deal with no lower or no upper value
@@ -238,8 +237,8 @@ pub fn process(
                                     filter_string = filter_humongous_string + ")";
                                 }
                             }
-                            _ => {
-                                return Err(FocusError::AstOperatorValueMismatch());
+                            other => {
+                                return Err(FocusError::AstOperatorValueMismatch(format!("Operator IN can only be used for string arrays, not for {:?}", other)));
                             }
                         }
                     } // this becomes or of all
@@ -283,16 +282,13 @@ pub fn process(
                                 filter_string = filter_humongous_string + ")";
                             }
                         }
-                        _ => {
-                            return Err(FocusError::AstOperatorValueMismatch());
+                        other => {
+                            return Err(FocusError::AstOperatorValueMismatch(format!("Operator EQUALS can only be used for string arrays, not for {:?}", other)));
                         }
                     },
-                    ast::ConditionType::NotEquals => { // won't get it from Lens yet
+                    other => { // won't get it from Lens yet
+                        info!("Got this condition type which Lens is not programmed to send, ignoring: {:?}", other);
                     }
-                    ast::ConditionType::Contains => { // won't get it from Lens yet
-                    }
-                    ast::ConditionType::GreaterThan => {} // won't get it from Lens yet
-                    ast::ConditionType::LowerThan => {}   // won't get it from Lens yet
                 };
 
                 retrieval_cond += condition_string.as_str();
@@ -307,9 +303,6 @@ pub fn process(
                     condition_key_trans.to_string(),
                 ));
             }
-            if !filter_cond.is_empty() {
-                //for historical reasons
-            }
         }
 
         ast::Child::Operation(operation) => {
@@ -323,7 +316,7 @@ pub fn process(
                     grandchild.clone(),
                     &mut retrieval_cond,
                     &mut filter_cond,
-                    code_systems
+                    code_systems,
                 )?;
 
                 // Only concatenate operator if it's not the last element
@@ -394,16 +387,12 @@ mod test {
         );
 
         pretty_assertions::assert_eq!(
-            generate_cql(
-                serde_json::from_str(AGE_AT_DIAGNOSIS_30_TO_70).unwrap())
-            .unwrap(),
+            generate_cql(serde_json::from_str(AGE_AT_DIAGNOSIS_30_TO_70).unwrap()).unwrap(),
             include_str!("../resources/test/result_age_at_diagnosis_30_to_70.cql").to_string()
         );
 
         pretty_assertions::assert_eq!(
-            generate_cql(
-                serde_json::from_str(AGE_AT_DIAGNOSIS_LOWER_THAN_70).unwrap())
-            .unwrap(),
+            generate_cql(serde_json::from_str(AGE_AT_DIAGNOSIS_LOWER_THAN_70).unwrap()).unwrap(),
             include_str!("../resources/test/result_age_at_diagnosis_lower_than_70.cql").to_string()
         );
 

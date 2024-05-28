@@ -51,7 +51,7 @@ pub enum FocusError {
     #[error("Unknown option in AST: {0}")]
     AstUnknownOption(String),
     #[error("Mismatch between operator and value type")]
-    AstOperatorValueMismatch(),
+    AstOperatorValueMismatch(String),
     #[error("Invalid date format: {0}")]
     AstInvalidDateFormat(String),
     #[error("Invalid Header Value: {0}")]
@@ -68,7 +68,7 @@ impl FocusError {
         use FocusError::*;
         // TODO: Add more match arms
         match self {
-            DecodeError(_) | SerdeParsingError(_) =>  "Cannot parse query.",
+            DecodeError(_) | ParsingError(_) | SerdeParsingError(_) =>  "Cannot parse query.",
             LaplaceError(_) => "Cannot obfuscate result.",
             _ => "Failed to execute query."
         }

@@ -48,6 +48,13 @@ type Created = std::time::SystemTime; //epoch
 type BeamTask = TaskRequest<String>;
 type BeamResult = TaskResult<beam_lib::RawString>;
 
+#[derive(Deserialize, Debug)]
+#[serde(tag = "lang", rename_all = "lowercase")]
+enum Language {
+    Cql(CqlQuery),
+    Ast(AstQuery)
+}
+
 #[derive(Debug, Deserialize, Serialize, Clone)]
 struct Metadata {
     project: String,
@@ -171,12 +178,6 @@ async fn process_task(
     }
 
     if CONFIG.endpoint_type == EndpointType::Blaze {
-        #[derive(Deserialize, Debug)]
-        #[serde(tag = "lang", rename_all = "lowercase")]
-        enum Language {
-            Cql(CqlQuery),
-            Ast(AstQuery)
-        }
         let mut generated_from_ast: bool = false;
         let data = base64_decode(&task.body)?;
         let query: CqlQuery = match serde_json::from_slice::<Language>(&data)? {
