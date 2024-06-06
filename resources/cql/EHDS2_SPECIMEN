@@ -1,0 +1,13 @@
+define SpecimenList:
+    if InInitialPopulation then [Specimen] else {} as List<Specimen>
+
+// Return the isolate ID for the given Specimen
+define function SpecimenIsolateId(specimen FHIR.Specimen):
+    SensibleString(specimen.id)
+
+// Check to see if there are any Specimen resources with the
+// given isolate ID.
+define function ExistsSpecimenIsolateId(id_var String):
+    exists from [Specimen] S
+        where SpecimenIsolateId(S) = id_var
+
