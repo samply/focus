@@ -80,6 +80,7 @@ allow = [
     "Apache-2.0",
     "ISC",
     "BSD-3-Clause",
+    "Unicode-DFS-2016",
     "Unicode-3.0",
     #"Apache-2.0 WITH LLVM-exception",
 ]
