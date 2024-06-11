@@ -17,7 +17,7 @@ chrono = "0.4.31"
 indexmap = "2.1.0"
 tokio = { version = "1.25.0", default_features = false, features = ["signal", "rt-multi-thread", "macros"] }
 beam-lib = { git = "https://github.com/samply/beam", branch = "develop", features = ["http-util"] }
-laplace_rs = {version = "0.3.0", git = "https://github.com/samply/laplace-rs.git", branch = "main" }
+laplace_rs = {git = "https://github.com/samply/laplace-rs.git", tag = "v0.3.0" }
 uuid = "1.8.0"
 rand = { default-features = false, version = "0.8.5" }
 futures-util = { version = "0.3", default-features = false, features = ["std"] }
