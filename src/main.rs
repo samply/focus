@@ -70,7 +70,7 @@ impl ReportCache {
     pub fn new() -> Self {
         let mut cache = HashMap::new();
 
-        if let Some(filename) = CONFIG.queries_to_cache_file_path.clone() {
+        if let Some(filename) = CONFIG.queries_to_cache.clone() {
             let lines = util::read_lines(filename.clone().to_string());
             match lines {
                 Ok(ok_lines) => {

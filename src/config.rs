@@ -133,7 +133,7 @@ struct CliArgs {
 
     /// The path to the file containing BASE64 encoded queries whose results are to be cached
     #[clap(long, env, value_parser)]
-    queries_to_cache_file_path: Option<String>,
+    queries_to_cache: Option<PathBuf>,
 
     /// Outgoing HTTP proxy: Directory with CA certificates to trust for TLS connections (e.g. /etc/samply/cacerts/)
     #[clap(long, env, value_parser)]
@@ -173,7 +173,7 @@ pub(crate) struct Config {
     pub epsilon: f64,
     pub rounding_step: usize,
     pub unobfuscated: Vec<String>,
-    pub queries_to_cache_file_path: Option<String>,
+    pub queries_to_cache: Option<String>,
     tls_ca_certificates: Vec<Certificate>,
     pub client: Client,
     pub provider: Option<String>,
@@ -216,7 +216,7 @@ impl Config {
             epsilon: cli_args.epsilon,
             rounding_step: cli_args.rounding_step,
             unobfuscated: cli_args.projects_no_obfuscation.split(';').map(|s| s.to_string()).collect(),
-            queries_to_cache_file_path: cli_args.queries_to_cache_file_path,
+            queries_to_cache: cli_args.queries_to_cache,
             tls_ca_certificates,
             provider: cli_args.provider,
             provider_icon: cli_args.provider_icon,
