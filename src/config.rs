@@ -131,7 +131,7 @@ struct CliArgs {
     #[clap(long, env, value_parser, default_value = "exliquid;dktk_supervisors;exporter;ehds2")]
     projects_no_obfuscation: String,
 
-    /// The path to the file containing BASE64 encoded queries whose results are to be cached
+    /// Path to a file containing BASE64 encoded queries whose results are to be cached
     #[clap(long, env, value_parser)]
     queries_to_cache: Option<PathBuf>,
 
