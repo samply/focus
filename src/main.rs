@@ -3,26 +3,33 @@ mod banner;
 mod beam;
 mod blaze;
 mod config;
+mod cql;
 mod errors;
-mod exporter;
 mod graceful_shutdown;
 mod logger;
 
 mod intermediate_rep;
 mod task_processing;
 mod util;
+mod projects;
+mod exporter;
 
+
+use base64::engine::general_purpose;
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
-use beam_lib::{MsgId, TaskRequest, TaskResult};
+use beam_lib::{TaskRequest, TaskResult};
+use futures_util::future::BoxFuture;
+use futures_util::FutureExt;
 use laplace_rs::ObfCache;
-use task_processing::TaskQueue;
 use tokio::sync::Mutex;
 
-use crate::util::{is_cql_tampered_with, obfuscate_counts_mr};
+use crate::blaze::{parse_blaze_query_payload_ast, AstQuery};
+use crate::config::EndpointType;
+use crate::util::{base64_decode, is_cql_tampered_with, obfuscate_counts_mr};
 use crate::{config::CONFIG, errors::FocusError};
 use blaze::CqlQuery;
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::ops::DerefMut;
 use std::process::ExitCode;
 use std::str;
@@ -41,11 +48,17 @@ type Created = std::time::SystemTime; //epoch
 type BeamTask = TaskRequest<String>;
 type BeamResult = TaskResult<beam_lib::RawString>;
 
+#[derive(Deserialize, Debug)]
+#[serde(tag = "lang", rename_all = "lowercase")]
+enum Language {
+    Cql(CqlQuery),
+    Ast(AstQuery)
+}
+
 #[derive(Debug, Deserialize, Serialize, Clone)]
 struct Metadata {
     project: String,
-    #[serde(default)]
-    execute: bool,
+    task_type: Option<exporter::TaskType>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -54,32 +67,31 @@ struct ReportCache {
 }
 
 impl ReportCache {
- 
     pub fn new() -> Self {
         let mut cache = HashMap::new();
- 
+
         if let Some(filename) = CONFIG.queries_to_cache_file_path.clone() {
             let lines = util::read_lines(filename.clone().to_string());
             match lines {
                 Ok(ok_lines) => {
-                   for line in ok_lines {
-                       let Ok(ok_line) = line else {
-                           warn!("A line in the file {} is not readable", filename);
-                           continue;
-                       };
-                       cache.insert((ok_line.clone(), false), ("".into(), UNIX_EPOCH));
-                       cache.insert((ok_line, true), ("".into(), UNIX_EPOCH));
-                   }
-                },
+                    for line in ok_lines {
+                        let Ok(ok_line) = line else {
+                            warn!("A line in the file {} is not readable", filename);
+                            continue;
+                        };
+                        cache.insert((ok_line.clone(), false), ("".into(), UNIX_EPOCH));
+                        cache.insert((ok_line, true), ("".into(), UNIX_EPOCH));
+                    }
+                }
                 Err(_) => {
-                   error!("The file {} cannot be opened", filename); //This shouldn't stop focus from running, it's just going to go to blaze every time, but that's not too slow
+                    error!("The file {} cannot be opened", filename); //This shouldn't stop focus from running, it's just going to go to blaze every time, but that's not too slow
                 }
             }
         }
- 
-        Self {cache}
+
+        Self { cache }
     }
- }
+}
 
 const REPORTCACHE_TTL: Duration = Duration::from_secs(86400); //24h
 
@@ -110,66 +122,106 @@ pub async fn main() -> ExitCode {
 async fn main_loop() -> ExitCode {
     info!("main_loop: entered");
 
-    // TODO: The report cache init should be an fn on the cache
-    let report_cache: ReportCache = ReportCache::new();
-
-    let mut seen_tasks = Default::default();
-    let mut task_queue = task_processing::spawn_task_workers(report_cache);
+    let endpoint_service_available: fn() -> BoxFuture<'static, bool> = match CONFIG.endpoint_type {
+        EndpointType::Blaze => || blaze::check_availability().boxed(),
+        EndpointType::Omop => || async { true }.boxed(), // TODO health check
+    };
     let mut failures = 0;
-    while failures < CONFIG.retry_count {
-        if failures > 0 {
-            warn!(
-                "Retrying connection (attempt {}/{})",
-                failures + 1,
+    while !(beam::check_availability().await && endpoint_service_available().await) {
+        failures += 1;
+        if failures >= CONFIG.retry_count {
+            error!(
+                "Encountered too many errors -- exiting after {} attempts.",
                 CONFIG.retry_count
             );
-            tokio::time::sleep(Duration::from_secs(2)).await;
+            return ExitCode::from(22);
         }
-        if !(beam::check_availability().await) {
-            failures += 1;
-        }
-        if CONFIG.endpoint_type == config::EndpointType::Blaze {
-            if !(blaze::check_availability().await) {
-                failures += 1;
-            }
-        } else if CONFIG.endpoint_type == config::EndpointType::Omop {
-
-            //TODO health check
-        }
-
-        if let Err(e) = process_tasks(&mut task_queue, &mut seen_tasks).await {
-            warn!("Encountered the following error, while processing tasks: {e}");
-            failures += 1; 
-        } else {
-            failures = 0;
-        }
-    }
-    info!("main_loop: continuing");
-    error!(
-        "Encountered too many errors -- exiting after {} attempts.",
-        CONFIG.retry_count
-    );
-    ExitCode::from(22)
+        tokio::time::sleep(Duration::from_secs(2)).await;
+        warn!(
+            "Retrying connection (attempt {}/{})",
+            failures,
+            CONFIG.retry_count
+        );
+    };
+    let report_cache = Arc::new(Mutex::new(ReportCache::new()));
+    let obf_cache = Arc::new(Mutex::new(ObfCache {
+        cache: Default::default(),
+    }));
+    task_processing::process_tasks(move |task| {
+        let obf_cache = obf_cache.clone();
+        let report_cache = report_cache.clone();
+        process_task(task, obf_cache, report_cache).boxed_local()
+    }).await;
+    ExitCode::FAILURE
 }
 
-async fn process_tasks(
-    task_queue: &mut TaskQueue,
-    seen: &mut HashSet<MsgId>,
-) -> Result<(), FocusError> {
-    debug!("Start processing tasks...");
+async fn process_task(
+    task: &BeamTask,
+    obf_cache: Arc<Mutex<ObfCache>>,
+    report_cache: Arc<Mutex<ReportCache>>,
+) -> Result<BeamResult, FocusError> {
+    debug!("Processing task {}", task.id);
 
-    let tasks = beam::retrieve_tasks().await?;
-    for task in tasks {
-        if seen.contains(&task.id) {
-            continue;
-        }
-        seen.insert(task.id);
-        task_queue
-            .send(task)
-            .await
-            .expect("Receiver is never dropped");
+    let metadata: Metadata = serde_json::from_value(task.metadata.clone()).unwrap_or(Metadata {
+        project: "default_obfuscation".to_string(),
+        task_type: None
+    });
+
+    if metadata.project == "focus-healthcheck" {
+        return Ok(beam::beam_result::succeeded(
+            CONFIG.beam_app_id_long.clone(),
+            vec![task.from.clone()],
+            task.id,
+            "healthy".into()
+        ));
     }
-    Ok(())
+    if metadata.project == "exporter" {
+        let Some(task_type) = metadata.task_type else {
+            return Err(FocusError::MissingExporterTaskType);
+        };
+        let body = &task.body;
+        return Ok(run_exporter_query(task, body, task_type).await?);
+    }
+
+    if CONFIG.endpoint_type == EndpointType::Blaze {
+        let mut generated_from_ast: bool = false;
+        let data = base64_decode(&task.body)?;
+        let query: CqlQuery = match serde_json::from_slice::<Language>(&data)? {
+            Language::Cql(cql_query) => cql_query,
+            Language::Ast(ast_query) => {
+                generated_from_ast = true;
+                serde_json::from_str(&cql::generate_body(parse_blaze_query_payload_ast(&ast_query.payload)?)?)?
+            }
+        };
+        run_cql_query(task, &query, obf_cache, report_cache, metadata.project, generated_from_ast).await
+
+    } else if CONFIG.endpoint_type == EndpointType::Omop {
+        let decoded = util::base64_decode(&task.body)?;
+        let intermediate_rep_query: intermediate_rep::IntermediateRepQuery =
+            serde_json::from_slice(&decoded)?;
+        //TODO check that the language is ast
+        let query_decoded = general_purpose::STANDARD
+            .decode(intermediate_rep_query.query)
+            .map_err(FocusError::DecodeError)?;
+        let ast: ast::Ast =
+            serde_json::from_slice(&query_decoded)?;
+
+        Ok(run_intermediate_rep_query(task, ast).await?)
+    } else {
+        warn!(
+            "Can't run queries with endpoint type {}",
+            CONFIG.endpoint_type
+        );
+        Ok(beam::beam_result::perm_failed(
+            CONFIG.beam_app_id_long.clone(),
+            vec![task.from.clone()],
+            task.id,
+            format!(
+                "Can't run queries with endpoint type {}",
+                CONFIG.endpoint_type
+            ),
+        ))
+    }
 }
 
 async fn run_cql_query(
@@ -178,6 +230,7 @@ async fn run_cql_query(
     obf_cache: Arc<Mutex<ObfCache>>,
     report_cache: Arc<Mutex<ReportCache>>,
     project: String,
+    generated_from_ast: bool
 ) -> Result<BeamResult, FocusError> {
     info!("run_cql_query: entered");
 
@@ -193,7 +246,8 @@ async fn run_cql_query(
 
     info!("run_cql_query: obfuscate");
 
-    let obfuscate = CONFIG.obfuscate == config::Obfuscate::Yes && !CONFIG.unobfuscated.contains(&project);
+    let obfuscate =
+        CONFIG.obfuscate == config::Obfuscate::Yes && !CONFIG.unobfuscated.contains(&project);
 
     info!("run_cql_query: get report");
 
@@ -219,7 +273,12 @@ async fn run_cql_query(
     let cql_result_new = match report_from_cache {
         Some(some_report_from_cache) => some_report_from_cache.to_string(),
         None => {
-            let query = replace_cql_library(query.clone())?;
+            let query =
+            if generated_from_ast {
+               query.clone()
+            } else {
+                replace_cql_library(query.clone())?
+            };
 
             let cql_result = blaze::run_cql_query(&query.lib, &query.measure).await?;
 
@@ -234,6 +293,7 @@ async fn run_cql_query(
                     CONFIG.delta_diagnosis,
                     CONFIG.delta_procedures,
                     CONFIG.delta_medication_statements,
+                    CONFIG.delta_histo,
                     CONFIG.epsilon,
                     CONFIG.rounding_step,
                 )?,
@@ -306,7 +366,7 @@ async fn run_intermediate_rep_query(
 async fn run_exporter_query(
     task: &BeamTask,
     body: &String,
-    execute: bool,
+    task_type: exporter::TaskType,
 ) -> Result<BeamResult, FocusError> {
     let mut err = beam::beam_result::perm_failed(
         CONFIG.beam_app_id_long.clone(),
@@ -315,7 +375,7 @@ async fn run_exporter_query(
         String::new(),
     );
 
-    let exporter_result = exporter::post_exporter_query(body, execute).await?;
+    let exporter_result = exporter::post_exporter_query(body, task_type).await?;
 
     let result = beam_result(task.to_owned(), exporter_result).unwrap_or_else(|e| {
         err.body = beam_lib::RawString(e.to_string());
@@ -391,19 +451,28 @@ fn beam_result(task: BeamTask, measure_report: String) -> Result<BeamResult, Foc
     ))
 }
 
+
 #[cfg(test)]
 mod test {
     use super::*;
 
     const METADATA_STRING: &str = r#"{"project": "exliquid"}"#;
+    const METADATA_STRING_EXPORTER: &str = r#"{"project": "exporter", "task_type": "EXECUTE"}"#;
 
     #[test]
     fn test_metadata_deserialization_default() {
         let metadata: Metadata = serde_json::from_str(METADATA_STRING).unwrap_or(Metadata {
             project: "default_obfuscation".to_string(),
-            execute: true,
+            task_type: None
         });
 
-        assert!(!metadata.execute);
+        assert_eq!(metadata.task_type,  None);
+    }
+
+    #[test]
+    fn test_metadata_deserialization_exporter() {
+        let metadata: Metadata = serde_json::from_str(METADATA_STRING_EXPORTER).unwrap();
+
+        assert_eq!(metadata.task_type,  Some(exporter::TaskType::Execute));
     }
 }

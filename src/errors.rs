@@ -11,7 +11,7 @@ pub enum FocusError {
     #[error("FHIR Measure evaluation error in Blaze: {0}")]
     MeasureEvaluationErrorBlaze(String),
     #[error("CQL query error")]
-    CQLQueryError(),
+    CQLQueryError,
     #[error("Unable to retrieve tasks from Beam: {0}")]
     UnableToRetrieveTasksHttp(beam_lib::BeamError),
     #[error("Unable to answer task: {0}")]
@@ -24,6 +24,8 @@ pub enum FocusError {
     ConfigurationError(String),
     #[error("Cannot open file: {0}")]
     FileOpeningError(String),
+    #[error("Serde parsing error: {0}")]
+    SerdeParsingError(#[from] serde_json::Error),
     #[error("Parsing error: {0}")]
     ParsingError(String),
     #[error("CQL tampered with: {0}")]
@@ -38,15 +40,26 @@ pub enum FocusError {
     UnableToPostAst(reqwest::Error),
     #[error("Unable to post Exporter query: {0}")]
     UnableToPostExporterQuery(reqwest::Error),
+    #[error("Unable to get Exporter query status: {0}")]
+    UnableToGetExporterQueryStatus(reqwest::Error),
     #[error("Exporter query error in Reqwest: {0}")]
     ExporterQueryErrorReqwest(String),
     #[error("AST Posting error in Reqwest: {0}")]
     AstPostingErrorReqwest(String),
+    #[error("Unknown criterion in AST: {0}")]
+    AstUnknownCriterion(String),
+    #[error("Unknown option in AST: {0}")]
+    AstUnknownOption(String),
+    #[error("Mismatch between operator and value type")]
+    AstOperatorValueMismatch(String),
+    #[error("Invalid date format: {0}")]
+    AstInvalidDateFormat(String),
     #[error("Invalid Header Value: {0}")]
     InvalidHeaderValue(http::header::InvalidHeaderValue),
     #[error("Missing Exporter Endpoint")]
-    MissingExporterEndpoint(),
-
+    MissingExporterEndpoint,
+    #[error("Missing Exporter Task Type")]
+    MissingExporterTaskType,
 }
 
 impl FocusError {
@@ -55,7 +68,7 @@ impl FocusError {
         use FocusError::*;
         // TODO: Add more match arms
         match self {
-            DecodeError(_) | ParsingError(_) =>  "Cannot parse query.",
+            DecodeError(_) | ParsingError(_) | SerdeParsingError(_) =>  "Cannot parse query.",
             LaplaceError(_) => "Cannot obfuscate result.",
             _ => "Failed to execute query."
         }
