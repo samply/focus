@@ -173,7 +173,7 @@ pub(crate) struct Config {
     pub epsilon: f64,
     pub rounding_step: usize,
     pub unobfuscated: Vec<String>,
-    pub queries_to_cache: Option<String>,
+    pub queries_to_cache: Option<PathBuf>,
     tls_ca_certificates: Vec<Certificate>,
     pub client: Client,
     pub provider: Option<String>,

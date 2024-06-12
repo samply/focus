@@ -71,12 +71,12 @@ impl ReportCache {
         let mut cache = HashMap::new();
 
         if let Some(filename) = CONFIG.queries_to_cache.clone() {
-            let lines = util::read_lines(filename.clone().to_string());
+            let lines = util::read_lines(&filename);
             match lines {
                 Ok(ok_lines) => {
                     for line in ok_lines {
                         let Ok(ok_line) = line else {
-                            warn!("A line in the file {} is not readable", filename);
+                            warn!("A line in the file {} is not readable", filename.display());
                             continue;
                         };
                         cache.insert((ok_line.clone(), false), ("".into(), UNIX_EPOCH));
@@ -84,7 +84,7 @@ impl ReportCache {
                     }
                 }
                 Err(_) => {
-                    error!("The file {} cannot be opened", filename); //This shouldn't stop focus from running, it's just going to go to blaze every time, but that's not too slow
+                    error!("The file {} cannot be opened", filename.display()); //This shouldn't stop focus from running, it's just going to go to blaze every time, but that's not too slow
                 }
             }
         }
