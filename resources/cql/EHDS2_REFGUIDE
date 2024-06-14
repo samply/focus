@@ -1,0 +1,18 @@
+// Return a list of all Refguides.
+define RefguideList:
+    if InInitialPopulation then 
+        [CareTeam] O 
+            where StartsWith(O.name,'Refguide')
+    else 
+        {} as List<CareTeam>
+
+// Return the ID for the given hospital CareTeam
+define function RefguideId(careTeam FHIR.CareTeam):
+    SensibleString(careTeam.id)
+
+// Check to see if there are any CareTeam resources with the
+// given ID and names that start with "Refguide"
+define function ExistsRefguideId(id_var String):
+    exists from [CareTeam] O
+        where RefguideId(O) = id_var
+        and StartsWith(O.name,'Refguide')
