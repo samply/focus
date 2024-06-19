@@ -146,11 +146,9 @@ pub fn process(
                     match condition.value {
                         ast::ConditionValue::DateRange(date_range) => {
                             let datetime_str_min = date_range.min.as_str();
-                            let datetime_result_min: Result<DateTime<Utc>, _> = datetime_str_min
+                            let datetime_min: DateTime<Utc> = datetime_str_min
                                 .parse()
-                                .map_err(|_| FocusError::AstInvalidDateFormat(date_range.min));
-
-                            let datetime_min = datetime_result_min.unwrap(); // we returned if Err
+                                .map_err(|_| FocusError::AstInvalidDateFormat(date_range.min))?;
                             let date_str_min = format!("@{}", datetime_min.format("%Y-%m-%d"));
 
                             condition_string =
