@@ -156,7 +156,7 @@ pub fn process(
                             filter_string = filter_string.replace("{{D1}}", date_str_min.as_str());
                             // no condition needed, "" stays ""
 
-                            let datetime_max = date_range.max
+                            let datetime_max: DateTime<Utc> = date_range.max
                                 .as_str()
                                 .parse()
                                 .map_err(|_| FocusError::AstInvalidDateFormat(date_range.max))?;
