@@ -156,11 +156,10 @@ pub fn process(
                             filter_string = filter_string.replace("{{D1}}", date_str_min.as_str());
                             // no condition needed, "" stays ""
 
-                            let datetime_str_max = date_range.max.as_str();
-                            let datetime_result_max: Result<DateTime<Utc>, _> = datetime_str_max
+                            let datetime_max = date_range.max
+                                .as_str()
                                 .parse()
-                                .map_err(|_| FocusError::AstInvalidDateFormat(date_range.max));
-                            let datetime_max = datetime_result_max.unwrap(); // we returned if Err
+                                .map_err(|_| FocusError::AstInvalidDateFormat(date_range.max))?;
                             let date_str_max = format!("@{}", datetime_max.format("%Y-%m-%d"));
 
                             condition_string =
