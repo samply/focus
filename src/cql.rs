@@ -9,8 +9,8 @@ use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use chrono::offset::Utc;
 use chrono::DateTime;
 use indexmap::set::IndexSet;
-use uuid::Uuid;
 use tracing::info;
+use uuid::Uuid;
 
 pub fn generate_body(ast: ast::Ast) -> Result<String, FocusError> {
     Ok(BODY
@@ -30,11 +30,11 @@ pub fn generate_body(ast: ast::Ast) -> Result<String, FocusError> {
 }
 
 fn generate_cql(ast: ast::Ast) -> Result<String, FocusError> {
-    let mut retrieval_criteria: String = "".to_string(); // main selection criteria (Patient)
+    let mut retrieval_criteria: String = String::new(); // main selection criteria (Patient)
 
-    let mut filter_criteria: String = "".to_string(); // criteria for filtering specimens
+    let mut filter_criteria: String = String::new(); // criteria for filtering specimens
 
-    let mut lists: String = "".to_string(); // needed code lists, defined
+    let mut lists: String = String::new(); // needed code lists, defined
 
     let mut cql = CQL_TEMPLATE.clone().to_string();
 
@@ -96,7 +96,7 @@ pub fn process(
     code_systems: &mut IndexSet<&str>,
 ) -> Result<(), FocusError> {
     let mut retrieval_cond: String = "(".to_string();
-    let mut filter_cond: String = "".to_string();
+    let mut filter_cond: String = String::new();
 
     match child {
         ast::Child::Condition(condition) => {
@@ -104,153 +104,105 @@ pub fn process(
 
             let condition_snippet = CQL_SNIPPETS.get(&(condition_key_trans, CriterionRole::Query));
 
-            if let Some(snippet) = condition_snippet {
-                let mut condition_string = (*snippet).to_string();
-                let mut filter_string: String = "".to_string();
+            if condition_snippet.is_none() {
+                return Err(FocusError::AstUnknownCriterion(
+                    condition_key_trans.to_string(),
+                ));
+            }
 
-                let filter_snippet =
-                    CQL_SNIPPETS.get(&(condition_key_trans, CriterionRole::Filter));
+            let snippet = condition_snippet.unwrap(); // OK because we checked for none
+            let mut condition_string = (*snippet).to_string();
+            let mut filter_string: String = String::new();
 
-                let code_lists_option = CRITERION_CODE_LISTS.get(&(condition_key_trans));
-                if let Some(code_lists_vec) = code_lists_option {
-                    for (index, code_list) in code_lists_vec.iter().enumerate() {
-                        code_systems.insert(code_list);
-                        let placeholder = format!("{{{{A{}}}}}", (index + 1).to_string()); //to keep compatibility with snippets in typescript
-                        condition_string =
-                            condition_string.replace(placeholder.as_str(), code_list);
-                    }
+            let filter_snippet = CQL_SNIPPETS.get(&(condition_key_trans, CriterionRole::Filter));
+
+            let code_lists_option = CRITERION_CODE_LISTS.get(&(condition_key_trans));
+            if let Some(code_lists_vec) = code_lists_option {
+                for (index, code_list) in code_lists_vec.iter().enumerate() {
+                    code_systems.insert(code_list);
+                    let placeholder = format!("{{{{A{}}}}}", (index + 1).to_string()); //to keep compatibility with snippets in typescript
+                    condition_string = condition_string.replace(placeholder.as_str(), code_list);
                 }
+            }
 
-                if condition_string.contains("{{K}}") {
-                    //observation loinc code, those only apply to query criteria, we don't filter specimens by observations
-                    let observation_code_option = OBSERVATION_LOINC_CODE.get(&condition_key_trans);
+            if condition_string.contains("{{K}}") {
+                //observation loinc code, those only apply to query criteria, we don't filter specimens by observations
+                let observation_code_option = OBSERVATION_LOINC_CODE.get(&condition_key_trans);
 
-                    if let Some(observation_code) = observation_code_option {
-                        condition_string = condition_string.replace("{{K}}", observation_code);
-                    } else {
-                        return Err(FocusError::AstUnknownOption(
-                            condition_key_trans.to_string(),
-                        ));
-                    }
+                if let Some(observation_code) = observation_code_option {
+                    condition_string = condition_string.replace("{{K}}", observation_code);
+                } else {
+                    return Err(FocusError::AstUnknownOption(
+                        condition_key_trans.to_string(),
+                    ));
                 }
+            }
 
-                if let Some(filtret) = filter_snippet {
-                    filter_string = (*filtret).to_string();
-                }
+            if let Some(filtret) = filter_snippet {
+                filter_string = (*filtret).to_string();
+            }
 
-                match condition.type_ {
-                    ast::ConditionType::Between => {
-                        // both min and max values stated
-                        match condition.value {
-                            ast::ConditionValue::DateRange(date_range) => {
-                                let datetime_str_min = date_range.min.as_str();
-                                let datetime_result_min: Result<DateTime<Utc>, _> =
-                                    datetime_str_min.parse().map_err(|_| {
-                                        FocusError::AstInvalidDateFormat(date_range.min)
-                                    });
+            match condition.type_ {
+                ast::ConditionType::Between => {
+                    // both min and max values stated
+                    match condition.value {
+                        ast::ConditionValue::DateRange(date_range) => {
+                            let datetime_str_min = date_range.min.as_str();
+                            let datetime_result_min: Result<DateTime<Utc>, _> = datetime_str_min
+                                .parse()
+                                .map_err(|_| FocusError::AstInvalidDateFormat(date_range.min));
 
-                                let datetime_min = datetime_result_min.unwrap(); // we returned if Err
-                                let date_str_min = format!("@{}", datetime_min.format("%Y-%m-%d"));
+                            let datetime_min = datetime_result_min.unwrap(); // we returned if Err
+                            let date_str_min = format!("@{}", datetime_min.format("%Y-%m-%d"));
 
-                                condition_string =
-                                    condition_string.replace("{{D1}}", date_str_min.as_str());
-                                filter_string =
-                                    filter_string.replace("{{D1}}", date_str_min.as_str());
-                                // no condition needed, "" stays ""
+                            condition_string =
+                                condition_string.replace("{{D1}}", date_str_min.as_str());
+                            filter_string = filter_string.replace("{{D1}}", date_str_min.as_str());
+                            // no condition needed, "" stays ""
 
-                                let datetime_str_max = date_range.max.as_str();
-                                let datetime_result_max: Result<DateTime<Utc>, _> =
-                                    datetime_str_max.parse().map_err(|_| {
-                                        FocusError::AstInvalidDateFormat(date_range.max)
-                                    });
-                                let datetime_max = datetime_result_max.unwrap(); // we returned if Err
-                                let date_str_max = format!("@{}", datetime_max.format("%Y-%m-%d"));
+                            let datetime_str_max = date_range.max.as_str();
+                            let datetime_result_max: Result<DateTime<Utc>, _> = datetime_str_max
+                                .parse()
+                                .map_err(|_| FocusError::AstInvalidDateFormat(date_range.max));
+                            let datetime_max = datetime_result_max.unwrap(); // we returned if Err
+                            let date_str_max = format!("@{}", datetime_max.format("%Y-%m-%d"));
 
-                                condition_string =
-                                    condition_string.replace("{{D2}}", date_str_max.as_str());
-                                filter_string =
-                                    filter_string.replace("{{D2}}", date_str_max.as_str());
-                                // no condition needed, "" stays ""
-                            }
-                            ast::ConditionValue::NumRange(num_range) => {
-                                condition_string = condition_string
-                                    .replace("{{D1}}", num_range.min.to_string().as_str());
-                                condition_string = condition_string
-                                    .replace("{{D2}}", num_range.max.to_string().as_str());
-                                filter_string = filter_string
-                                    .replace("{{D1}}", num_range.min.to_string().as_str()); // no condition needed, "" stays ""
-                                filter_string = filter_string
-                                    .replace("{{D2}}", num_range.max.to_string().as_str());
-                                // no condition needed, "" stays ""
-                            }
-                            other => {
-                                return Err(FocusError::AstOperatorValueMismatch(format!("Operator BETWEEN can only be used for numerical and date values, not for {:?}", other)));
-                            }
+                            condition_string =
+                                condition_string.replace("{{D2}}", date_str_max.as_str());
+                            filter_string = filter_string.replace("{{D2}}", date_str_max.as_str());
+                            // no condition needed, "" stays ""
                         }
-                    } // deal with no lower or no upper value
-                    ast::ConditionType::In => {
-                        // although in works in CQL, at least in some places, most of it is converted to multiple criteria with OR
-                        let operator_str = " or ";
+                        ast::ConditionValue::NumRange(num_range) => {
+                            condition_string = condition_string
+                                .replace("{{D1}}", num_range.min.to_string().as_str());
+                            condition_string = condition_string
+                                .replace("{{D2}}", num_range.max.to_string().as_str());
+                            filter_string =
+                                filter_string.replace("{{D1}}", num_range.min.to_string().as_str()); // no condition needed, "" stays ""
+                            filter_string =
+                                filter_string.replace("{{D2}}", num_range.max.to_string().as_str());
+                            // no condition needed, "" stays ""
+                        }
+                        other => {
+                            return Err(FocusError::AstOperatorValueMismatch(format!("Operator BETWEEN can only be used for numerical and date values, not for {:?}", other)));
+                        }
+                    }
+                } // deal with no lower or no upper value
+                ast::ConditionType::In => {
+                    // although in works in CQL, at least in some places, most of it is converted to multiple criteria with OR
+                    let operator_str = " or ";
 
-                        match condition.value {
-                            ast::ConditionValue::StringArray(string_array) => {
-                                let mut string_array_with_workarounds = string_array.clone();
-                                for value in string_array {
-                                    if let Some(additional_values) =
-                                        SAMPLE_TYPE_WORKAROUNDS.get(value.as_str())
-                                    {
-                                        for additional_value in additional_values {
-                                            string_array_with_workarounds
-                                                .push((*additional_value).into());
-                                        }
-                                    }
-                                }
-                                let mut condition_humongous_string = "(".to_string();
-                                let mut filter_humongous_string = "(".to_string();
-
-                                for (index, string) in
-                                    string_array_with_workarounds.iter().enumerate()
+                    match condition.value {
+                        ast::ConditionValue::StringArray(string_array) => {
+                            let mut string_array_with_workarounds = string_array.clone();
+                            for value in string_array {
+                                if let Some(additional_values) =
+                                    SAMPLE_TYPE_WORKAROUNDS.get(value.as_str())
                                 {
-                                    condition_humongous_string = condition_humongous_string
-                                        + "("
-                                        + condition_string.as_str()
-                                        + ")";
-                                    condition_humongous_string = condition_humongous_string
-                                        .replace("{{C}}", string.as_str());
-
-                                    filter_humongous_string = filter_humongous_string
-                                        + "("
-                                        + filter_string.as_str()
-                                        + ")";
-                                    filter_humongous_string =
-                                        filter_humongous_string.replace("{{C}}", string.as_str());
-
-                                    // Only concatenate operator if it's not the last element
-                                    if index < string_array_with_workarounds.len() - 1 {
-                                        condition_humongous_string += operator_str;
-                                        filter_humongous_string += operator_str;
+                                    for additional_value in additional_values {
+                                        string_array_with_workarounds
+                                            .push((*additional_value).into());
                                     }
-                                }
-                                condition_string = condition_humongous_string + ")";
-
-                                if !filter_string.is_empty() {
-                                    filter_string = filter_humongous_string + ")";
-                                }
-                            }
-                            other => {
-                                return Err(FocusError::AstOperatorValueMismatch(format!("Operator IN can only be used for string arrays, not for {:?}", other)));
-                            }
-                        }
-                    } // this becomes or of all
-                    ast::ConditionType::Equals => match condition.value {
-                        ast::ConditionValue::String(string) => {
-                            let operator_str = " or ";
-                            let mut string_array_with_workarounds = vec![string.clone()];
-                            if let Some(additional_values) =
-                                SAMPLE_TYPE_WORKAROUNDS.get(string.as_str())
-                            {
-                                for additional_value in additional_values {
-                                    string_array_with_workarounds.push((*additional_value).into());
                                 }
                             }
                             let mut condition_humongous_string = "(".to_string();
@@ -283,26 +235,70 @@ pub fn process(
                             }
                         }
                         other => {
-                            return Err(FocusError::AstOperatorValueMismatch(format!("Operator EQUALS can only be used for string arrays, not for {:?}", other)));
+                            return Err(FocusError::AstOperatorValueMismatch(format!(
+                                "Operator IN can only be used for string arrays, not for {:?}",
+                                other
+                            )));
                         }
-                    },
-                    other => { // won't get it from Lens yet
-                        info!("Got this condition type which Lens is not programmed to send, ignoring: {:?}", other);
                     }
-                };
+                } // this becomes or of all
+                ast::ConditionType::Equals => match condition.value {
+                    ast::ConditionValue::String(string) => {
+                        let operator_str = " or ";
+                        let mut string_array_with_workarounds = vec![string.clone()];
+                        if let Some(additional_values) =
+                            SAMPLE_TYPE_WORKAROUNDS.get(string.as_str())
+                        {
+                            for additional_value in additional_values {
+                                string_array_with_workarounds.push((*additional_value).into());
+                            }
+                        }
+                        let mut condition_humongous_string = "(".to_string();
+                        let mut filter_humongous_string = "(".to_string();
 
-                retrieval_cond += condition_string.as_str();
+                        for (index, string) in string_array_with_workarounds.iter().enumerate() {
+                            condition_humongous_string =
+                                condition_humongous_string + "(" + condition_string.as_str() + ")";
+                            condition_humongous_string =
+                                condition_humongous_string.replace("{{C}}", string.as_str());
 
-                if !filter_cond.is_empty() && !filter_string.is_empty() {
-                    filter_cond += " and ";
+                            filter_humongous_string =
+                                filter_humongous_string + "(" + filter_string.as_str() + ")";
+                            filter_humongous_string =
+                                filter_humongous_string.replace("{{C}}", string.as_str());
+
+                            // Only concatenate operator if it's not the last element
+                            if index < string_array_with_workarounds.len() - 1 {
+                                condition_humongous_string += operator_str;
+                                filter_humongous_string += operator_str;
+                            }
+                        }
+                        condition_string = condition_humongous_string + ")";
+
+                        if !filter_string.is_empty() {
+                            filter_string = filter_humongous_string + ")";
+                        }
+                    }
+                    other => {
+                        return Err(FocusError::AstOperatorValueMismatch(format!(
+                            "Operator EQUALS can only be used for string arrays, not for {:?}",
+                            other
+                        )));
+                    }
+                },
+                other => {
+                    // won't get it from Lens yet
+                    info!("Got this condition type which Lens is not programmed to send, ignoring: {:?}", other);
                 }
+            };
 
-                filter_cond += filter_string.as_str(); // no condition needed, "" can be added with no change
-            } else {
-                return Err(FocusError::AstUnknownCriterion(
-                    condition_key_trans.to_string(),
-                ));
+            retrieval_cond += condition_string.as_str();
+
+            if !filter_cond.is_empty() && !filter_string.is_empty() {
+                filter_cond += " and ";
             }
+
+            filter_cond += filter_string.as_str(); // no condition needed, "" can be added with no change
         }
 
         ast::Child::Operation(operation) => {
