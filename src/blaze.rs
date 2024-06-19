@@ -128,7 +128,7 @@ pub async fn run_cql_query(library: &Value, measure: &Value) -> Result<String, F
     evaluate_measure(url).await
 }
 
-pub fn parse_blaze_query_payload_ast(ast_query: &String) -> Result<ast::Ast, FocusError> {
+pub fn parse_blaze_query_payload_ast(ast_query: &str) -> Result<ast::Ast, FocusError> {
     let decoded = util::base64_decode(ast_query)?;
     Ok(serde_json::from_slice(&decoded)?)
 }

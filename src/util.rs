@@ -284,7 +284,7 @@ fn obfuscate_counts_recursive(
     obfuscate_below_10_mode: ObfuscateBelow10Mode,
     rounding_step: usize,
 ) -> Result<(), FocusError> {
-    let mut rng = thread_rng();// TODO evict
+    let mut rng = thread_rng();
     match val {
         Value::Object(map) => {
             if let Some(count_val) = map.get_mut("count") {
