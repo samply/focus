@@ -104,13 +104,11 @@ pub fn process(
 
             let condition_snippet = CQL_SNIPPETS.get(&(condition_key_trans, CriterionRole::Query));
 
-            if condition_snippet.is_none() {
+            let Some(snippet) = condition_snippet else {
                 return Err(FocusError::AstUnknownCriterion(
                     condition_key_trans.to_string(),
                 ));
-            }
-
-            let snippet = condition_snippet.unwrap(); // OK because we checked for none
+            };
             let mut condition_string = (*snippet).to_string();
             let mut filter_string: String = String::new();
 
