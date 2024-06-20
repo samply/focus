@@ -9,12 +9,17 @@ use crate::errors::FocusError;
 use crate::util;
 use crate::util::get_json_field;
 use crate::config::CONFIG;
+use crate::ast;
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct CqlQuery {
-    pub lang: String,
     pub lib: Value,
     pub measure: Value
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct AstQuery {
+    pub payload: String,
 }
 
 pub async fn check_availability() -> bool {
@@ -123,8 +128,7 @@ pub async fn run_cql_query(library: &Value, measure: &Value) -> Result<String, F
     evaluate_measure(url).await
 }
 
-// This could be part of an impl of Cqlquery
-pub fn parse_blaze_query(task: &BeamTask) -> Result<CqlQuery, FocusError> {
-    let decoded = util::base64_decode(&task.body)?;
-    serde_json::from_slice(&decoded).map_err(|e| FocusError::ParsingError(e.to_string()))
+pub fn parse_blaze_query_payload_ast(ast_query: &str) -> Result<ast::Ast, FocusError> {
+    let decoded = util::base64_decode(ast_query)?;
+    Ok(serde_json::from_slice(&decoded)?)
 }

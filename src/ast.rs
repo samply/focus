@@ -11,7 +11,7 @@ pub enum Child {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "UPPERCASE")]
-pub enum Operand {
+pub enum Operand { //this is operator, of course, but rename would need to be coordinated with all the Lenses, EUCAIM providers, etc
     And,
     Or,
 }
@@ -41,34 +41,34 @@ pub enum ConditionValue {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct NumRange {
-    min: f64,
-    max: f64,
+    pub min: f64,
+    pub max: f64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DateRange {
-    min: String, //we don't parse dates yet
-    max: String,
+    pub min: String, // we don't parse dates yet
+    pub max: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Operation {
-    operand: Operand,
-    children: Vec<Child>,
+    pub operand: Operand,
+    pub children: Vec<Child>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Condition {
-    key: String,
-    type_: ConditionType,
-    value: ConditionValue,
+    pub key: String,
+    pub type_: ConditionType,
+    pub value: ConditionValue,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Ast {
-    ast: Operation,
-    id: String,
+    pub ast: Operation,
+    pub id: String,
 }
 
 
@@ -78,7 +78,7 @@ mod test {
     use super::*;
 
     const EQUALS_AST: &str = r#"{"ast":{"operand":"AND","children":[{"key":"age","type":"EQUALS","value":5.0}]},"id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
- 
+
 
     #[test]
     fn test_deserialize_ast() {

@@ -8,6 +8,7 @@ use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader};
+use std::path::{Path, PathBuf};
 use tracing::warn;
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -76,9 +77,9 @@ pub(crate) fn get_json_field(json_string: &str, field: &str) -> Result<Value, se
     Ok(json[field].clone())
 }
 
-pub(crate) fn read_lines(filename: String) -> Result<io::Lines<BufReader<File>>, FocusError> {
-    let file = File::open(filename.clone()).map_err(|e| {
-        FocusError::FileOpeningError(format!("Cannot open file {}: {} ", filename, e))
+pub(crate) fn read_lines(filename: &Path) -> Result<io::Lines<BufReader<File>>, FocusError> {
+    let file = File::open(filename).map_err(|e| {
+        FocusError::FileOpeningError(format!("Cannot open file {}: {} ", filename.display(), e))
     })?;
     Ok(io::BufReader::new(file).lines())
 }
