@@ -174,7 +174,7 @@ async fn process_task(
             return Err(FocusError::MissingExporterTaskType);
         };
         let body = &task.body;
-        return Ok(run_exporter_query(task, body, task_type).await?);
+        return run_exporter_query(task, body, task_type).await;
     }
 
     if CONFIG.endpoint_type == EndpointType::Blaze {

@@ -17,11 +17,11 @@ pub fn generate_body(ast: ast::Ast) -> Result<String, FocusError> {
         .to_string()
         .replace(
             "{{LIBRARY_UUID}}",
-            format!("urn:uuid:{}", Uuid::new_v4().to_string()).as_str(),
+            format!("urn:uuid:{}", Uuid::new_v4()).as_str(),
         )
         .replace(
             "{{MEASURE_UUID}}",
-            format!("urn:uuid:{}", Uuid::new_v4().to_string()).as_str(),
+            format!("urn:uuid:{}", Uuid::new_v4()).as_str(),
         )
         .replace(
             "{{LIBRARY_ENCODED}}",
@@ -118,7 +118,7 @@ pub fn process(
             if let Some(code_lists_vec) = code_lists_option {
                 for (index, code_list) in code_lists_vec.iter().enumerate() {
                     code_systems.insert(code_list);
-                    let placeholder = format!("{{{{A{}}}}}", (index + 1).to_string()); //to keep compatibility with snippets in typescript
+                    let placeholder = format!("{{{{A{}}}}}", (index + 1)); //to keep compatibility with snippets in typescript
                     condition_string = condition_string.replace(placeholder.as_str(), code_list);
                 }
             }
