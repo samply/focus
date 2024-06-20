@@ -5,7 +5,7 @@ use crate::projects::{
     MANDATORY_CODE_SYSTEMS, OBSERVATION_LOINC_CODE, SAMPLE_TYPE_WORKAROUNDS,
 };
 
-use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
+use base64::{prelude::BASE64_STANDARD as BASE64, Engine as _};
 use chrono::offset::Utc;
 use chrono::DateTime;
 use indexmap::set::IndexSet;
