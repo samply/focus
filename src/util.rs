@@ -8,7 +8,7 @@ use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader};
-use std::path::{Path, PathBuf};
+use std::path::{Path};
 use tracing::warn;
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -26,10 +26,17 @@ struct ValueQuantity {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+struct ValueRatio {
+    denominator: Value,
+    numerator: Value,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct Extension {
     url: String,
-    value_quantity: ValueQuantity,
+    value_quantity: Option<ValueQuantity>,
+    value_ratio: Option<ValueRatio>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -351,6 +358,8 @@ mod test {
     const QUERY_BBMRI: &str = include_str!("../resources/test/query_bbmri.cql");
     const EXAMPLE_MEASURE_REPORT_BBMRI: &str =
         include_str!("../resources/test/measure_report_bbmri.json");
+        const EXAMPLE_MEASURE_REPORT_BBMRI_NEW_EXTENSION: &str =
+        include_str!("../resources/test/measure_report_bbmri_new_extension.json");
     const EXAMPLE_MEASURE_REPORT_DKTK: &str =
         include_str!("../resources/test/measure_report_dktk.json");
     const EXAMPLE_MEASURE_REPORT_EXLIQUID: &str =
@@ -454,6 +463,52 @@ mod test {
     }
 
     #[test]
+    fn test_obfuscate_counts_bbmri_new_extension() {
+        let mut obf_cache = ObfCache {
+            cache: HashMap::new(),
+        };
+        let obfuscated_json = obfuscate_counts_mr(
+            EXAMPLE_MEASURE_REPORT_BBMRI_NEW_EXTENSION,
+            &mut obf_cache,
+            false,
+            1,
+            DELTA_PATIENT,
+            DELTA_SPECIMEN,
+            DELTA_DIAGNOSIS,
+            DELTA_PROCEDURES,
+            DELTA_MEDICATION_STATEMENTS,
+            DELTA_HISTO,
+            EPSILON,
+            ROUNDING_STEP,
+        )
+        .unwrap();
+
+        // Check that the obfuscated JSON can be parsed and has the same structure as the original JSON
+        let _: MeasureReport = serde_json::from_str(&obfuscated_json).unwrap();
+
+        // Check that the obfuscated JSON is different from the original JSON
+        assert_ne!(obfuscated_json, EXAMPLE_MEASURE_REPORT_BBMRI_NEW_EXTENSION);
+
+        // Check that obfuscating the same JSON twice with the same obfuscation cache gives the same result
+        let obfuscated_json_2 = obfuscate_counts_mr(
+            EXAMPLE_MEASURE_REPORT_BBMRI_NEW_EXTENSION,
+            &mut obf_cache,
+            false,
+            1,
+            DELTA_PATIENT,
+            DELTA_SPECIMEN,
+            DELTA_DIAGNOSIS,
+            DELTA_PROCEDURES,
+            DELTA_MEDICATION_STATEMENTS,
+            DELTA_HISTO,
+            EPSILON,
+            ROUNDING_STEP,
+        )
+        .unwrap();
+        pretty_assertions::assert_eq!(obfuscated_json, obfuscated_json_2);
+    }
+
+    #[test]
     fn test_obfuscate_counts_bbmri() {
         let mut obf_cache = ObfCache {
             cache: HashMap::new(),
@@ -498,6 +553,7 @@ mod test {
         .unwrap();
         pretty_assertions::assert_eq!(obfuscated_json, obfuscated_json_2);
     }
+
 
     #[test]
     fn test_obfuscate_counts_dktk() {
