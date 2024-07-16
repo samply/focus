@@ -13,6 +13,7 @@ mod task_processing;
 mod util;
 mod projects;
 mod exporter;
+mod db;
 
 
 use base64::engine::general_purpose;
@@ -21,13 +22,16 @@ use beam_lib::{TaskRequest, TaskResult};
 use futures_util::future::BoxFuture;
 use futures_util::FutureExt;
 use laplace_rs::ObfCache;
+use sqlx::PgPool;
 use tokio::sync::Mutex;
+
 
 use crate::blaze::{parse_blaze_query_payload_ast, AstQuery};
 use crate::config::EndpointType;
 use crate::util::{base64_decode, is_cql_tampered_with, obfuscate_counts_mr};
 use crate::{config::CONFIG, errors::FocusError};
 use blaze::CqlQuery;
+use db::SqlQuery;
 
 use std::collections::HashMap;
 use std::ops::DerefMut;
@@ -52,7 +56,7 @@ type BeamResult = TaskResult<beam_lib::RawString>;
 #[serde(tag = "lang", rename_all = "lowercase")]
 enum Language {
     Cql(CqlQuery),
-    Ast(AstQuery)
+    Ast(AstQuery),
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -116,9 +120,22 @@ pub async fn main() -> ExitCode {
 }
 
 async fn main_loop() -> ExitCode {
+    let db_pool = if let Some(connection_string) = CONFIG.db_connection_string.clone() {
+        match db::get_pg_connection_pool(&connection_string, 8).await {
+            Err(e) => {
+                error!("Error connecting to database: {}, {}", connection_string, e);
+                return ExitCode::from(8);
+            },
+            Ok(pool) => Some(pool),
+        }
+    } else {
+        None
+    };
     let endpoint_service_available: fn() -> BoxFuture<'static, bool> = match CONFIG.endpoint_type {
         EndpointType::Blaze => || blaze::check_availability().boxed(),
         EndpointType::Omop => || async { true }.boxed(), // TODO health check
+        EndpointType::BlazeAndSql => || blaze::check_availability().boxed(), //TODO SQL health check
+        EndpointType::Sql => || async { true }.boxed(), // TODO health check
     };
     let mut failures = 0;
     while !(beam::check_availability().await && endpoint_service_available().await) {
@@ -144,12 +161,13 @@ async fn main_loop() -> ExitCode {
     task_processing::process_tasks(move |task| {
         let obf_cache = obf_cache.clone();
         let report_cache = report_cache.clone();
-        process_task(task, obf_cache, report_cache).boxed_local()
+        process_task(db_pool.clone(), task, obf_cache, report_cache).boxed_local()
     }).await;
     ExitCode::FAILURE
 }
 
 async fn process_task(
+    db_pool: Option<PgPool>,
     task: &BeamTask,
     obf_cache: Arc<Mutex<ObfCache>>,
     report_cache: Arc<Mutex<ReportCache>>,
@@ -189,6 +207,37 @@ async fn process_task(
         };
         run_cql_query(task, &query, obf_cache, report_cache, metadata.project, generated_from_ast).await
 
+    }  else if CONFIG.endpoint_type == EndpointType::BlazeAndSql {
+        let mut generated_from_ast: bool = false;
+        let data = base64_decode(&task.body)?;
+        let query_maybe: Result<db::SqlQuery, serde_json::Error> = serde_json::from_slice(&(data.clone()));
+        if let Ok(sql_query) = query_maybe {
+            if let Some(pool) = db_pool{
+                let result = db::process_sql_task(&pool, &(sql_query.payload)).await;
+                if let Ok(rows) = result {
+                    
+                    Ok(beam::beam_result::succeeded(
+                        CONFIG.beam_app_id_long.clone(),
+                        vec![task.clone().from],
+                        task.id,
+                        "".into(),
+                    ))
+                } else {return Err(FocusError::CannotConnectToDatabase("SQL task but no connection String in config".into()));}
+            }
+            else {
+                return Err(FocusError::CannotConnectToDatabase("SQL task but no connection String in config".into()));
+            }
+        } else {
+            
+            let query: CqlQuery = match serde_json::from_slice::<Language>(&data)? {
+                Language::Cql(cql_query) => cql_query,
+                Language::Ast(ast_query) => {
+                    generated_from_ast = true;
+                    serde_json::from_str(&cql::generate_body(parse_blaze_query_payload_ast(&ast_query.payload)?)?)?
+                }
+            };
+        run_cql_query(task, &query, obf_cache, report_cache, metadata.project, generated_from_ast).await
+        }
     } else if CONFIG.endpoint_type == EndpointType::Omop {
         let decoded = util::base64_decode(&task.body)?;
         let intermediate_rep_query: intermediate_rep::IntermediateRepQuery =
@@ -438,3 +487,4 @@ mod test {
         assert_eq!(metadata.task_type,  Some(exporter::TaskType::Execute));
     }
 }
+

@@ -21,6 +21,8 @@ pub enum Obfuscate {
 pub enum EndpointType {
     Blaze,
     Omop,
+    BlazeAndSql,
+    Sql,
 }
 
 impl fmt::Display for EndpointType {
@@ -28,6 +30,8 @@ impl fmt::Display for EndpointType {
         match self {
             EndpointType::Blaze => write!(f, "blaze"), 
             EndpointType::Omop => write!(f, "omop"),
+            EndpointType::BlazeAndSql => write!(f, "blaze_sql"),
+            EndpointType::Sql => write!(f, "sql"),
         }
     }
 }
@@ -151,6 +155,10 @@ struct CliArgs {
     #[clap(long, env, value_parser)]
     auth_header: Option<String>,
 
+        /// Database connection string
+        #[clap(long, env, value_parser)]
+        db_connection_string: Option<String>,
+
 }
 
 pub(crate) struct Config {
@@ -178,6 +186,7 @@ pub(crate) struct Config {
     pub provider: Option<String>,
     pub provider_icon: Option<String>,
     pub auth_header: Option<String>,
+    pub db_connection_string: Option<String>,
 }
 
 impl Config {
@@ -219,6 +228,7 @@ impl Config {
             provider: cli_args.provider,
             provider_icon: cli_args.provider_icon,
             auth_header: cli_args.auth_header,
+            db_connection_string: cli_args.db_connection_string,
             client,
         };
         Ok(config)
