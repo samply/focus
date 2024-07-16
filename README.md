@@ -59,6 +59,8 @@ Obfuscating zero counts is by default switched off. To enable obfuscating zero c
 
 Optionally, you can provide the `TLS_CA_CERTIFICATES_DIR` environment variable to add additional trusted certificates, e.g., if you have a TLS-terminating proxy server in place. The application respects the `HTTP_PROXY`, `HTTPS_PROXY`, `ALL_PROXY`, `NO_PROXY`, and their respective lowercase equivalents.
 
+Log level can be set using the `RUST_LOG` environment variable.
+
 ## Usage
 
 Creating a sample focus healthcheck task using curl (body can be any string and is ignored):

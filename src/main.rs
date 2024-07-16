@@ -42,7 +42,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use std::{process::exit, time::Duration};
 
 use serde::{Deserialize, Serialize};
-use tracing::{debug, error, warn};
+use tracing::{debug, error, warn, trace};
 
 // result cache
 type SearchQuery = String;
@@ -316,6 +316,8 @@ async fn run_cql_query(
             };
 
             let cql_result = blaze::run_cql_query(&query.lib, &query.measure).await?;
+
+            trace!("MeasureReport with unobfuscated values: {}", &cql_result);
 
             let cql_result_new: String = match obfuscate {
                 true => obfuscate_counts_mr(
