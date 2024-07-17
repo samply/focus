@@ -66,8 +66,6 @@ pub enum FocusError {
     ErrorExecutingQuery(sqlx::Error),
     #[error("QueryResultBad: {0}")]
     QueryResultBad(String),
-    #[error("Error converting to string: {0}")]
-    ErrorConvertingToString(std::string::FromUtf8Error),
     #[error("Query not allowed: {0}")]
     QueryNotAllowed(String),
 }

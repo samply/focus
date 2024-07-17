@@ -27,7 +27,7 @@ pub async fn get_pg_connection_pool(pg_url: &str, num_attempts: u32) -> Result<P
         );
         match PgPoolOptions::new()
             .max_connections(10)
-            .connect(&pg_url)
+            .connect(pg_url)
             .await
         {
             Ok(pg_con_pool) => {
@@ -54,11 +54,7 @@ pub async fn get_pg_connection_pool(pg_url: &str, num_attempts: u32) -> Result<P
 
 pub async fn healthcheck(pool: &PgPool) -> bool {
     let res = run_query(pool, SQL_REPLACE_MAP.get("SELECT_TABLES").unwrap()).await; //this file exists, safe to unwrap
-    if let Ok(_) = res {
-        true
-    } else {
-        false
-    }
+    res.is_ok()
 }
 
 pub async fn run_query(pool: &PgPool, query: &str) -> Result<Vec<PgRow>, FocusError> {
@@ -98,7 +94,7 @@ mod test {
 
     #[tokio::test]
     #[ignore] //TODO mock DB
-    async fn connect() {
+    async fn connect_healthcheck() {
         let pool =
             get_pg_connection_pool("postgresql://postgres:secret@localhost:5432/postgres", 1)
                 .await
