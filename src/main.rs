@@ -8,13 +8,12 @@ mod errors;
 mod graceful_shutdown;
 mod logger;
 
+mod db;
+mod exporter;
 mod intermediate_rep;
+mod projects;
 mod task_processing;
 mod util;
-mod projects;
-mod exporter;
-mod db;
-
 
 use base64::engine::general_purpose;
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
@@ -25,13 +24,11 @@ use laplace_rs::ObfCache;
 use sqlx::PgPool;
 use tokio::sync::Mutex;
 
-
 use crate::blaze::{parse_blaze_query_payload_ast, AstQuery};
 use crate::config::EndpointType;
 use crate::util::{base64_decode, is_cql_tampered_with, obfuscate_counts_mr};
 use crate::{config::CONFIG, errors::FocusError};
 use blaze::CqlQuery;
-use db::SqlQuery;
 
 use std::collections::HashMap;
 use std::ops::DerefMut;
@@ -42,7 +39,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use std::{process::exit, time::Duration};
 
 use serde::{Deserialize, Serialize};
-use tracing::{debug, error, warn, trace};
+use tracing::{debug, error, trace, warn};
 
 // result cache
 type SearchQuery = String;
@@ -125,9 +122,9 @@ async fn main_loop() -> ExitCode {
     let db_pool = if let Some(connection_string) = CONFIG.db_connection_string.clone() {
         match db::get_pg_connection_pool(&connection_string, 8).await {
             Err(e) => {
-                error!("Error connecting to database: {}, {}", connection_string, e);
+                error!("Error connecting to database: {}", e);
                 return ExitCode::from(8);
-            },
+            }
             Ok(pool) => Some(pool),
         }
     } else {
@@ -137,7 +134,7 @@ async fn main_loop() -> ExitCode {
         EndpointType::Blaze => || blaze::check_availability().boxed(),
         EndpointType::Omop => || async { true }.boxed(), // TODO health check
         EndpointType::BlazeAndSql => || blaze::check_availability().boxed(), //TODO SQL health check
-        EndpointType::Sql => || async { true }.boxed(), // TODO health check
+        EndpointType::Sql => || async { true }.boxed(),  // TODO health check
     };
     let mut failures = 0;
     while !(beam::check_availability().await && endpoint_service_available().await) {
@@ -152,10 +149,9 @@ async fn main_loop() -> ExitCode {
         tokio::time::sleep(Duration::from_secs(2)).await;
         warn!(
             "Retrying connection (attempt {}/{})",
-            failures,
-            CONFIG.retry_count
+            failures, CONFIG.retry_count
         );
-    };
+    }
     let report_cache = Arc::new(Mutex::new(ReportCache::new()));
     let obf_cache = Arc::new(Mutex::new(ObfCache {
         cache: Default::default(),
@@ -164,7 +160,8 @@ async fn main_loop() -> ExitCode {
         let obf_cache = obf_cache.clone();
         let report_cache = report_cache.clone();
         process_task(db_pool.clone(), task, obf_cache, report_cache).boxed_local()
-    }).await;
+    })
+    .await;
     ExitCode::FAILURE
 }
 
@@ -178,7 +175,7 @@ async fn process_task(
 
     let metadata: Metadata = serde_json::from_value(task.metadata.clone()).unwrap_or(Metadata {
         project: "default_obfuscation".to_string(),
-        task_type: None
+        task_type: None,
     });
 
     if metadata.project == "focus-healthcheck" {
@@ -186,7 +183,7 @@ async fn process_task(
             CONFIG.beam_app_id_long.clone(),
             vec![task.from.clone()],
             task.id,
-            "healthy".into()
+            "healthy".into(),
         ));
     }
     if metadata.project == "exporter" {
@@ -204,41 +201,107 @@ async fn process_task(
             Language::Cql(cql_query) => cql_query,
             Language::Ast(ast_query) => {
                 generated_from_ast = true;
-                serde_json::from_str(&cql::generate_body(parse_blaze_query_payload_ast(&ast_query.payload)?)?)?
+                serde_json::from_str(&cql::generate_body(parse_blaze_query_payload_ast(
+                    &ast_query.payload,
+                )?)?)?
             }
         };
-        run_cql_query(task, &query, obf_cache, report_cache, metadata.project, generated_from_ast).await
-
-    }  else if CONFIG.endpoint_type == EndpointType::BlazeAndSql {
+        run_cql_query(
+            task,
+            &query,
+            obf_cache,
+            report_cache,
+            metadata.project,
+            generated_from_ast,
+        )
+        .await
+    } else if CONFIG.endpoint_type == EndpointType::BlazeAndSql {
         let mut generated_from_ast: bool = false;
         let data = base64_decode(&task.body)?;
-        let query_maybe: Result<db::SqlQuery, serde_json::Error> = serde_json::from_slice(&(data.clone()));
+        let query_maybe: Result<db::SqlQuery, serde_json::Error> =
+            serde_json::from_slice(&(data.clone()));
         if let Ok(sql_query) = query_maybe {
-            if let Some(pool) = db_pool{
+            if let Some(pool) = db_pool {
                 let result = db::process_sql_task(&pool, &(sql_query.payload)).await;
                 if let Ok(rows) = result {
-                    
+                    let rows_json = db::serialize_rows(rows)?;
+                    trace!("result: {}", &rows_json);
+
                     Ok(beam::beam_result::succeeded(
                         CONFIG.beam_app_id_long.clone(),
                         vec![task.clone().from],
                         task.id,
-                        "".into(),
+                        BASE64.encode(rows_json.to_string()),
                     ))
-                } else {return Err(FocusError::CannotConnectToDatabase("SQL task but no connection String in config".into()));}
-            }
-            else {
-                return Err(FocusError::CannotConnectToDatabase("SQL task but no connection String in config".into()));
+                } else {
+                    let error = result.err().unwrap();
+                    error!("Error executing query: {}", error);
+                    return Err(error);
+                }
+            } else {
+                return Err(FocusError::CannotConnectToDatabase(
+                    "SQL task but no connection String in config".into(),
+                ));
             }
         } else {
-            
             let query: CqlQuery = match serde_json::from_slice::<Language>(&data)? {
                 Language::Cql(cql_query) => cql_query,
                 Language::Ast(ast_query) => {
                     generated_from_ast = true;
-                    serde_json::from_str(&cql::generate_body(parse_blaze_query_payload_ast(&ast_query.payload)?)?)?
+                    serde_json::from_str(&cql::generate_body(parse_blaze_query_payload_ast(
+                        &ast_query.payload,
+                    )?)?)?
                 }
             };
-        run_cql_query(task, &query, obf_cache, report_cache, metadata.project, generated_from_ast).await
+            run_cql_query(
+                task,
+                &query,
+                obf_cache,
+                report_cache,
+                metadata.project,
+                generated_from_ast,
+            )
+            .await
+        }
+    } else if CONFIG.endpoint_type == EndpointType::Sql {
+        let data = base64_decode(&task.body)?;
+        let query_maybe: Result<db::SqlQuery, serde_json::Error> = serde_json::from_slice(&(data));
+        if let Ok(sql_query) = query_maybe {
+            if let Some(pool) = db_pool {
+                let result = db::process_sql_task(&pool, &(sql_query.payload)).await;
+                if let Ok(rows) = result {
+                    let rows_json = db::serialize_rows(rows)?;
+
+                    Ok(beam::beam_result::succeeded(
+                        CONFIG.beam_app_id_long.clone(),
+                        vec![task.clone().from],
+                        task.id,
+                        BASE64.encode(rows_json.to_string()),
+                    ))
+                } else {
+                    return Err(FocusError::QueryResultBad(
+                        "Query executed but result not readable".into(),
+                    ));
+                }
+            } else {
+                return Err(FocusError::CannotConnectToDatabase(
+                    "SQL task but no connection String in config".into(),
+                ));
+            }
+        } else {
+            warn!(
+                "Wrong type of query for an SQL only store: {}, {:?}",
+                CONFIG.endpoint_type, data
+            );
+            Ok(beam::beam_result::perm_failed(
+                CONFIG.beam_app_id_long.clone(),
+                vec![task.from.clone()],
+                task.id,
+                format!(
+                    "Wrong type of query for an SQL only store: {}, {:?}",
+                    CONFIG.endpoint_type, data
+                ),
+            ))
         }
     } else if CONFIG.endpoint_type == EndpointType::Omop {
         let decoded = util::base64_decode(&task.body)?;
@@ -248,8 +311,7 @@ async fn process_task(
         let query_decoded = general_purpose::STANDARD
             .decode(intermediate_rep_query.query)
             .map_err(FocusError::DecodeError)?;
-        let ast: ast::Ast =
-            serde_json::from_slice(&query_decoded)?;
+        let ast: ast::Ast = serde_json::from_slice(&query_decoded)?;
 
         Ok(run_intermediate_rep_query(task, ast).await?)
     } else {
@@ -275,7 +337,7 @@ async fn run_cql_query(
     obf_cache: Arc<Mutex<ObfCache>>,
     report_cache: Arc<Mutex<ReportCache>>,
     project: String,
-    generated_from_ast: bool
+    generated_from_ast: bool,
 ) -> Result<BeamResult, FocusError> {
     let encoded_query =
         query.lib["content"][0]["data"]
@@ -310,9 +372,8 @@ async fn run_cql_query(
     let cql_result_new = match report_from_cache {
         Some(some_report_from_cache) => some_report_from_cache.to_string(),
         None => {
-            let query =
-            if generated_from_ast {
-               query.clone()
+            let query = if generated_from_ast {
+                query.clone()
             } else {
                 replace_cql_library(query.clone())?
             };
@@ -466,7 +527,6 @@ fn beam_result(task: BeamTask, measure_report: String) -> Result<BeamResult, Foc
     ))
 }
 
-
 #[cfg(test)]
 mod test {
     use super::*;
@@ -478,17 +538,16 @@ mod test {
     fn test_metadata_deserialization_default() {
         let metadata: Metadata = serde_json::from_str(METADATA_STRING).unwrap_or(Metadata {
             project: "default_obfuscation".to_string(),
-            task_type: None
+            task_type: None,
         });
 
-        assert_eq!(metadata.task_type,  None);
+        assert_eq!(metadata.task_type, None);
     }
 
     #[test]
     fn test_metadata_deserialization_exporter() {
         let metadata: Metadata = serde_json::from_str(METADATA_STRING_EXPORTER).unwrap();
 
-        assert_eq!(metadata.task_type,  Some(exporter::TaskType::Execute));
+        assert_eq!(metadata.task_type, Some(exporter::TaskType::Execute));
     }
 }
-

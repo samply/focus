@@ -64,6 +64,8 @@ pub enum FocusError {
     CannotConnectToDatabase(String),
     #[error("Error executing query: {0}")]
     ErrorExecutingQuery(sqlx::Error),
+    #[error("QueryResultBad: {0}")]
+    QueryResultBad(String),
     #[error("Error converting to string: {0}")]
     ErrorConvertingToString(std::string::FromUtf8Error),
     #[error("Query not allowed: {0}")]
