@@ -107,6 +107,8 @@ pub async fn main() -> ExitCode {
     };
     banner::print_banner();
 
+    trace!("WARNING: You are running Focus in trace logging. This log level outputs unobfuscated result counts and is only intended for debugging the obfuscation. To avoid privacy risks, please check if that log level is appropriate. Consider using \"info\" or \"warn\".");
+
     let _ = CONFIG.api_key; // Initialize config
 
     tokio::select! {
