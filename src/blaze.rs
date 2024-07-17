@@ -4,7 +4,6 @@ use serde::Serialize;
 use serde_json::Value;
 use tracing::{debug, warn, info};
 
-use crate::BeamTask;
 use crate::errors::FocusError;
 use crate::util;
 use crate::util::get_json_field;

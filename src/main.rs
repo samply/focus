@@ -38,7 +38,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use std::{process::exit, time::Duration};
 
 use serde::{Deserialize, Serialize};
-use tracing::{debug, error, warn};
+use tracing::{debug, error, warn, trace};
 
 // result cache
 type SearchQuery = String;
@@ -102,6 +102,8 @@ pub async fn main() -> ExitCode {
         exit(1);
     };
     banner::print_banner();
+
+    trace!("WARNING: You are running Focus in trace logging. This log level outputs unobfuscated result counts and is only intended for debugging the obfuscation. To avoid privacy risks, please check if that log level is appropriate. Consider using \"info\" or \"warn\".");
 
     let _ = CONFIG.api_key; // Initialize config
 
@@ -174,7 +176,7 @@ async fn process_task(
             return Err(FocusError::MissingExporterTaskType);
         };
         let body = &task.body;
-        return Ok(run_exporter_query(task, body, task_type).await?);
+        return run_exporter_query(task, body, task_type).await;
     }
 
     if CONFIG.endpoint_type == EndpointType::Blaze {
@@ -267,6 +269,8 @@ async fn run_cql_query(
             };
 
             let cql_result = blaze::run_cql_query(&query.lib, &query.measure).await?;
+
+            trace!("MeasureReport with unobfuscated values: {}", &cql_result);
 
             let cql_result_new: String = match obfuscate {
                 true => obfuscate_counts_mr(

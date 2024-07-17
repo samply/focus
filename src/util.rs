@@ -8,7 +8,7 @@ use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader};
-use std::path::{Path};
+use std::path::Path;
 use tracing::warn;
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -114,6 +114,7 @@ pub(crate) fn is_cql_tampered_with(decoded_library: impl Into<String>) -> bool {
     decoded_library.contains("define")
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn obfuscate_counts_mr(
     json_str: &str,
     obf_cache: &mut ObfCache,
@@ -134,7 +135,7 @@ pub fn obfuscate_counts_mr(
         2 => ObfuscateBelow10Mode::Obfuscate,
         _ => ObfuscateBelow10Mode::Obfuscate,
     };
-    let mut measure_report: MeasureReport = serde_json::from_str(&json_str)
+    let mut measure_report: MeasureReport = serde_json::from_str(json_str)
         .map_err(|e| FocusError::DeserializationError(format!(r#"{}. Is obfuscation turned on when it shouldn't be? Is the metadata in the task formatted correctly, like this {{"project": "name"}}? Are there any other projects stated in the projects_no_obfuscation parameter in the bridgehead?"#, e)))?;
     for g in &mut measure_report.group {
         match &g.code.text[..] {
@@ -281,6 +282,7 @@ pub fn obfuscate_counts_mr(
     Ok(measure_report_obfuscated)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn obfuscate_counts_recursive(
     val: &mut Value,
     delta: f64,
