@@ -95,3 +95,31 @@ define function ReportingCountry(observation FHIR.Observation):
 define function ExistsReportingCountry(value_var String):
     ExistsObservationExtensionValue('https://ecdc.amr/fhir/StructureDefinition/ObservationReportingCountry', value_var)
 
+// Return the year from the date used for statistics
+define function YearDateUsedForStatistics(observation FHIR.Observation):
+    year from observation.issued
+
+// Return the month from the date used for statistics
+define function MonthDateUsedForStatistics(observation FHIR.Observation):
+    month from observation.issued
+
+// Return the year-month from the date used for statistics
+define function YearMonthDateUsedForStatistics(observation FHIR.Observation):
+    ToString(YearDateUsedForStatistics(observation)) + '-' + ToString(MonthDateUsedForStatistics(observation))
+
+// Return the the date valid from
+define function DateValidFrom(observation FHIR.Observation):
+    ToDate(observation.effective as dateTime)
+
+// Return the year from the date valid from
+define function YearDateValidFrom(observation FHIR.Observation):
+    year from DateValidFrom(observation)
+
+// Return the month from the date valid from
+define function MonthDateValidFrom(observation FHIR.Observation):
+    month from DateValidFrom(observation)
+
+// Return the year-month from the date valid from
+define function YearMonthDateValidFrom(observation FHIR.Observation):
+    ToString(YearDateValidFrom(observation)) + '-' + ToString(MonthDateValidFrom(observation))
+
