@@ -229,7 +229,7 @@ async fn process_task(
 
                     Ok(beam::beam_result::succeeded(
                         CONFIG.beam_app_id_long.clone(),
-                        vec![task.clone().from],
+                        vec![task.from.clone()],
                         task.id,
                         BASE64.encode(serde_json::to_string(&rows_json)?),
                     ))

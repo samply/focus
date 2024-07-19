@@ -65,17 +65,16 @@ pub async fn run_query(pool: &PgPool, query: &str) -> Result<Vec<PgRow>, FocusEr
 pub async fn process_sql_task(pool: &PgPool, key: &str) -> Result<Vec<PgRow>, FocusError> {
     debug!("Executing query with key = {}", &key);
     let sql_query = SQL_REPLACE_MAP.get(&key);
-    if sql_query.is_none() {
+    let Some(query) = sql_query else {
         return Err(FocusError::QueryNotAllowed(key.into()));
-    }
-    let query = sql_query.unwrap();
+    };
     debug!("Executing query {}", &query);
 
     run_query(pool, query).await
 }
 
 pub fn serialize_rows(rows: Vec<PgRow>) -> Result<Value, FocusError> {
-    let mut rows_json: Vec<Value> = vec![];
+    let mut rows_json: Vec<Value> = Vec::with_capacity(rows.len());
 
     for row in rows {
         let row = SerMapPgRow::from(row);
