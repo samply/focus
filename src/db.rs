@@ -76,7 +76,7 @@ pub async fn process_sql_task(pool: &PgPool, key: &str) -> Result<Vec<PgRow>, Fo
 }
 
 pub fn serialize_rows(rows: Vec<PgRow>) -> Result<Value, FocusError> {
-    let mut rows_json: Vec<Value> = vec![];
+    let mut rows_json: Vec<Value> = Vec::with_capacity(rows.len());
 
     for row in rows {
         let row = SerMapPgRow::from(row);
