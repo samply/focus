@@ -194,50 +194,10 @@ async fn process_task(
         return run_exporter_query(task, body, task_type).await;
     }
 
-    if CONFIG.endpoint_type == EndpointType::Blaze {
-        let mut generated_from_ast: bool = false;
-        let data = base64_decode(&task.body)?;
-        let query: CqlQuery = match serde_json::from_slice::<Language>(&data)? {
-            Language::Cql(cql_query) => cql_query,
-            Language::Ast(ast_query) => {
-                generated_from_ast = true;
-                serde_json::from_str(&cql::generate_body(parse_blaze_query_payload_ast(
-                    &ast_query.payload,
-                )?)?)?
-            }
-        };
-        run_cql_query(
-            task,
-            &query,
-            obf_cache,
-            report_cache,
-            metadata.project,
-            generated_from_ast,
-        )
-        .await
-    } else if CONFIG.endpoint_type == EndpointType::BlazeAndSql {
-        let mut generated_from_ast: bool = false;
-        let data = base64_decode(&task.body)?;
-        let query_maybe: Result<db::SqlQuery, serde_json::Error> =
-            serde_json::from_slice(&(data.clone()));
-        if let Ok(sql_query) = query_maybe {
-            if let Some(pool) = db_pool {
-                let rows = db::process_sql_task(&pool, &(sql_query.payload)).await?;
-                    let rows_json = db::serialize_rows(rows)?;
-                    trace!("result: {}", &rows_json);
-
-                    Ok(beam::beam_result::succeeded(
-                        CONFIG.beam_app_id_long.clone(),
-                        vec![task.from.clone()],
-                        task.id,
-                        BASE64.encode(serde_json::to_string(&rows_json)?),
-                    ))
-            } else {
-                return Err(FocusError::CannotConnectToDatabase(
-                    "SQL task but no connection String in config".into(),
-                ));
-            }
-        } else {
+    match CONFIG.endpoint_type {
+        EndpointType::Blaze => {
+            let mut generated_from_ast: bool = false;
+            let data = base64_decode(&task.body)?;
             let query: CqlQuery = match serde_json::from_slice::<Language>(&data)? {
                 Language::Cql(cql_query) => cql_query,
                 Language::Ast(ast_query) => {
@@ -256,72 +216,103 @@ async fn process_task(
                 generated_from_ast,
             )
             .await
-        }
-    } else if CONFIG.endpoint_type == EndpointType::Sql {
-        let data = base64_decode(&task.body)?;
-        let query_maybe: Result<db::SqlQuery, serde_json::Error> = serde_json::from_slice(&(data));
-        if let Ok(sql_query) = query_maybe {
-            if let Some(pool) = db_pool {
-                let result = db::process_sql_task(&pool, &(sql_query.payload)).await;
-                if let Ok(rows) = result {
-                    let rows_json = db::serialize_rows(rows)?;
-
-                    Ok(beam::beam_result::succeeded(
-                        CONFIG.beam_app_id_long.clone(),
-                        vec![task.clone().from],
-                        task.id,
-                        BASE64.encode(serde_json::to_string(&rows_json)?),
-                    ))
+        },
+        EndpointType::BlazeAndSql => {
+            let mut generated_from_ast: bool = false;
+            let data = base64_decode(&task.body)?;
+            let query_maybe: Result<db::SqlQuery, serde_json::Error> =
+                serde_json::from_slice(&(data.clone()));
+            if let Ok(sql_query) = query_maybe {
+                if let Some(pool) = db_pool {
+                    let rows = db::process_sql_task(&pool, &(sql_query.payload)).await?;
+                        let rows_json = db::serialize_rows(rows)?;
+                        trace!("result: {}", &rows_json);
+    
+                        Ok(beam::beam_result::succeeded(
+                            CONFIG.beam_app_id_long.clone(),
+                            vec![task.from.clone()],
+                            task.id,
+                            BASE64.encode(serde_json::to_string(&rows_json)?),
+                        ))
                 } else {
-                    return Err(FocusError::QueryResultBad(
-                        "Query executed but result not readable".into(),
+                    return Err(FocusError::CannotConnectToDatabase(
+                        "SQL task but no connection String in config".into(),
                     ));
                 }
             } else {
-                return Err(FocusError::CannotConnectToDatabase(
-                    "SQL task but no connection String in config".into(),
-                ));
+                let query: CqlQuery = match serde_json::from_slice::<Language>(&data)? {
+                    Language::Cql(cql_query) => cql_query,
+                    Language::Ast(ast_query) => {
+                        generated_from_ast = true;
+                        serde_json::from_str(&cql::generate_body(parse_blaze_query_payload_ast(
+                            &ast_query.payload,
+                        )?)?)?
+                    }
+                };
+                run_cql_query(
+                    task,
+                    &query,
+                    obf_cache,
+                    report_cache,
+                    metadata.project,
+                    generated_from_ast,
+                )
+                .await
             }
-        } else {
-            warn!(
-                "Wrong type of query for an SQL only store: {}, {:?}",
-                CONFIG.endpoint_type, data
-            );
-            Ok(beam::beam_result::perm_failed(
-                CONFIG.beam_app_id_long.clone(),
-                vec![task.from.clone()],
-                task.id,
-                format!(
+        },
+        EndpointType::Sql => {
+            let data = base64_decode(&task.body)?;
+            let query_maybe: Result<db::SqlQuery, serde_json::Error> = serde_json::from_slice(&(data));
+            if let Ok(sql_query) = query_maybe {
+                if let Some(pool) = db_pool {
+                    let result = db::process_sql_task(&pool, &(sql_query.payload)).await;
+                    if let Ok(rows) = result {
+                        let rows_json = db::serialize_rows(rows)?;
+    
+                        Ok(beam::beam_result::succeeded(
+                            CONFIG.beam_app_id_long.clone(),
+                            vec![task.clone().from],
+                            task.id,
+                            BASE64.encode(serde_json::to_string(&rows_json)?),
+                        ))
+                    } else {
+                        return Err(FocusError::QueryResultBad(
+                            "Query executed but result not readable".into(),
+                        ));
+                    }
+                } else {
+                    return Err(FocusError::CannotConnectToDatabase(
+                        "SQL task but no connection String in config".into(),
+                    ));
+                }
+            } else {
+                warn!(
                     "Wrong type of query for an SQL only store: {}, {:?}",
                     CONFIG.endpoint_type, data
-                ),
-            ))
-        }
-    } else if CONFIG.endpoint_type == EndpointType::Omop {
-        let decoded = util::base64_decode(&task.body)?;
-        let intermediate_rep_query: intermediate_rep::IntermediateRepQuery =
-            serde_json::from_slice(&decoded)?;
-        //TODO check that the language is ast
-        let query_decoded = general_purpose::STANDARD
-            .decode(intermediate_rep_query.query)
-            .map_err(FocusError::DecodeError)?;
-        let ast: ast::Ast = serde_json::from_slice(&query_decoded)?;
-
-        Ok(run_intermediate_rep_query(task, ast).await?)
-    } else {
-        warn!(
-            "Can't run queries with endpoint type {}",
-            CONFIG.endpoint_type
-        );
-        Ok(beam::beam_result::perm_failed(
-            CONFIG.beam_app_id_long.clone(),
-            vec![task.from.clone()],
-            task.id,
-            format!(
-                "Can't run queries with endpoint type {}",
-                CONFIG.endpoint_type
-            ),
-        ))
+                );
+                Ok(beam::beam_result::perm_failed(
+                    CONFIG.beam_app_id_long.clone(),
+                    vec![task.from.clone()],
+                    task.id,
+                    format!(
+                        "Wrong type of query for an SQL only store: {}, {:?}",
+                        CONFIG.endpoint_type, data
+                    ),
+                ))
+            }
+        }, 
+        EndpointType::Omop => {
+            let decoded = util::base64_decode(&task.body)?;
+            let intermediate_rep_query: intermediate_rep::IntermediateRepQuery =
+                serde_json::from_slice(&decoded)?;
+            //TODO check that the language is ast
+            let query_decoded = general_purpose::STANDARD
+                .decode(intermediate_rep_query.query)
+                .map_err(FocusError::DecodeError)?;
+            let ast: ast::Ast = serde_json::from_slice(&query_decoded)?;
+    
+            Ok(run_intermediate_rep_query(task, ast).await?)
+        } 
     }
 }
 
