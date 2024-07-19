@@ -90,7 +90,7 @@ mod test {
     use super::*;
 
     #[tokio::test]
-    //#[ignore] //TODO mock DB
+    #[ignore] //TODO mock DB
     async fn connect_healthcheck() {
         let pool =
             get_pg_connection_pool("postgresql://postgres:secret@localhost:5432/postgres", 1)
@@ -101,7 +101,7 @@ mod test {
     }
 
     #[tokio::test]
-    //#[ignore] //TODO mock DB
+    #[ignore] //TODO mock DB
     async fn serialize() {
         let pool =
             get_pg_connection_pool("postgresql://postgres:secret@localhost:5432/postgres", 1)
