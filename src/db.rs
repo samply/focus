@@ -82,7 +82,7 @@ pub fn serialize_rows(rows: Vec<PgRow>) -> Result<Value, FocusError> {
         rows_json.push(row_json);
     }
 
-    Ok(json!(rows_json))
+    Ok(Value::Array(rows_json))
 }
 
 #[cfg(test)]

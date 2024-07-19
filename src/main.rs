@@ -133,8 +133,8 @@ async fn main_loop() -> ExitCode {
     let endpoint_service_available: fn() -> BoxFuture<'static, bool> = match CONFIG.endpoint_type {
         EndpointType::Blaze => || blaze::check_availability().boxed(),
         EndpointType::Omop => || async { true }.boxed(), // TODO health check
-        EndpointType::BlazeAndSql => || blaze::check_availability().boxed(), //TODO SQL health check
-        EndpointType::Sql => || async { true }.boxed(),  // TODO health check
+        EndpointType::BlazeAndSql => || blaze::check_availability().boxed(),
+        EndpointType::Sql => || async { true }.boxed(),
     };
     let mut failures = 0;
     while !(beam::check_availability().await && endpoint_service_available().await) {
