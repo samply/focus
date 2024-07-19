@@ -52,7 +52,7 @@ QUERIES_TO_CACHE = "queries_to_cache.conf" # The path to a file containing base6
 PROVIDER = "name" #EUCAIM provider name
 PROVIDER_ICON = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABAQMAAAAl21bKAAAAA1BMVEUAAACnej3aAAAAAXRSTlMAQObYZgAAAApJREFUCNdjYAAAAAIAAeIhvDMAAAAASUVORK5CYII=" # Base64 encoded EUCAIM provider icon
 AUTH_HEADER = "ApiKey XXXX" #Authorization header
-DB_CONNECTION_STRING = "postgresql://postgres:Test.123@localhost:5432/postgres" # Database connection string
+POSTGRES_CONNECTION_STRING = "postgresql://postgres:Test.123@localhost:5432/postgres" # Postgres connection string
 ```
 
 Obfuscating zero counts is by default switched off. To enable obfuscating zero counts, set the env. variable `OBFUSCATE_ZERO`. 
