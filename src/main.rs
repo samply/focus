@@ -222,8 +222,7 @@ async fn process_task(
             serde_json::from_slice(&(data.clone()));
         if let Ok(sql_query) = query_maybe {
             if let Some(pool) = db_pool {
-                let result = db::process_sql_task(&pool, &(sql_query.payload)).await;
-                if let Ok(rows) = result {
+                let rows = db::process_sql_task(&pool, &(sql_query.payload)).await?;
                     let rows_json = db::serialize_rows(rows)?;
                     trace!("result: {}", &rows_json);
 
@@ -233,11 +232,6 @@ async fn process_task(
                         task.id,
                         BASE64.encode(serde_json::to_string(&rows_json)?),
                     ))
-                } else {
-                    let error = result.err().unwrap();
-                    error!("Error executing query: {}", error);
-                    return Err(error);
-                }
             } else {
                 return Err(FocusError::CannotConnectToDatabase(
                     "SQL task but no connection String in config".into(),
