@@ -119,7 +119,7 @@ pub async fn main() -> ExitCode {
 }
 
 async fn main_loop() -> ExitCode {
-    let db_pool = if let Some(connection_string) = CONFIG.db_connection_string.clone() {
+    let db_pool = if let Some(connection_string) = CONFIG.postgres_connection_string.clone() {
         match db::get_pg_connection_pool(&connection_string, 8).await {
             Err(e) => {
                 error!("Error connecting to database: {}", e);

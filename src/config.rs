@@ -160,7 +160,7 @@ struct CliArgs {
 
     /// Database connection string
     #[clap(long, env, value_parser)]
-    db_connection_string: Option<String>,
+    postgres_connection_string: Option<String>,
 }
 
 pub(crate) struct Config {
@@ -188,7 +188,7 @@ pub(crate) struct Config {
     pub provider: Option<String>,
     pub provider_icon: Option<String>,
     pub auth_header: Option<String>,
-    pub db_connection_string: Option<String>,
+    pub postgres_connection_string: Option<String>,
 }
 
 impl Config {
@@ -230,7 +230,7 @@ impl Config {
             provider: cli_args.provider,
             provider_icon: cli_args.provider_icon,
             auth_header: cli_args.auth_header,
-            db_connection_string: cli_args.db_connection_string,
+            postgres_connection_string: cli_args.postgres_connection_string,
             client,
         };
         Ok(config)
