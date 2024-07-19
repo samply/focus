@@ -159,17 +159,17 @@ async fn main_loop() -> ExitCode {
     task_processing::process_tasks(move |task| {
         let obf_cache = obf_cache.clone();
         let report_cache = report_cache.clone();
-        process_task(db_pool.clone(), task, obf_cache, report_cache).boxed_local()
+        process_task(task, obf_cache, report_cache, db_pool.clone()).boxed_local()
     })
     .await;
     ExitCode::FAILURE
 }
 
 async fn process_task(
-    db_pool: Option<PgPool>,
     task: &BeamTask,
     obf_cache: Arc<Mutex<ObfCache>>,
     report_cache: Arc<Mutex<ReportCache>>,
+    db_pool: Option<PgPool>,
 ) -> Result<BeamResult, FocusError> {
     debug!("Processing task {}", task.id);
 
