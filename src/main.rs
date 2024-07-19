@@ -231,7 +231,7 @@ async fn process_task(
                         CONFIG.beam_app_id_long.clone(),
                         vec![task.clone().from],
                         task.id,
-                        BASE64.encode(rows_json.to_string()),
+                        BASE64.encode(serde_json::to_string(&rows_json)?),
                     ))
                 } else {
                     let error = result.err().unwrap();
@@ -276,7 +276,7 @@ async fn process_task(
                         CONFIG.beam_app_id_long.clone(),
                         vec![task.clone().from],
                         task.id,
-                        BASE64.encode(rows_json.to_string()),
+                        BASE64.encode(serde_json::to_string(&rows_json)?),
                     ))
                 } else {
                     return Err(FocusError::QueryResultBad(

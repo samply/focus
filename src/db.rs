@@ -4,7 +4,7 @@ use serde_json::{json, Value};
 use sqlx::{postgres::PgPoolOptions, postgres::PgRow, PgPool};
 use sqlx_pgrow_serde::SerMapPgRow;
 use std::collections::HashMap;
-use tracing::{error, info, debug};
+use tracing::{warn, info, debug};
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct SqlQuery {
@@ -35,7 +35,7 @@ pub async fn get_pg_connection_pool(pg_url: &str, num_attempts: u32) -> Result<P
                 return Ok(pg_con_pool);
             }
             Err(e) => {
-                error!(
+                warn!(
                     "Failed to connect to PostgreSQL. Attempt {} of {}: {}",
                     attempts + 1,
                     num_attempts,
@@ -47,9 +47,7 @@ pub async fn get_pg_connection_pool(pg_url: &str, num_attempts: u32) -> Result<P
         attempts += 1;
         tokio::time::sleep(std::time::Duration::from_secs(1)).await;
     }
-    Err(err.unwrap_or_else(|| {
-        FocusError::CannotConnectToDatabase("Failed to connect to PostgreSQL".into())
-    }))
+    Err(err.unwrap())
 }
 
 pub async fn healthcheck(pool: &PgPool) -> bool {
@@ -93,7 +91,7 @@ mod test {
     use super::*;
 
     #[tokio::test]
-    #[ignore] //TODO mock DB
+    //#[ignore] //TODO mock DB
     async fn connect_healthcheck() {
         let pool =
             get_pg_connection_pool("postgresql://postgres:secret@localhost:5432/postgres", 1)
@@ -104,7 +102,7 @@ mod test {
     }
 
     #[tokio::test]
-    #[ignore] //TODO mock DB
+    //#[ignore] //TODO mock DB
     async fn serialize() {
         let pool =
             get_pg_connection_pool("postgresql://postgres:secret@localhost:5432/postgres", 1)
