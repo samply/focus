@@ -1,5 +1,5 @@
-use std::path::PathBuf;
 use std::fmt;
+use std::path::PathBuf;
 
 use beam_lib::AppId;
 use clap::Parser;
@@ -9,7 +9,6 @@ use reqwest::{Certificate, Client, Proxy};
 use tracing::{debug, info, warn};
 
 use crate::errors::FocusError;
-
 
 #[derive(clap::ValueEnum, Clone, PartialEq, Debug)]
 pub enum Obfuscate {
@@ -21,17 +20,20 @@ pub enum Obfuscate {
 pub enum EndpointType {
     Blaze,
     Omop,
+    BlazeAndSql,
+    Sql,
 }
 
 impl fmt::Display for EndpointType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            EndpointType::Blaze => write!(f, "blaze"), 
+            EndpointType::Blaze => write!(f, "blaze"),
             EndpointType::Omop => write!(f, "omop"),
+            EndpointType::BlazeAndSql => write!(f, "blaze_and_sql"),
+            EndpointType::Sql => write!(f, "sql"),
         }
     }
 }
-
 
 pub(crate) static CONFIG: Lazy<Config> = Lazy::new(|| {
     debug!("Loading config");
@@ -128,7 +130,12 @@ struct CliArgs {
     rounding_step: usize,
 
     /// Projects for which the results are not to be obfuscated, separated by ;
-    #[clap(long, env, value_parser, default_value = "exliquid;dktk_supervisors;exporter;ehds2")]
+    #[clap(
+        long,
+        env,
+        value_parser,
+        default_value = "exliquid;dktk_supervisors;exporter;ehds2"
+    )]
     projects_no_obfuscation: String,
 
     /// Path to a file containing BASE64 encoded queries whose results are to be cached
@@ -142,7 +149,7 @@ struct CliArgs {
     /// OMOP provider name
     #[clap(long, env, value_parser)]
     provider: Option<String>,
-  
+
     /// Base64 encoded OMOP provider icon
     #[clap(long, env, value_parser)]
     provider_icon: Option<String>,
@@ -151,6 +158,9 @@ struct CliArgs {
     #[clap(long, env, value_parser)]
     auth_header: Option<String>,
 
+    /// Database connection string
+    #[clap(long, env, value_parser)]
+    postgres_connection_string: Option<String>,
 }
 
 pub(crate) struct Config {
@@ -178,6 +188,7 @@ pub(crate) struct Config {
     pub provider: Option<String>,
     pub provider_icon: Option<String>,
     pub auth_header: Option<String>,
+    pub postgres_connection_string: Option<String>,
 }
 
 impl Config {
@@ -219,6 +230,7 @@ impl Config {
             provider: cli_args.provider,
             provider_icon: cli_args.provider_icon,
             auth_header: cli_args.auth_header,
+            postgres_connection_string: cli_args.postgres_connection_string,
             client,
         };
         Ok(config)
@@ -274,7 +286,7 @@ pub fn prepare_reqwest_client(certs: &Vec<Certificate>) -> Result<reqwest::Clien
                 ),
                 "all_proxy" => proxies.push(
                     Proxy::all(v)
-                        .map_err( FocusError::InvalidProxyConfig)?
+                        .map_err(FocusError::InvalidProxyConfig)?
                         .no_proxy(no_proxy.clone()),
                 ),
                 _ => (),
