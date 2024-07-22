@@ -3,10 +3,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sqlx::{postgres::PgPoolOptions, postgres::PgRow, PgPool};
 use sqlx_pgrow_serde::SerMapPgRow;
-use std::collections::HashMap;
-use tokio_retry::strategy::{jitter, ExponentialBackoff};
-use tokio_retry::Retry;
-use tracing::{debug, info, warn};
+use std::{collections::HashMap, time::Duration};
+use tracing::{warn, info, debug};
+
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct SqlQuery {
@@ -18,11 +17,7 @@ include!(concat!(env!("OUT_DIR"), "/sql_replace_map.rs"));
 pub async fn get_pg_connection_pool(pg_url: &str, max_attempts: u32) -> Result<PgPool, FocusError> {
     info!("Trying to establish a PostgreSQL connection pool");
 
-    let retry_strategy = ExponentialBackoff::from_millis(1000)
-        .map(jitter)
-        .take(max_attempts as usize);
-
-    Retry::spawn(retry_strategy, || async {
+    tryhard::retry_fn(|| async {
         info!("Attempting to connect to PostgreSQL");
         PgPoolOptions::new()
             .max_connections(10)
@@ -33,12 +28,9 @@ pub async fn get_pg_connection_pool(pg_url: &str, max_attempts: u32) -> Result<P
                 FocusError::CannotConnectToDatabase(e.to_string())
             })
     })
+    .retries(max_attempts)
+    .exponential_backoff(Duration::from_secs(2))
     .await
-}
-
-pub async fn healthcheck(pool: &PgPool) -> bool {
-    let res = run_query(pool, SQL_REPLACE_MAP.get("SELECT_TABLES").unwrap()).await; //this file exists, safe to unwrap
-    res.is_ok()
 }
 
 pub async fn run_query(pool: &PgPool, query: &str) -> Result<Vec<PgRow>, FocusError> {
@@ -69,39 +61,4 @@ pub fn serialize_rows(rows: Vec<PgRow>) -> Result<Value, FocusError> {
     }
 
     Ok(Value::Array(rows_json))
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-
-    #[tokio::test]
-    #[ignore] //TODO mock DB
-    async fn connect_healthcheck() {
-        let pool =
-            get_pg_connection_pool("postgresql://postgres:secret@localhost:5432/postgres", 1)
-                .await
-                .unwrap();
-
-        assert!(healthcheck(&pool).await);
-    }
-
-    #[tokio::test]
-    #[ignore] //TODO mock DB
-    async fn serialize() {
-        let pool =
-            get_pg_connection_pool("postgresql://postgres:secret@localhost:5432/postgres", 1)
-                .await
-                .unwrap();
-
-        let rows = run_query(&pool, SQL_REPLACE_MAP.get("SELECT_TABLES").unwrap())
-            .await
-            .unwrap();
-
-        let rows_json = serialize_rows(rows).unwrap();
-
-        assert!(rows_json.is_array());
-
-        assert_ne!(rows_json[0]["hasindexes"], Value::Null);
-    }
 }
