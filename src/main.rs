@@ -235,9 +235,9 @@ async fn process_task(
                             BASE64.encode(serde_json::to_string(&rows_json)?),
                         ))
                 } else {
-                    return Err(FocusError::CannotConnectToDatabase(
+                    Err(FocusError::CannotConnectToDatabase(
                         "SQL task but no connection String in config".into(),
-                    ));
+                    ))
                 }
             } else {
                 let query: CqlQuery = match serde_json::from_slice::<Language>(&data)? {
@@ -276,14 +276,14 @@ async fn process_task(
                             BASE64.encode(serde_json::to_string(&rows_json)?),
                         ))
                     } else {
-                        return Err(FocusError::QueryResultBad(
+                        Err(FocusError::QueryResultBad(
                             "Query executed but result not readable".into(),
-                        ));
+                        ))
                     }
                 } else {
-                    return Err(FocusError::CannotConnectToDatabase(
+                    Err(FocusError::CannotConnectToDatabase(
                         "SQL task but no connection String in config".into(),
-                    ));
+                    ))
                 }
             } else {
                 warn!(

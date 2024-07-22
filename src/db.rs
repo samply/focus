@@ -4,10 +4,9 @@ use serde_json::Value;
 use sqlx::{postgres::PgPoolOptions, postgres::PgRow, PgPool};
 use sqlx_pgrow_serde::SerMapPgRow;
 use std::collections::HashMap;
-use tracing::{warn, info, debug};
-use tokio_retry::strategy::{ExponentialBackoff, jitter};
+use tokio_retry::strategy::{jitter, ExponentialBackoff};
 use tokio_retry::Retry;
-
+use tracing::{debug, info, warn};
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct SqlQuery {
@@ -20,10 +19,10 @@ pub async fn get_pg_connection_pool(pg_url: &str, max_attempts: u32) -> Result<P
     info!("Trying to establish a PostgreSQL connection pool");
 
     let retry_strategy = ExponentialBackoff::from_millis(1000)
-        .map(jitter) 
+        .map(jitter)
         .take(max_attempts as usize);
 
-    let result = Retry::spawn(retry_strategy, || async {
+    Retry::spawn(retry_strategy, || async {
         info!("Attempting to connect to PostgreSQL");
         PgPoolOptions::new()
             .max_connections(10)
@@ -33,11 +32,9 @@ pub async fn get_pg_connection_pool(pg_url: &str, max_attempts: u32) -> Result<P
                 warn!("Failed to connect to PostgreSQL: {}", e);
                 FocusError::CannotConnectToDatabase(e.to_string())
             })
-    }).await;
-
-    result
+    })
+    .await
 }
-
 
 pub async fn healthcheck(pool: &PgPool) -> bool {
     let res = run_query(pool, SQL_REPLACE_MAP.get("SELECT_TABLES").unwrap()).await; //this file exists, safe to unwrap
