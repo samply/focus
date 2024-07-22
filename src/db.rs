@@ -1,10 +1,13 @@
 use crate::errors::FocusError;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::Value;
 use sqlx::{postgres::PgPoolOptions, postgres::PgRow, PgPool};
 use sqlx_pgrow_serde::SerMapPgRow;
 use std::collections::HashMap;
 use tracing::{warn, info, debug};
+use tokio_retry::strategy::{ExponentialBackoff, jitter};
+use tokio_retry::Retry;
+
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct SqlQuery {
@@ -13,42 +16,28 @@ pub struct SqlQuery {
 
 include!(concat!(env!("OUT_DIR"), "/sql_replace_map.rs"));
 
-pub async fn get_pg_connection_pool(pg_url: &str, num_attempts: u32) -> Result<PgPool, FocusError> {
+pub async fn get_pg_connection_pool(pg_url: &str, max_attempts: u32) -> Result<PgPool, FocusError> {
     info!("Trying to establish a PostgreSQL connection pool");
 
-    let mut attempts = 0;
-    let mut err: Option<FocusError> = None;
+    let retry_strategy = ExponentialBackoff::from_millis(1000)
+        .map(jitter) 
+        .take(max_attempts as usize);
 
-    while attempts < num_attempts {
-        info!(
-            "Attempt to connect to PostgreSQL {} of {}",
-            attempts + 1,
-            num_attempts
-        );
-        match PgPoolOptions::new()
+    let result = Retry::spawn(retry_strategy, || async {
+        info!("Attempting to connect to PostgreSQL");
+        PgPoolOptions::new()
             .max_connections(10)
             .connect(pg_url)
             .await
-        {
-            Ok(pg_con_pool) => {
-                info!("PostgreSQL connection successfull");
-                return Ok(pg_con_pool);
-            }
-            Err(e) => {
-                warn!(
-                    "Failed to connect to PostgreSQL. Attempt {} of {}: {}",
-                    attempts + 1,
-                    num_attempts,
-                    e
-                );
-                err = Some(FocusError::CannotConnectToDatabase(e.to_string()));
-            }
-        }
-        attempts += 1;
-        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-    }
-    Err(err.unwrap())
+            .map_err(|e| {
+                warn!("Failed to connect to PostgreSQL: {}", e);
+                FocusError::CannotConnectToDatabase(e.to_string())
+            })
+    }).await;
+
+    result
 }
+
 
 pub async fn healthcheck(pool: &PgPool) -> bool {
     let res = run_query(pool, SQL_REPLACE_MAP.get("SELECT_TABLES").unwrap()).await; //this file exists, safe to unwrap
