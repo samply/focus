@@ -3,10 +3,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sqlx::{postgres::PgPoolOptions, postgres::PgRow, PgPool};
 use sqlx_pgrow_serde::SerMapPgRow;
-use std::collections::HashMap;
+use std::{collections::HashMap, time::Duration};
 use tracing::{warn, info, debug};
-use tokio_retry::strategy::{ExponentialBackoff, jitter};
-use tokio_retry::Retry;
 
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
@@ -19,11 +17,7 @@ include!(concat!(env!("OUT_DIR"), "/sql_replace_map.rs"));
 pub async fn get_pg_connection_pool(pg_url: &str, max_attempts: u32) -> Result<PgPool, FocusError> {
     info!("Trying to establish a PostgreSQL connection pool");
 
-    let retry_strategy = ExponentialBackoff::from_millis(1000)
-        .map(jitter) 
-        .take(max_attempts as usize);
-
-    let result = Retry::spawn(retry_strategy, || async {
+    tryhard::retry_fn(|| async {
         info!("Attempting to connect to PostgreSQL");
         PgPoolOptions::new()
             .max_connections(10)
@@ -33,9 +27,10 @@ pub async fn get_pg_connection_pool(pg_url: &str, max_attempts: u32) -> Result<P
                 warn!("Failed to connect to PostgreSQL: {}", e);
                 FocusError::CannotConnectToDatabase(e.to_string())
             })
-    }).await;
-
-    result
+    })
+    .retries(max_attempts)
+    .exponential_backoff(Duration::from_secs(2))
+    .await
 }
 
 
