@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use beam_lib::AppId;
 use clap::Parser;
-use http::{HeaderValue, Uri};
+use reqwest::{header::HeaderValue, Url};
 use once_cell::sync::Lazy;
 use reqwest::{Certificate, Client, Proxy};
 use tracing::{debug, info, warn};
@@ -55,7 +55,7 @@ const CLAP_FOOTER: &str = "For proxy support, environment variables HTTP_PROXY, 
 struct CliArgs {
     /// The beam proxy's base URL, e.g. https://proxy1.beam.samply.de
     #[clap(long, env, value_parser)]
-    beam_proxy_url: Uri,
+    beam_proxy_url: Url,
 
     /// This application's beam AppId, e.g. focus.proxy1.broker.samply.de
     #[clap(long, env, value_parser)]
@@ -71,15 +71,15 @@ struct CliArgs {
 
     /// The endpoint base URL, e.g. https://blaze.site/fhir/
     #[clap(long, env, value_parser)]
-    endpoint_url: Option<Uri>,
+    endpoint_url: Option<Url>,
 
     /// The endpoint base URL, e.g. https://blaze.site/fhir/, for the sake of backward compatibility, use endpoint_url instead
     #[clap(long, env, value_parser)]
-    blaze_url: Option<Uri>,
+    blaze_url: Option<Url>,
 
     /// The exporter URL, e.g. https://exporter.site/
     #[clap(long, env, value_parser)]
-    exporter_url: Option<Uri>,
+    exporter_url: Option<Url>,
 
     /// Type of the endpoint, e.g. "blaze", "omop"
     #[clap(long, env, value_parser = clap::value_parser!(EndpointType), default_value = "blaze")]
@@ -164,12 +164,12 @@ struct CliArgs {
 }
 
 pub(crate) struct Config {
-    pub beam_proxy_url: Uri,
+    pub beam_proxy_url: Url,
     pub beam_app_id_long: AppId,
     pub api_key: String,
     pub retry_count: usize,
-    pub endpoint_url: Uri,
-    pub exporter_url: Option<Uri>,
+    pub endpoint_url: Url,
+    pub exporter_url: Option<Url>,
     pub endpoint_type: EndpointType,
     pub obfuscate: Obfuscate,
     pub obfuscate_zero: bool,

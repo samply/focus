@@ -1,3 +1,4 @@
+use reqwest::header;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -55,7 +56,7 @@ pub enum FocusError {
     #[error("Invalid date format: {0}")]
     AstInvalidDateFormat(String),
     #[error("Invalid Header Value: {0}")]
-    InvalidHeaderValue(http::header::InvalidHeaderValue),
+    InvalidHeaderValue(header::InvalidHeaderValue),
     #[error("Missing Exporter Endpoint")]
     MissingExporterEndpoint,
     #[error("Missing Exporter Task Type")]
