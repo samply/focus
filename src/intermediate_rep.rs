@@ -1,7 +1,4 @@
-use http::header;
-use http::HeaderMap;
-use http::HeaderValue;
-use http::StatusCode;
+use reqwest::{header::{self, HeaderMap, HeaderValue}, StatusCode};
 use serde::Deserialize;
 use serde::Serialize;
 use tracing::{debug, warn};

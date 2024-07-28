@@ -1,4 +1,4 @@
-use http::StatusCode;
+use reqwest::StatusCode;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_json::Value;
