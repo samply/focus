@@ -1,3 +1,4 @@
+use reqwest::header;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -50,16 +51,24 @@ pub enum FocusError {
     AstUnknownCriterion(String),
     #[error("Unknown option in AST: {0}")]
     AstUnknownOption(String),
-    #[error("Mismatch between operator and value type")]
+    #[error("Mismatch between operator and value type: {0}")]
     AstOperatorValueMismatch(String),
     #[error("Invalid date format: {0}")]
     AstInvalidDateFormat(String),
     #[error("Invalid Header Value: {0}")]
-    InvalidHeaderValue(http::header::InvalidHeaderValue),
+    InvalidHeaderValue(header::InvalidHeaderValue),
     #[error("Missing Exporter Endpoint")]
     MissingExporterEndpoint,
     #[error("Missing Exporter Task Type")]
     MissingExporterTaskType,
+    #[error("Cannot connect to database: {0}")]
+    CannotConnectToDatabase(String),
+    #[error("Error executing query: {0}")]
+    ErrorExecutingQuery(sqlx::Error),
+    #[error("QueryResultBad: {0}")]
+    QueryResultBad(String),
+    #[error("Query not allowed: {0}")]
+    QueryNotAllowed(String),
 }
 
 impl FocusError {

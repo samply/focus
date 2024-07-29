@@ -8,6 +8,7 @@ use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader};
+use std::path::Path;
 use tracing::warn;
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -25,10 +26,17 @@ struct ValueQuantity {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+struct ValueRatio {
+    denominator: Value,
+    numerator: Value,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct Extension {
     url: String,
-    value_quantity: ValueQuantity,
+    value_quantity: Option<ValueQuantity>,
+    value_ratio: Option<ValueRatio>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -76,9 +84,9 @@ pub(crate) fn get_json_field(json_string: &str, field: &str) -> Result<Value, se
     Ok(json[field].clone())
 }
 
-pub(crate) fn read_lines(filename: String) -> Result<io::Lines<BufReader<File>>, FocusError> {
-    let file = File::open(filename.clone()).map_err(|e| {
-        FocusError::FileOpeningError(format!("Cannot open file {}: {} ", filename, e))
+pub(crate) fn read_lines(filename: &Path) -> Result<io::Lines<BufReader<File>>, FocusError> {
+    let file = File::open(filename).map_err(|e| {
+        FocusError::FileOpeningError(format!("Cannot open file {}: {} ", filename.display(), e))
     })?;
     Ok(io::BufReader::new(file).lines())
 }
@@ -106,6 +114,7 @@ pub(crate) fn is_cql_tampered_with(decoded_library: impl Into<String>) -> bool {
     decoded_library.contains("define")
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn obfuscate_counts_mr(
     json_str: &str,
     obf_cache: &mut ObfCache,
@@ -126,7 +135,7 @@ pub fn obfuscate_counts_mr(
         2 => ObfuscateBelow10Mode::Obfuscate,
         _ => ObfuscateBelow10Mode::Obfuscate,
     };
-    let mut measure_report: MeasureReport = serde_json::from_str(&json_str)
+    let mut measure_report: MeasureReport = serde_json::from_str(json_str)
         .map_err(|e| FocusError::DeserializationError(format!(r#"{}. Is obfuscation turned on when it shouldn't be? Is the metadata in the task formatted correctly, like this {{"project": "name"}}? Are there any other projects stated in the projects_no_obfuscation parameter in the bridgehead?"#, e)))?;
     for g in &mut measure_report.group {
         match &g.code.text[..] {
@@ -273,6 +282,7 @@ pub fn obfuscate_counts_mr(
     Ok(measure_report_obfuscated)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn obfuscate_counts_recursive(
     val: &mut Value,
     delta: f64,
@@ -283,7 +293,7 @@ fn obfuscate_counts_recursive(
     obfuscate_below_10_mode: ObfuscateBelow10Mode,
     rounding_step: usize,
 ) -> Result<(), FocusError> {
-    let mut rng = thread_rng();// TODO evict
+    let mut rng = thread_rng();
     match val {
         Value::Object(map) => {
             if let Some(count_val) = map.get_mut("count") {
@@ -350,6 +360,8 @@ mod test {
     const QUERY_BBMRI: &str = include_str!("../resources/test/query_bbmri.cql");
     const EXAMPLE_MEASURE_REPORT_BBMRI: &str =
         include_str!("../resources/test/measure_report_bbmri.json");
+        const EXAMPLE_MEASURE_REPORT_BBMRI_NEW_EXTENSION: &str =
+        include_str!("../resources/test/measure_report_bbmri_new_extension.json");
     const EXAMPLE_MEASURE_REPORT_DKTK: &str =
         include_str!("../resources/test/measure_report_dktk.json");
     const EXAMPLE_MEASURE_REPORT_EXLIQUID: &str =
@@ -453,6 +465,52 @@ mod test {
     }
 
     #[test]
+    fn test_obfuscate_counts_bbmri_new_extension() {
+        let mut obf_cache = ObfCache {
+            cache: HashMap::new(),
+        };
+        let obfuscated_json = obfuscate_counts_mr(
+            EXAMPLE_MEASURE_REPORT_BBMRI_NEW_EXTENSION,
+            &mut obf_cache,
+            false,
+            1,
+            DELTA_PATIENT,
+            DELTA_SPECIMEN,
+            DELTA_DIAGNOSIS,
+            DELTA_PROCEDURES,
+            DELTA_MEDICATION_STATEMENTS,
+            DELTA_HISTO,
+            EPSILON,
+            ROUNDING_STEP,
+        )
+        .unwrap();
+
+        // Check that the obfuscated JSON can be parsed and has the same structure as the original JSON
+        let _: MeasureReport = serde_json::from_str(&obfuscated_json).unwrap();
+
+        // Check that the obfuscated JSON is different from the original JSON
+        assert_ne!(obfuscated_json, EXAMPLE_MEASURE_REPORT_BBMRI_NEW_EXTENSION);
+
+        // Check that obfuscating the same JSON twice with the same obfuscation cache gives the same result
+        let obfuscated_json_2 = obfuscate_counts_mr(
+            EXAMPLE_MEASURE_REPORT_BBMRI_NEW_EXTENSION,
+            &mut obf_cache,
+            false,
+            1,
+            DELTA_PATIENT,
+            DELTA_SPECIMEN,
+            DELTA_DIAGNOSIS,
+            DELTA_PROCEDURES,
+            DELTA_MEDICATION_STATEMENTS,
+            DELTA_HISTO,
+            EPSILON,
+            ROUNDING_STEP,
+        )
+        .unwrap();
+        pretty_assertions::assert_eq!(obfuscated_json, obfuscated_json_2);
+    }
+
+    #[test]
     fn test_obfuscate_counts_bbmri() {
         let mut obf_cache = ObfCache {
             cache: HashMap::new(),
@@ -497,6 +555,7 @@ mod test {
         .unwrap();
         pretty_assertions::assert_eq!(obfuscated_json, obfuscated_json_2);
     }
+
 
     #[test]
     fn test_obfuscate_counts_dktk() {

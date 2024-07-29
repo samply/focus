@@ -41,6 +41,30 @@ fn build_cqlmap() {
     ).unwrap();
 }
 
+fn build_sqlmap() {
+    let path = Path::new(&env::var("OUT_DIR").unwrap()).join("sql_replace_map.rs");
+    let mut file = BufWriter::new(File::create(path).unwrap());
+
+    write!(&mut file, r#"
+        static SQL_REPLACE_MAP: once_cell::sync::Lazy<HashMap<&'static str, &'static str>> = once_cell::sync::Lazy::new(|| {{
+        let mut map = HashMap::new();
+    "#).unwrap();
+
+    for sqlfile in std::fs::read_dir(Path::new("resources/sql")).unwrap() {
+        let sqlfile = sqlfile.unwrap();
+        let sqlfilename = sqlfile.file_name().to_str().unwrap().to_owned();
+        let sqlcontent = std::fs::read_to_string(sqlfile.path()).unwrap();
+        write!(&mut file, r####"
+            map.insert(r###"{sqlfilename}"###, r###"{sqlcontent}"###);
+        "####).unwrap();
+    }
+
+    writeln!(&mut file, "
+        map
+    }});"
+    ).unwrap();
+}
+
 fn main() {
     build_data::set_GIT_COMMIT_SHORT();
     build_data::set_GIT_DIRTY();
@@ -51,4 +75,5 @@ fn main() {
     println!("cargo:rustc-env=SAMPLY_USER_AGENT=Samply.Focus.{}/{}", env!("CARGO_PKG_NAME"), version());
 
     build_cqlmap();
+    build_sqlmap();
 }

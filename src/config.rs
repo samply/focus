@@ -1,15 +1,14 @@
-use std::path::PathBuf;
 use std::fmt;
+use std::path::PathBuf;
 
 use beam_lib::AppId;
 use clap::Parser;
-use http::{HeaderValue, Uri};
+use reqwest::{header::HeaderValue, Url};
 use once_cell::sync::Lazy;
 use reqwest::{Certificate, Client, Proxy};
 use tracing::{debug, info, warn};
 
 use crate::errors::FocusError;
-
 
 #[derive(clap::ValueEnum, Clone, PartialEq, Debug)]
 pub enum Obfuscate {
@@ -21,17 +20,20 @@ pub enum Obfuscate {
 pub enum EndpointType {
     Blaze,
     Omop,
+    BlazeAndSql,
+    Sql,
 }
 
 impl fmt::Display for EndpointType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            EndpointType::Blaze => write!(f, "blaze"), 
+            EndpointType::Blaze => write!(f, "blaze"),
             EndpointType::Omop => write!(f, "omop"),
+            EndpointType::BlazeAndSql => write!(f, "blaze_and_sql"),
+            EndpointType::Sql => write!(f, "sql"),
         }
     }
 }
-
 
 pub(crate) static CONFIG: Lazy<Config> = Lazy::new(|| {
     debug!("Loading config");
@@ -53,7 +55,7 @@ const CLAP_FOOTER: &str = "For proxy support, environment variables HTTP_PROXY, 
 struct CliArgs {
     /// The beam proxy's base URL, e.g. https://proxy1.beam.samply.de
     #[clap(long, env, value_parser)]
-    beam_proxy_url: Uri,
+    beam_proxy_url: Url,
 
     /// This application's beam AppId, e.g. focus.proxy1.broker.samply.de
     #[clap(long, env, value_parser)]
@@ -69,15 +71,15 @@ struct CliArgs {
 
     /// The endpoint base URL, e.g. https://blaze.site/fhir/
     #[clap(long, env, value_parser)]
-    endpoint_url: Option<Uri>,
+    endpoint_url: Option<Url>,
 
     /// The endpoint base URL, e.g. https://blaze.site/fhir/, for the sake of backward compatibility, use endpoint_url instead
     #[clap(long, env, value_parser)]
-    blaze_url: Option<Uri>,
+    blaze_url: Option<Url>,
 
     /// The exporter URL, e.g. https://exporter.site/
     #[clap(long, env, value_parser)]
-    exporter_url: Option<Uri>,
+    exporter_url: Option<Url>,
 
     /// Type of the endpoint, e.g. "blaze", "omop"
     #[clap(long, env, value_parser = clap::value_parser!(EndpointType), default_value = "blaze")]
@@ -128,12 +130,17 @@ struct CliArgs {
     rounding_step: usize,
 
     /// Projects for which the results are not to be obfuscated, separated by ;
-    #[clap(long, env, value_parser, default_value = "exliquid;dktk_supervisors;exporter;ehds2")]
+    #[clap(
+        long,
+        env,
+        value_parser,
+        default_value = "exliquid;dktk_supervisors;exporter;ehds2"
+    )]
     projects_no_obfuscation: String,
 
-    /// The path to the file containing BASE64 encoded queries whose results are to be cached
+    /// Path to a file containing BASE64 encoded queries whose results are to be cached
     #[clap(long, env, value_parser)]
-    queries_to_cache_file_path: Option<String>,
+    queries_to_cache: Option<PathBuf>,
 
     /// Outgoing HTTP proxy: Directory with CA certificates to trust for TLS connections (e.g. /etc/samply/cacerts/)
     #[clap(long, env, value_parser)]
@@ -142,7 +149,7 @@ struct CliArgs {
     /// OMOP provider name
     #[clap(long, env, value_parser)]
     provider: Option<String>,
-  
+
     /// Base64 encoded OMOP provider icon
     #[clap(long, env, value_parser)]
     provider_icon: Option<String>,
@@ -151,15 +158,18 @@ struct CliArgs {
     #[clap(long, env, value_parser)]
     auth_header: Option<String>,
 
+    /// Database connection string
+    #[clap(long, env, value_parser)]
+    postgres_connection_string: Option<String>,
 }
 
 pub(crate) struct Config {
-    pub beam_proxy_url: Uri,
+    pub beam_proxy_url: Url,
     pub beam_app_id_long: AppId,
     pub api_key: String,
     pub retry_count: usize,
-    pub endpoint_url: Uri,
-    pub exporter_url: Option<Uri>,
+    pub endpoint_url: Url,
+    pub exporter_url: Option<Url>,
     pub endpoint_type: EndpointType,
     pub obfuscate: Obfuscate,
     pub obfuscate_zero: bool,
@@ -173,12 +183,12 @@ pub(crate) struct Config {
     pub epsilon: f64,
     pub rounding_step: usize,
     pub unobfuscated: Vec<String>,
-    pub queries_to_cache_file_path: Option<String>,
-    tls_ca_certificates: Vec<Certificate>,
+    pub queries_to_cache: Option<PathBuf>,
     pub client: Client,
     pub provider: Option<String>,
     pub provider_icon: Option<String>,
     pub auth_header: Option<String>,
+    pub postgres_connection_string: Option<String>,
 }
 
 impl Config {
@@ -216,11 +226,11 @@ impl Config {
             epsilon: cli_args.epsilon,
             rounding_step: cli_args.rounding_step,
             unobfuscated: cli_args.projects_no_obfuscation.split(';').map(|s| s.to_string()).collect(),
-            queries_to_cache_file_path: cli_args.queries_to_cache_file_path,
-            tls_ca_certificates,
+            queries_to_cache: cli_args.queries_to_cache,
             provider: cli_args.provider,
             provider_icon: cli_args.provider_icon,
             auth_header: cli_args.auth_header,
+            postgres_connection_string: cli_args.postgres_connection_string,
             client,
         };
         Ok(config)
@@ -276,7 +286,7 @@ pub fn prepare_reqwest_client(certs: &Vec<Certificate>) -> Result<reqwest::Clien
                 ),
                 "all_proxy" => proxies.push(
                     Proxy::all(v)
-                        .map_err( FocusError::InvalidProxyConfig)?
+                        .map_err(FocusError::InvalidProxyConfig)?
                         .no_proxy(no_proxy.clone()),
                 ),
                 _ => (),
