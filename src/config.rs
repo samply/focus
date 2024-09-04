@@ -20,7 +20,9 @@ pub enum Obfuscate {
 pub enum EndpointType {
     Blaze,
     Omop,
+    #[cfg(feature = "query-sql")]
     BlazeAndSql,
+    #[cfg(feature = "query-sql")]
     Sql,
 }
 
@@ -29,7 +31,9 @@ impl fmt::Display for EndpointType {
         match self {
             EndpointType::Blaze => write!(f, "blaze"),
             EndpointType::Omop => write!(f, "omop"),
+            #[cfg(feature = "query-sql")]
             EndpointType::BlazeAndSql => write!(f, "blaze_and_sql"),
+            #[cfg(feature = "query-sql")]
             EndpointType::Sql => write!(f, "sql"),
         }
     }
