@@ -2,7 +2,7 @@ use crate::errors::FocusError;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sqlx::{postgres::PgPoolOptions, postgres::PgRow, PgPool};
-use sqlx_pgrow_serde::SerMapPgRow;
+use sqlx_serde::SerMapPgRow;
 use std::{collections::HashMap, time::Duration};
 use tracing::{warn, info, debug};
 
