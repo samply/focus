@@ -1,6 +1,6 @@
 [package]
 name = "focus"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2021"
 license = "Apache-2.0"
 
@@ -34,7 +34,7 @@ clap = { version = "4", default_features = false, features = ["std", "env", "der
 
 # Query via SQL
 sqlx = { version = "0.8.2", features = [ "runtime-tokio", "postgres", "macros", "chrono"], optional = true } 
-kurtbuilds_sqlx_serde = { version = "0.3.1", optional = true }
+kurtbuilds_sqlx_serde = { version = "0.3.2", optional = true }
 
 
 [features]
