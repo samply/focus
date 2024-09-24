@@ -33,8 +33,8 @@ once_cell = "1.18"
 clap = { version = "4", default-features = false, features = ["std", "env", "derive", "help", "color"] }
 
 # Query via SQL
-sqlx = { version = "0.8.2", features = [ "runtime-tokio", "postgres", "macros", "chrono"], optional = true } 
-kurtbuilds_sqlx_serde = { version = "0.3.2", optional = true }
+sqlx = { version = "0.8.2", features = [ "runtime-tokio", "postgres", "macros", "chrono", "rust_decimal", "uuid"], optional = true } 
+kurtbuilds_sqlx_serde = { version = "0.3.2", features = [ "json", "decimal", "chrono", "uuid"], optional = true }
 
 
 [features]
