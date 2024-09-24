@@ -62,3 +62,29 @@ pub fn serialize_rows(rows: Vec<PgRow>) -> Result<Value, FocusError> {
 
     Ok(Value::Array(rows_json))
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[tokio::test]
+    #[ignore] //TODO mock DB
+    async fn serialize() {
+        let pool =
+            get_pg_connection_pool("postgresql://postgres:secret@localhost:5432/postgres", 1)
+                .await
+                .unwrap();
+
+        let rows = run_query(&pool, SQL_REPLACE_MAP.get("SELECT_TEST").unwrap())
+            .await
+            .unwrap();
+
+        dbg!(&rows);
+        let rows_json = serialize_rows(rows).unwrap();
+        dbg!(&rows_json);
+
+        assert!(rows_json.is_array());
+
+        assert_ne!(rows_json[0]["floaty"], Value::Null);
+    }
+}

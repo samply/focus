@@ -8,12 +8,14 @@ mod errors;
 mod graceful_shutdown;
 mod logger;
 
-mod db;
 mod exporter;
 mod intermediate_rep;
 mod projects;
 mod task_processing;
 mod util;
+
+#[cfg(feature = "query-sql")]
+mod db;
 
 use base64::engine::general_purpose;
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
@@ -21,7 +23,6 @@ use beam_lib::{TaskRequest, TaskResult};
 use futures_util::future::BoxFuture;
 use futures_util::FutureExt;
 use laplace_rs::ObfCache;
-use sqlx::PgPool;
 use tokio::sync::Mutex;
 
 use crate::blaze::{parse_blaze_query_payload_ast, AstQuery};
@@ -118,22 +119,45 @@ pub async fn main() -> ExitCode {
     }
 }
 
-async fn main_loop() -> ExitCode {
-    let db_pool = if let Some(connection_string) = CONFIG.postgres_connection_string.clone() {
+#[cfg(not(feature = "query-sql"))]
+type DbPool = ();
+
+#[cfg(feature = "query-sql")]
+type DbPool = sqlx::PgPool;
+
+#[cfg(not(feature = "query-sql"))]
+async fn get_db_pool() -> Result<Option<DbPool>,ExitCode> {
+    Ok(None)
+}
+
+#[cfg(feature = "query-sql")]
+async fn get_db_pool() -> Result<Option<DbPool>,ExitCode> {
+    if let Some(connection_string) = CONFIG.postgres_connection_string.clone() {
         match db::get_pg_connection_pool(&connection_string, 8).await {
             Err(e) => {
                 error!("Error connecting to database: {}", e);
-                return ExitCode::from(8);
+                Err(ExitCode::from(8))
             }
-            Ok(pool) => Some(pool),
+            Ok(pool) => Ok(Some(pool)),
         }
     } else {
-        None
+        Ok(None)
+    }
+}
+
+async fn main_loop() -> ExitCode {
+    let db_pool = match get_db_pool().await {
+        Ok(pool) => pool,
+        Err(code) => {
+            return code;
+        },
     };
     let endpoint_service_available: fn() -> BoxFuture<'static, bool> = match CONFIG.endpoint_type {
         EndpointType::Blaze => || blaze::check_availability().boxed(),
         EndpointType::Omop => || async { true }.boxed(), // TODO health check
+        #[cfg(feature = "query-sql")]
         EndpointType::BlazeAndSql => || blaze::check_availability().boxed(),
+        #[cfg(feature = "query-sql")]
         EndpointType::Sql => || async { true }.boxed(),
     };
     let mut failures = 0;
@@ -169,7 +193,7 @@ async fn process_task(
     task: &BeamTask,
     obf_cache: Arc<Mutex<ObfCache>>,
     report_cache: Arc<Mutex<ReportCache>>,
-    db_pool: Option<PgPool>,
+    db_pool: Option<DbPool>,
 ) -> Result<BeamResult, FocusError> {
     debug!("Processing task {}", task.id);
 
@@ -217,6 +241,7 @@ async fn process_task(
             )
             .await
         },
+        #[cfg(feature = "query-sql")]
         EndpointType::BlazeAndSql => {
             let mut generated_from_ast: bool = false;
             let data = base64_decode(&task.body)?;
@@ -260,6 +285,7 @@ async fn process_task(
                 .await
             }
         },
+        #[cfg(feature="query-sql")]
         EndpointType::Sql => {
             let data = base64_decode(&task.body)?;
             let query_maybe: Result<db::SqlQuery, serde_json::Error> = serde_json::from_slice(&(data));
