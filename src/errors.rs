@@ -68,8 +68,8 @@ pub enum FocusError {
     #[error("Query not allowed: {0}")]
     QueryNotAllowed(String),
     #[cfg(feature = "query-sql")]
-    #[error("Error executing query: {0}")]
-    ErrorExecutingQuery(sqlx::Error),
+    #[error("Error executing SQL query: {0}")]
+    ErrorExecutingSqlQuery(sqlx::Error),
 }
 
 impl FocusError {

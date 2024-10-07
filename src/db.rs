@@ -37,7 +37,7 @@ pub async fn run_query(pool: &PgPool, query: &str) -> Result<Vec<PgRow>, FocusEr
     sqlx::query(query)
         .fetch_all(pool)
         .await
-        .map_err(FocusError::ErrorExecutingQuery)
+        .map_err(FocusError::ErrorExecutingSqlQuery)
 }
 
 pub async fn process_sql_task(pool: &PgPool, key: &str) -> Result<Vec<PgRow>, FocusError> {
