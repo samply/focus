@@ -61,7 +61,7 @@ POSTGRES_CONNECTION_STRING = "postgresql://postgres:Test.123@localhost:5432/post
 
 Additionally when using Postgres this optional variable can be set:
 ```bash
-MAX_ATTEMPTS = "8" # Max number of attempts to connect to the database, default value: 8
+MAX_DB_ATTEMPTS = "8" # Max number of attempts to connect to the database, default value: 8
 ```
 
 Obfuscating zero counts is by default switched off. To enable obfuscating zero counts, set the env. variable `OBFUSCATE_ZERO`. 
