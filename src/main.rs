@@ -133,7 +133,7 @@ async fn get_db_pool() -> Result<Option<DbPool>,ExitCode> {
 #[cfg(feature = "query-sql")]
 async fn get_db_pool() -> Result<Option<DbPool>,ExitCode> {
     if let Some(connection_string) = CONFIG.postgres_connection_string.clone() {
-        match db::get_pg_connection_pool(&connection_string, 8).await {
+        match db::get_pg_connection_pool(&connection_string, CONFIG.max_attempts).await {
             Err(e) => {
                 error!("Error connecting to database: {}", e);
                 Err(ExitCode::from(8))
