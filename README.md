@@ -52,6 +52,10 @@ QUERIES_TO_CACHE = "queries_to_cache.conf" # The path to a file containing base6
 PROVIDER = "name" #EUCAIM provider name
 PROVIDER_ICON = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABAQMAAAAl21bKAAAAA1BMVEUAAACnej3aAAAAAXRSTlMAQObYZgAAAApJREFUCNdjYAAAAAIAAeIhvDMAAAAASUVORK5CYII=" # Base64 encoded EUCAIM provider icon
 AUTH_HEADER = "ApiKey XXXX" #Authorization header
+```
+
+In order to use Postgres querying, a Docker image built with the feature "dktk" needs to be used and this optional variable set:
+```bash
 POSTGRES_CONNECTION_STRING = "postgresql://postgres:Test.123@localhost:5432/postgres" # Postgres connection string
 ```
 
