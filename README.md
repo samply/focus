@@ -61,7 +61,7 @@ POSTGRES_CONNECTION_STRING = "postgresql://postgres:Test.123@localhost:5432/post
 
 Additionally when using Postgres this optional variable can be set:
 ```bash
-MAX_DB_ATTEMPTS = "8" # Max number of attempts to connect to the database, default value: 8
+MAX_DB_ATTEMPTS = "8" # Max number of attempts to connect to the database; default value: 8
 ```
 
 Obfuscating zero counts is by default switched off. To enable obfuscating zero counts, set the env. variable `OBFUSCATE_ZERO`. 
@@ -92,7 +92,7 @@ curl -v -X POST -H "Content-Type: application/json" --data '{"id":"7fffefff-ffef
 
 Creating a sample SQL task for a `SELECT_TEST` query using curl:
 ```bash
- curl -v -X POST -H "Content-Type: application/json" --data '{"id":"7fffefff-ffef-fcff-feef-feffffffffff","from":"app1.proxy1.broker","to":["app1.proxy1.broker"],"ttl":"10s","failure_strategy":{"retry":{"backoff_millisecs":1000,"max_tries":5}},"metadata":{"project":"exliquid"},"body":"eyJwYXlsb2FkIjoiU0VMRUNUX1RBQkxFUyJ9"}' -H "Authorization: ApiKey app1.proxy1.broker App1Secret" http://localhost:8081/v1/tasks
+ curl -v -X POST -H "Content-Type: application/json" --data '{"id":"7fffefff-ffef-fcff-feef-feffffffffff","from":"app1.proxy1.broker","to":["app1.proxy1.broker"],"ttl":"10s","failure_strategy":{"retry":{"backoff_millisecs":1000,"max_tries":5}},"metadata":{"project":"exliquid"},"body":"eyJwYXlsb2FkIjoiU0VMRUNUX1RFU1QifQ=="}' -H "Authorization: ApiKey app1.proxy1.broker App1Secret" http://localhost:8081/v1/tasks
  ```
 
 Creating a sample [Exporter](https://github.com/samply/exporter) "execute" task containing an Exporter query using curl:

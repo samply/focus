@@ -14,7 +14,7 @@ pub struct SqlQuery {
 
 include!(concat!(env!("OUT_DIR"), "/sql_replace_map.rs"));
 
-pub async fn get_pg_connection_pool(pg_url: &str, max_attempts: u32) -> Result<PgPool, FocusError> {
+pub async fn get_pg_connection_pool(pg_url: &str, max_db_attempts: u32) -> Result<PgPool, FocusError> {
     info!("Trying to establish a PostgreSQL connection pool");
 
     tryhard::retry_fn(|| async {
@@ -28,7 +28,7 @@ pub async fn get_pg_connection_pool(pg_url: &str, max_attempts: u32) -> Result<P
                 FocusError::CannotConnectToDatabase(e.to_string())
             })
     })
-    .retries(max_attempts)
+    .retries(max_db_attempts)
     .exponential_backoff(Duration::from_secs(2))
     .await
 }
