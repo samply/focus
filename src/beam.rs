@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use beam_lib::{TaskResult, BeamClient, BlockingOptions, MsgId, TaskRequest, RawString};
-use http::StatusCode;
+use reqwest::StatusCode;
 use once_cell::sync::Lazy;
 use serde::Serialize;
 use tracing::{debug, warn, info};
