@@ -132,13 +132,19 @@ async fn get_db_pool() -> Result<Option<DbPool>,ExitCode> {
 
 #[cfg(feature = "query-sql")]
 async fn get_db_pool() -> Result<Option<DbPool>,ExitCode> {
+    use tracing::info;
+
     if let Some(connection_string) = CONFIG.postgres_connection_string.clone() {
         match db::get_pg_connection_pool(&connection_string, CONFIG.max_db_attempts).await {
             Err(e) => {
                 error!("Error connecting to database: {}", e);
                 Err(ExitCode::from(8))
             }
-            Ok(pool) => Ok(Some(pool)),
+            
+            Ok(pool) => {
+                info!("Postgresql connection established");
+                Ok(Some(pool))
+            }
         }
     } else {
         Ok(None)
