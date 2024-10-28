@@ -1,0 +1,43 @@
+/*
+Exliquid query for sites with 'legacy' exliquid specimen documentation (3 level hierarchy versus 'virtual' mother sample).
+For current expected documentation see: https://wiki.verbis.dkfz.de/pages/viewpage.action?pageId=294716167.
+*/
+with t as (
+	select 
+		(s.resource ->> 'id')::text s_id,
+		(s_coding ->> 'code')::text sample_type
+	from specimen s, jsonb_array_elements(s.resource -> 'type' -> 'coding') as s_coding
+	where s_coding ->> 'system' = 'https://fhir.bbmri.de/CodeSystem/SampleMaterialType'
+),
+t2 as (
+	SELECT 
+		s_ali.resource ->> 'id' s_ali_id, 	
+		sample_type_ali.sample_type as s_ali_type,
+		(s_ali.resource -> 'container' -> 0 -> 'specimenQuantity' ->> 'value')::float s_ali_amountrest,
+		s_ali_grp.resource ->> 'id' s_ali_grp_id, 	
+		sample_type_ali_grp.sample_type as s_ali_grp_type,
+		(s_ali_grp.resource -> 'container' -> 0 -> 'specimenQuantity' ->> 'value')::float s_ali_grp_amountrest,
+		s_mother.resource ->> 'id' s_mother_id, 
+		sample_type_mother.sample_type as s_mother_type,
+		(s_mother.resource -> 'container' -> 0 -> 'specimenQuantity' ->> 'value')::float s_mother_amountrest,
+		s_mother.resource -> 'subject' ->> 'reference' as patient_id
+	FROM specimen s_ali
+	JOIN specimen s_ali_grp ON (s_ali.resource->'parent'->0->>'reference')::text = (s_ali_grp.resource->>'resourceType')::text || '/' || (s_ali_grp.resource->>'id')::text
+	JOIN specimen s_mother ON (s_ali_grp.resource->'parent'->0->>'reference')::text = (s_mother.resource->>'resourceType')::text || '/' || (s_mother.resource->>'id')::text
+	join t as sample_type_ali on s_ali.resource ->> 'id' = sample_type_ali.s_id
+	join t as sample_type_ali_grp on s_ali_grp.resource ->> 'id' = sample_type_ali_grp.s_id
+	join t as sample_type_mother on s_mother.resource ->> 'id' = sample_type_mother.s_id
+	where (s_ali.resource -> 'container' -> 0 -> 'specimenQuantity' ->> 'value')::float > 0
+),
+t3 as (
+select distinct 
+	t2.patient_id,
+	c.resource -> 'code' -> 'coding' -> 0 ->> 'code' icd10_code,
+	c.resource -> 'code' ->> 'text' diag_desc,
+	t2.s_mother_type
+from t2
+join condition c on t2.patient_id = c.resource -> 'subject' ->> 'reference'
+)
+select icd10_code, diag_desc, count(distinct patient_id) patient_count, s_mother_type, count(s_mother_type) sample_count
+from t3
+group by icd10_code, diag_desc, patient_id, s_mother_type;

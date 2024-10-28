@@ -1,0 +1,78 @@
+/*
+SIorgP MetPredict project
+The approach chosen here is to minimize the number of tasks generated and thus network traffic via Beam
+=> one large query that returns the most necessary fields over multiple smaller queries
+*/
+with t as (
+select
+o.resource->'subject'->>'reference' as pat_ref,
+o.resource->'code'->'coding'->0->>'code' as crf,
+  component->'code'->'coding'->0->>'code' AS code,
+  COALESCE(
+      component->'valueCodeableConcept'->'coding'->0->>'code',
+      component->>'valueDateTime',
+      component->'valueQuantity'->>'value',
+      component->>'valueString'
+    ) AS value
+FROM 
+  observation o ,
+  jsonb_array_elements(o.resource->'component') AS component
+where o.resource->'code'->'coding'->0->>'code' like 'SIOrgP%'
+),
+t2 AS (
+select t.value as pat_pseudonym,
+	-- t.crf,
+	p.resource->>'gender' as gender,
+	p.resource->>'birthDate' as birth_date,
+	t5.value as organoid_id,	
+	t2.value as location_primary_tumor,
+	t7.value as location_primary_tumor_precise,
+	t3.value as therapy,
+	t4.value as metastases_therapy,
+	t6.value::integer as age_at_enrollment
+from t
+left join t t2 on t.pat_ref = t2.pat_ref and t2.code='SIOP_LOCALISATION_PRIMARY_TUMOR' 
+left join t t3 on t.pat_ref = t3.pat_ref and t3.code='SIOP_NEOADJ_T_RECTAL_CARCINOMA' 
+left join t t4 on t.pat_ref = t4.pat_ref and t4.code='SIOP_NEOADJ_CTX_MET'
+left join t t5 on t.pat_ref = t5.pat_ref and t5.code like 'SIOP_SAMPLE_M0%_PSEUDONYM'
+left join t t6 on t.pat_ref = t6.pat_ref and t6.code='SIOP_AGE_STUDY_ENROLLMENT'
+left join t t7 on t.pat_ref = t7.pat_ref and t7.code='SIOP_LOCALISATION_PRIMARY_TUMOR_COLON'
+left join patient p on t.pat_ref = 'Patient/' || (p.resource->>'id')::text
+where t.crf like 'SIOrgP - MetPredict - Visite 1%' and t.code = 'SIOP_PATIENT_PSEUDONYM'
+),
+t8 as (
+  select pat_pseudonym, count(distinct organoid_id) n_organoids
+  from t2 
+  group by pat_pseudonym
+)
+-- patients having <= 3 organoids
+select 'MetPredict' as project, 'pat_pdos_leq_3' as field, (select count(distinct pat_pseudonym) from t8 where n_organoids <= 3) as value
+union
+-- patients having 4 organoids
+select 'MetPredict' as project, 'pat_pdos_4' as field, (select count(distinct pat_pseudonym) from t8 where n_organoids = 4) as value
+union
+-- patients having 5 organoids
+select 'MetPredict' as project, 'pat_pdos_5' as field, (select count(distinct pat_pseudonym) from t8 where n_organoids = 5) as value
+union
+-- patients having >= 5 organoids
+select 'MetPredict' as project, 'pat_pdos_geq_5' as field, (select count(distinct pat_pseudonym) from t8 where n_organoids >= 5) as value
+union
+-- the total number of patients
+select 'MetPredict' as project, 'n_patients' as field, (select count(distinct pat_pseudonym) from t2) as value
+union
+-- the total number of organoids
+select 'MetPredict' as project, 'n_organoids' as field, (select count(distinct organoid_id) from t2) as value
+union
+select 'MetPredict' as project, 'gender_male' as field, (select count(distinct pat_pseudonym) from t2 where gender = 'male') as value
+union 
+select 'MetPredict' as project, 'gender_female' as field, (select count(distinct pat_pseudonym) from t2 where gender = 'female') as value
+union 
+select 'MetPredict' as project, '<30' as field, (select count(distinct pat_pseudonym) from t2 where age_at_enrollment <= 30) as value
+union 
+select 'MetPredict' as project, '31-40' as field, (select count(distinct pat_pseudonym) from t2 where age_at_enrollment >= 31 and age_at_enrollment <= 40) as value
+union 
+select 'MetPredict' as project, '41-50' as field, (select count(distinct pat_pseudonym) from t2 where age_at_enrollment >= 41 and age_at_enrollment <= 50) as value
+union 
+select 'MetPredict' as project, '51-60' as field, (select count(distinct pat_pseudonym) from t2 where age_at_enrollment >= 51 and age_at_enrollment <= 60) as value
+union 
+select 'MetPredict' as project, '>61' as field, (select count(distinct pat_pseudonym) from t2 where age_at_enrollment >= 61) as value;
