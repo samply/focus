@@ -1,0 +1,5 @@
+-- Test query. Number of patients that have a documented visit 1
+select count(distinct p.resource)
+from observation o
+join patient p on o.resource->'subject'->>'reference' = 'Patient/' || (p.resource->>'id')::text
+where o.resource->'code'->'coding'->0->>'code' like 'SIOrgP - MetPredict - Visite 1%';
