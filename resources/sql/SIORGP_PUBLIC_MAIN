@@ -67,7 +67,7 @@ select 'MetPredict' as project, 'gender_male' as field, (select count(distinct p
 union 
 select 'MetPredict' as project, 'gender_female' as field, (select count(distinct pat_pseudonym) from t2 where gender = 'female') as value
 union 
-select 'MetPredict' as project, '<30' as field, (select count(distinct pat_pseudonym) from t2 where age_at_enrollment <= 30) as value
+select 'MetPredict' as project, '<=30' as field, (select count(distinct pat_pseudonym) from t2 where age_at_enrollment <= 30) as value
 union 
 select 'MetPredict' as project, '31-40' as field, (select count(distinct pat_pseudonym) from t2 where age_at_enrollment >= 31 and age_at_enrollment <= 40) as value
 union 
@@ -75,4 +75,4 @@ select 'MetPredict' as project, '41-50' as field, (select count(distinct pat_pse
 union 
 select 'MetPredict' as project, '51-60' as field, (select count(distinct pat_pseudonym) from t2 where age_at_enrollment >= 51 and age_at_enrollment <= 60) as value
 union 
-select 'MetPredict' as project, '>61' as field, (select count(distinct pat_pseudonym) from t2 where age_at_enrollment >= 61) as value;
+select 'MetPredict' as project, '>=61' as field, (select count(distinct pat_pseudonym) from t2 where age_at_enrollment >= 61) as value;
