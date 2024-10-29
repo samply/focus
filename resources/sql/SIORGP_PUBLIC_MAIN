@@ -54,8 +54,8 @@ union
 -- patients having 5 organoids
 select 'MetPredict' as project, 'pat_pdos_5' as field, (select count(distinct pat_pseudonym) from t8 where n_organoids = 5) as value
 union
--- patients having >= 5 organoids
-select 'MetPredict' as project, 'pat_pdos_geq_5' as field, (select count(distinct pat_pseudonym) from t8 where n_organoids >= 5) as value
+-- patients having > 5 organoids
+select 'MetPredict' as project, 'pat_pdos_gt_5' as field, (select count(distinct pat_pseudonym) from t8 where n_organoids > 5) as value
 union
 -- the total number of patients
 select 'MetPredict' as project, 'n_patients' as field, (select count(distinct pat_pseudonym) from t2) as value
