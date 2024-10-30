@@ -346,13 +346,9 @@ pub fn process(
                     }
                 }
             }
-            let position = filter_cond.rfind(')');
-            match position{
-                None => {}
-                Some(pos) => {
-                    _ = filter_cond.split_off(pos);
-                }
-            };
+            if let Some(pos) = filter_cond.rfind(')') {
+                _ = filter_cond.split_off(pos + 1);
+            }
         }
     }
 
@@ -404,7 +400,6 @@ mod test {
     }
 
     #[test]
-    #[ignore]
     #[cfg(feature = "bbmri")]
     fn test_bbmri() {
         use crate::projects::{self, bbmri::Bbmri};
@@ -449,7 +444,10 @@ mod test {
             include_str!("../resources/test/result_empty.cql").to_string()
         );
 
-        println!("{}",generate_cql(serde_json::from_str(CURRENT).unwrap()).unwrap());
+        pretty_assertions::assert_eq!(
+            generate_cql(serde_json::from_str(CURRENT).unwrap()).unwrap(),
+            include_str!("../resources/test/result_current.cql").to_string()
+        );
 
     }
 
