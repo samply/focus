@@ -1,3 +1,11 @@
+# Samply.Focus v0.8.0 2024-11-04
+
+In this release, we are supporting 4 types of SQL queries for Exliquid and Organoids
+
+## Major changes
+* Allowlist of SQL queries
+
+
 # Samply.Focus v0.7.0 2024-09-24
 
 In this release, we are extending the supported data backends beyond CQL-enabled FHIR stores. We now support PostgreSQL as well. Usage instructions are included in the Readme.

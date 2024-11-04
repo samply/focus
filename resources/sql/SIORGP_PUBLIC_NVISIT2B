@@ -1,0 +1,4 @@
+-- Test query: Number of observations for visit 2b as a lower bound for the number of expected organoids
+select count(o) 
+from observation o
+where o.resource->'code'->'coding'->0->>'code' like 'SIOrgP - MetPredict - Visite 2b%';

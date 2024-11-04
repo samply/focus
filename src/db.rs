@@ -79,9 +79,7 @@ mod test {
             .await
             .unwrap();
 
-        dbg!(&rows);
         let rows_json = serialize_rows(rows).unwrap();
-        dbg!(&rows_json);
 
         assert!(rows_json.is_array());
 
