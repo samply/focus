@@ -1,0 +1,2 @@
+define GeneticVariantCode:
+First (from [Observation: Code '69548-6' from loinc] O return O.component.where(code.coding contains Code '48018-6' from loinc).value.coding.code.first())
