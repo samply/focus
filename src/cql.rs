@@ -7,7 +7,7 @@ use crate::projects::{
 
 use base64::{prelude::BASE64_STANDARD as BASE64, Engine as _};
 use chrono::offset::Utc;
-use chrono::DateTime;
+use chrono::{DateTime, NaiveDate, NaiveTime};
 use indexmap::set::IndexSet;
 use tracing::info;
 use uuid::Uuid;
@@ -146,9 +146,21 @@ pub fn process(
                     match condition.value {
                         ast::ConditionValue::DateRange(date_range) => {
                             let datetime_str_min = date_range.min.as_str();
-                            let datetime_min: DateTime<Utc> = datetime_str_min
-                                .parse()
-                                .map_err(|_| FocusError::AstInvalidDateFormat(date_range.min))?;
+
+                            let datetime_min_maybe: Result<DateTime<Utc>, _> = datetime_str_min.parse();
+
+                            let datetime_min: DateTime<Utc> = if let Ok(datetime) = datetime_min_maybe {
+                                datetime
+                            } else {
+                                let naive_date_maybe = NaiveDate::parse_from_str(datetime_str_min, "%Y-%m-%d"); //FIXME remove once Lens2 behaves, only return the error
+
+                                if let Ok(naive_date) = naive_date_maybe {
+                                    DateTime::<Utc>::from_naive_utc_and_offset(naive_date.and_time(NaiveTime::default()), Utc)
+                                } else {
+                                    return Err(FocusError::AstInvalidDateFormat(date_range.min));
+                                }
+                            };
+
                             let date_str_min = format!("@{}", datetime_min.format("%Y-%m-%d"));
 
                             condition_string =
@@ -156,15 +168,26 @@ pub fn process(
                             filter_string = filter_string.replace("{{D1}}", date_str_min.as_str());
                             // no condition needed, "" stays ""
 
-                            let datetime_max: DateTime<Utc> = date_range.max
-                                .as_str()
-                                .parse()
-                                .map_err(|_| FocusError::AstInvalidDateFormat(date_range.max))?;
+                            let datetime_str_max = date_range.max.as_str();
+                            let datetime_max_maybe: Result<DateTime<Utc>, _> = datetime_str_max.parse();
+
+                            let datetime_max: DateTime<Utc> = if let Ok(datetime) = datetime_max_maybe {
+                                datetime
+                            } else {
+                                let naive_date_maybe = NaiveDate::parse_from_str(datetime_str_max, "%Y-%m-%d"); //FIXME remove once Lens2 behaves, only return the error
+
+                                if let Ok(naive_date) = naive_date_maybe {
+                                    DateTime::<Utc>::from_naive_utc_and_offset(naive_date.and_time(NaiveTime::default()), Utc)
+                                } else {
+                                    return Err(FocusError::AstInvalidDateFormat(date_range.max));
+                                }
+                            };
                             let date_str_max = format!("@{}", datetime_max.format("%Y-%m-%d"));
 
                             condition_string =
                                 condition_string.replace("{{D2}}", date_str_max.as_str());
                             filter_string = filter_string.replace("{{D2}}", date_str_max.as_str());
+
                             // no condition needed, "" stays ""
                         }
                         ast::ConditionValue::NumRange(num_range) => {
@@ -176,6 +199,7 @@ pub fn process(
                                 filter_string.replace("{{D1}}", num_range.min.to_string().as_str()); // no condition needed, "" stays ""
                             filter_string =
                                 filter_string.replace("{{D2}}", num_range.max.to_string().as_str());
+
                             // no condition needed, "" stays ""
                         }
                         other => {
@@ -228,6 +252,7 @@ pub fn process(
                             if !filter_string.is_empty() {
                                 filter_string = filter_humongous_string + ")";
                             }
+
                         }
                         other => {
                             return Err(FocusError::AstOperatorValueMismatch(format!(
@@ -273,6 +298,7 @@ pub fn process(
                         if !filter_string.is_empty() {
                             filter_string = filter_humongous_string + ")";
                         }
+
                     }
                     other => {
                         return Err(FocusError::AstOperatorValueMismatch(format!(
@@ -294,6 +320,7 @@ pub fn process(
             }
 
             filter_cond += filter_string.as_str(); // no condition needed, "" can be added with no change
+
         }
 
         ast::Child::Operation(operation) => {
@@ -315,8 +342,12 @@ pub fn process(
                     retrieval_cond += operator_str;
                     if !filter_cond.is_empty() {
                         filter_cond += operator_str;
+
                     }
                 }
+            }
+            if let Some(pos) = filter_cond.rfind(')') {
+                _ = filter_cond.split_off(pos + 1);
             }
         }
     }
@@ -359,8 +390,9 @@ mod test {
 
     const LENS2: &str = r#"{"ast":{"children":[{"children":[{"children":[{"key":"gender","system":"","type":"EQUALS","value":"male"},{"key":"gender","system":"","type":"EQUALS","value":"female"}],"operand":"OR"},{"children":[{"key":"diagnosis","system":"","type":"EQUALS","value":"C41"},{"key":"diagnosis","system":"","type":"EQUALS","value":"C50"}],"operand":"OR"},{"children":[{"key":"sample_kind","system":"","type":"EQUALS","value":"tissue-frozen"},{"key":"sample_kind","system":"","type":"EQUALS","value":"blood-serum"}],"operand":"OR"}],"operand":"AND"},{"children":[{"children":[{"key":"gender","system":"","type":"EQUALS","value":"male"}],"operand":"OR"},{"children":[{"key":"diagnosis","system":"","type":"EQUALS","value":"C41"},{"key":"diagnosis","system":"","type":"EQUALS","value":"C50"}],"operand":"OR"},{"children":[{"key":"sample_kind","system":"","type":"EQUALS","value":"liquid-other"},{"key":"sample_kind","system":"","type":"EQUALS","value":"rna"},{"key":"sample_kind","system":"","type":"EQUALS","value":"urine"}],"operand":"OR"},{"children":[{"key":"storage_temperature","system":"","type":"EQUALS","value":"temperatureRoom"},{"key":"storage_temperature","system":"","type":"EQUALS","value":"four_degrees"}],"operand":"OR"}],"operand":"AND"}],"operand":"OR"},"id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
 
-    const EMPTY: &str =
-        r#"{"ast":{"children":[],"operand":"OR"}, "id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
+    const EMPTY: &str = r#"{"ast":{"children":[],"operand":"OR"}, "id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
+
+    const CURRENT: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"operand":"OR","children":[{"key":"gender","type":"EQUALS","system":"","value":"male"}]},{"operand":"OR","children":[{"key":"diagnosis","type":"EQUALS","system":"http://fhir.de/CodeSystem/dimdi/icd-10-gm","value":"C61"}]},{"operand":"OR","children":[{"key":"donor_age","type":"BETWEEN","system":"","value":{"min":10,"max":90}}]}]},{"operand":"AND","children":[{"operand":"OR","children":[{"key":"sampling_date","type":"BETWEEN","system":"","value":{"min":"1900-01-01","max":"2024-10-25"}}]},{"operand":"OR","children":[{"key":"storage_temperature","type":"EQUALS","system":"","value":"temperature2to10"}]}]}]},"id":"53b4414e-75e4-401b-b794-20a2936e1be5"}"#;
 
     #[test]
     fn test_common() {
@@ -411,6 +443,12 @@ mod test {
             generate_cql(serde_json::from_str(EMPTY).unwrap()).unwrap(),
             include_str!("../resources/test/result_empty.cql").to_string()
         );
+
+        pretty_assertions::assert_eq!(
+            generate_cql(serde_json::from_str(CURRENT).unwrap()).unwrap(),
+            include_str!("../resources/test/result_current.cql").to_string()
+        );
+
     }
 
     #[test]

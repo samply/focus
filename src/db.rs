@@ -2,7 +2,7 @@ use crate::errors::FocusError;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sqlx::{postgres::PgPoolOptions, postgres::PgRow, PgPool};
-use sqlx_pgrow_serde::SerMapPgRow;
+use sqlx_serde::SerMapPgRow;
 use std::{collections::HashMap, time::Duration};
 use tracing::{warn, info, debug};
 
@@ -14,7 +14,7 @@ pub struct SqlQuery {
 
 include!(concat!(env!("OUT_DIR"), "/sql_replace_map.rs"));
 
-pub async fn get_pg_connection_pool(pg_url: &str, max_attempts: u32) -> Result<PgPool, FocusError> {
+pub async fn get_pg_connection_pool(pg_url: &str, max_db_attempts: u32) -> Result<PgPool, FocusError> {
     info!("Trying to establish a PostgreSQL connection pool");
 
     tryhard::retry_fn(|| async {
@@ -28,7 +28,7 @@ pub async fn get_pg_connection_pool(pg_url: &str, max_attempts: u32) -> Result<P
                 FocusError::CannotConnectToDatabase(e.to_string())
             })
     })
-    .retries(max_attempts)
+    .retries(max_db_attempts)
     .exponential_backoff(Duration::from_secs(2))
     .await
 }
@@ -37,7 +37,7 @@ pub async fn run_query(pool: &PgPool, query: &str) -> Result<Vec<PgRow>, FocusEr
     sqlx::query(query)
         .fetch_all(pool)
         .await
-        .map_err(FocusError::ErrorExecutingQuery)
+        .map_err(FocusError::ErrorExecutingSqlQuery)
 }
 
 pub async fn process_sql_task(pool: &PgPool, key: &str) -> Result<Vec<PgRow>, FocusError> {
@@ -61,4 +61,28 @@ pub fn serialize_rows(rows: Vec<PgRow>) -> Result<Value, FocusError> {
     }
 
     Ok(Value::Array(rows_json))
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[tokio::test]
+    #[ignore] //TODO mock DB
+    async fn serialize() {
+        let pool =
+            get_pg_connection_pool("postgresql://postgres:secret@localhost:5432/postgres", 1)
+                .await
+                .unwrap();
+
+        let rows = run_query(&pool, SQL_REPLACE_MAP.get("SELECT_TEST").unwrap())
+            .await
+            .unwrap();
+
+        let rows_json = serialize_rows(rows).unwrap();
+
+        assert!(rows_json.is_array());
+
+        assert_ne!(rows_json[0]["floaty"], Value::Null);
+    }
 }

@@ -20,7 +20,9 @@ pub enum Obfuscate {
 pub enum EndpointType {
     Blaze,
     Omop,
+    #[cfg(feature = "query-sql")]
     BlazeAndSql,
+    #[cfg(feature = "query-sql")]
     Sql,
 }
 
@@ -29,7 +31,9 @@ impl fmt::Display for EndpointType {
         match self {
             EndpointType::Blaze => write!(f, "blaze"),
             EndpointType::Omop => write!(f, "omop"),
+            #[cfg(feature = "query-sql")]
             EndpointType::BlazeAndSql => write!(f, "blaze_and_sql"),
+            #[cfg(feature = "query-sql")]
             EndpointType::Sql => write!(f, "sql"),
         }
     }
@@ -158,9 +162,15 @@ struct CliArgs {
     #[clap(long, env, value_parser)]
     auth_header: Option<String>,
 
-    /// Database connection string
+    /// Postgres connection string
+    #[cfg(feature = "query-sql")]
     #[clap(long, env, value_parser)]
     postgres_connection_string: Option<String>,
+
+    /// Max number of attempts to connect to the database
+    #[cfg(feature = "query-sql")]
+    #[clap(long, env, value_parser, default_value = "8")]
+    max_db_attempts: u32,
 }
 
 pub(crate) struct Config {
@@ -188,7 +198,10 @@ pub(crate) struct Config {
     pub provider: Option<String>,
     pub provider_icon: Option<String>,
     pub auth_header: Option<String>,
+    #[cfg(feature = "query-sql")]
     pub postgres_connection_string: Option<String>,
+    #[cfg(feature = "query-sql")]
+    pub max_db_attempts: u32,
 }
 
 impl Config {
@@ -230,7 +243,10 @@ impl Config {
             provider: cli_args.provider,
             provider_icon: cli_args.provider_icon,
             auth_header: cli_args.auth_header,
+            #[cfg(feature = "query-sql")]
             postgres_connection_string: cli_args.postgres_connection_string,
+            #[cfg(feature = "query-sql")]
+            max_db_attempts: cli_args.max_db_attempts,
             client,
         };
         Ok(config)

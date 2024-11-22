@@ -63,12 +63,13 @@ pub enum FocusError {
     MissingExporterTaskType,
     #[error("Cannot connect to database: {0}")]
     CannotConnectToDatabase(String),
-    #[error("Error executing query: {0}")]
-    ErrorExecutingQuery(sqlx::Error),
     #[error("QueryResultBad: {0}")]
     QueryResultBad(String),
     #[error("Query not allowed: {0}")]
     QueryNotAllowed(String),
+    #[cfg(feature = "query-sql")]
+    #[error("Error executing SQL query: {0}")]
+    ErrorExecutingSqlQuery(sqlx::Error),
 }
 
 impl FocusError {
