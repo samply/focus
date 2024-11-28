@@ -1,9 +1,9 @@
-use std::fmt;
+use std::{fmt, str::FromStr};
 use std::path::PathBuf;
 
 use beam_lib::AppId;
 use clap::Parser;
-use reqwest::{header::HeaderValue, Url};
+use reqwest::{header::{HeaderName, HeaderValue}, Url};
 use once_cell::sync::Lazy;
 use reqwest::{Certificate, Client, Proxy};
 use tracing::{debug, info, warn};
@@ -197,7 +197,7 @@ pub(crate) struct Config {
     pub client: Client,
     pub provider: Option<String>,
     pub provider_icon: Option<String>,
-    pub auth_header: Option<String>,
+    pub auth_header: Option<(HeaderName, HeaderValue)>,
     #[cfg(feature = "query-sql")]
     pub postgres_connection_string: Option<String>,
     #[cfg(feature = "query-sql")]
@@ -219,6 +219,25 @@ impl Config {
         let client = prepare_reqwest_client(&tls_ca_certificates)?;
         dbg!(cli_args.endpoint_url.clone());
         dbg!(cli_args.blaze_url.clone());
+
+        let auth_header = {
+            if let Some(auth_header) = cli_args.auth_header {
+                if let Some((header_name, header_value)) = auth_header.split_once(':') {
+                    let header_name = HeaderName::from_str(header_name)
+                        .map_err(|e| FocusError::ConfigurationError(format!("Invalid key \"{}\" in auth header \"{}\": {}", header_name, auth_header, e)))?;
+
+                    let header_value = HeaderValue::from_str(header_value.trim_start())
+                        .map_err(|e| FocusError::ConfigurationError(format!("Invalid value \"{}\" in auth header \"{}\": {}", header_value, auth_header, e)))?;
+
+                    Some((header_name, header_value))
+                } else {
+                    return Err(FocusError::ConfigurationError(format!("Missing ':' in auth header value \"{}\"", auth_header)));
+                }
+            } else {
+                None
+            }
+        };
+
         let config = Config {
             beam_proxy_url: cli_args.beam_proxy_url,
             beam_app_id_long: AppId::new_unchecked(cli_args.beam_app_id_long),
@@ -242,7 +261,7 @@ impl Config {
             queries_to_cache: cli_args.queries_to_cache,
             provider: cli_args.provider,
             provider_icon: cli_args.provider_icon,
-            auth_header: cli_args.auth_header,
+            auth_header,
             #[cfg(feature = "query-sql")]
             postgres_connection_string: cli_args.postgres_connection_string,
             #[cfg(feature = "query-sql")]

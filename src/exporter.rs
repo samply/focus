@@ -1,4 +1,4 @@
-use reqwest::{header::{self, HeaderMap, HeaderValue}, StatusCode};
+use reqwest::{header::{self, HeaderMap, HeaderName, HeaderValue}, StatusCode};
 use serde::Deserialize;
 use serde::Serialize;
 use serde_json::Value;
@@ -42,12 +42,8 @@ pub async fn post_exporter_query(body: &String, task_type: TaskType) -> Result<S
 
     let mut headers = HeaderMap::new();
 
-    if let Some(auth_header_value) = CONFIG.auth_header.clone() {
-        headers.insert(
-            "x-api-key",
-            HeaderValue::from_str(auth_header_value.as_str())
-                .map_err(FocusError::InvalidHeaderValue)?,
-        );
+    if let Some(auth_header) = CONFIG.auth_header.clone() {
+        headers.insert(auth_header.0, auth_header.1);
     }
 
     if task_type == TaskType::Status {
