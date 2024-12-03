@@ -1,11 +1,11 @@
-use reqwest::{header::{self, HeaderMap, HeaderValue}, StatusCode};
+use reqwest::{header::{self, HeaderMap, HeaderName, HeaderValue}, StatusCode};
 use serde::Deserialize;
 use serde::Serialize;
 use serde_json::Value;
 use std::str;
 use tracing::{debug, warn};
 
-use crate::config::CONFIG;
+use crate::config::{FocusBackend, CONFIG};
 use crate::errors::FocusError;
 use crate::util;
 
@@ -35,6 +35,24 @@ const EXECUTE: Params = Params {
     done: "executed",
 };
 
+pub(crate) struct Exporter;
+
+impl FocusBackend for Exporter {
+    fn make_authheader(apikey: &str) -> Result<(HeaderName, HeaderValue), FocusError> {
+        let name = HeaderName::from_static("x-api-key");
+        let value = HeaderValue::from_str(apikey)
+            .map_err(|e| FocusError::ConfigurationError(format!("Invalid value \"{}\" in apikey for exporter backend: {}", apikey, e)))?;
+        Ok((name, value))
+    }
+
+    async fn check_availability() -> bool {
+        // TODO: Implement
+        true
+    }
+
+    // TODO: Refactor other functions into a focus backend following a common trait.
+}
+
 pub async fn post_exporter_query(body: &String, task_type: TaskType) -> Result<String, FocusError> {
     let Some(exporter_url) = &CONFIG.exporter_url else {
         return Err(FocusError::MissingExporterEndpoint);
@@ -42,12 +60,8 @@ pub async fn post_exporter_query(body: &String, task_type: TaskType) -> Result<S
 
     let mut headers = HeaderMap::new();
 
-    if let Some(auth_header_value) = CONFIG.auth_header.clone() {
-        headers.insert(
-            "x-api-key",
-            HeaderValue::from_str(auth_header_value.as_str())
-                .map_err(FocusError::InvalidHeaderValue)?,
-        );
+    if let Some(authheader) = CONFIG.backend_exporter_authheader.clone() {
+        headers.insert(authheader.0, authheader.1);
     }
 
     if task_type == TaskType::Status {
