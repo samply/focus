@@ -26,8 +26,12 @@ pub async fn post_ast(ast: ast::Ast) -> Result<String, FocusError> {
         HeaderValue::from_static("application/json"),
     );
 
-    if let Some(auth_header) = CONFIG.auth_header.clone() {
-        headers.insert(auth_header.0, auth_header.1);
+    if let Some(auth_header_value) = CONFIG.auth_header.clone() {
+        headers.insert(
+            header::AUTHORIZATION,
+            HeaderValue::from_str(auth_header_value.as_str())
+                .map_err(FocusError::InvalidHeaderValue)?,
+        );
     }
 
     let resp = CONFIG
