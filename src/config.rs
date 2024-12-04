@@ -158,9 +158,14 @@ struct CliArgs {
     #[clap(long, env, value_parser)]
     provider_icon: Option<String>,
 
+    // TODO - refactor to include multiple authorization headers for multiple stores / applications at the same time
     /// Authorization header
     #[clap(long, env, value_parser)]
     auth_header: Option<String>,
+
+    /// Exporter API key
+    #[clap(long, env, value_parser)]
+    exporter_api_key: Option<String>,
 
     /// Postgres connection string
     #[cfg(feature = "query-sql")]
@@ -198,6 +203,7 @@ pub(crate) struct Config {
     pub provider: Option<String>,
     pub provider_icon: Option<String>,
     pub auth_header: Option<String>,
+    pub exporter_api_key: Option<String>,
     #[cfg(feature = "query-sql")]
     pub postgres_connection_string: Option<String>,
     #[cfg(feature = "query-sql")]
@@ -243,6 +249,7 @@ impl Config {
             provider: cli_args.provider,
             provider_icon: cli_args.provider_icon,
             auth_header: cli_args.auth_header,
+            exporter_api_key: cli_args.exporter_api_key,
             #[cfg(feature = "query-sql")]
             postgres_connection_string: cli_args.postgres_connection_string,
             #[cfg(feature = "query-sql")]
