@@ -163,7 +163,7 @@ async fn main_loop() -> ExitCode {
         EndpointType::Blaze => || blaze::Blaze::check_availability().boxed(),
         EndpointType::Omop => || async { true }.boxed(), // TODO health check
         #[cfg(feature = "query-sql")]
-        EndpointType::BlazeAndSql => || blaze::check_availability().boxed(),
+        EndpointType::BlazeAndSql => || blaze::Blaze::check_availability().boxed(),
         #[cfg(feature = "query-sql")]
         EndpointType::Sql => || async { true }.boxed(),
     };
