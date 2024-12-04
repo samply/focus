@@ -20,6 +20,7 @@ mod db;
 use base64::engine::general_purpose;
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use beam_lib::{TaskRequest, TaskResult};
+use config::FocusBackend;
 use futures_util::future::BoxFuture;
 use futures_util::FutureExt;
 use laplace_rs::ObfCache;
@@ -159,10 +160,10 @@ async fn main_loop() -> ExitCode {
         },
     };
     let endpoint_service_available: fn() -> BoxFuture<'static, bool> = match CONFIG.endpoint_type {
-        EndpointType::Blaze => || blaze::check_availability().boxed(),
+        EndpointType::Blaze => || blaze::Blaze::check_availability().boxed(),
         EndpointType::Omop => || async { true }.boxed(), // TODO health check
         #[cfg(feature = "query-sql")]
-        EndpointType::BlazeAndSql => || blaze::check_availability().boxed(),
+        EndpointType::BlazeAndSql => || blaze::Blaze::check_availability().boxed(),
         #[cfg(feature = "query-sql")]
         EndpointType::Sql => || async { true }.boxed(),
     };

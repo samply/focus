@@ -3,7 +3,7 @@ use serde::Deserialize;
 use serde::Serialize;
 use tracing::{debug, warn};
 
-use crate::ast;
+use crate::{ast, config::FocusBackend};
 use crate::config::CONFIG;
 use crate::errors::FocusError;
 
@@ -11,6 +11,22 @@ use crate::errors::FocusError;
 pub struct IntermediateRepQuery {
     pub lang: String,
     pub query: String,
+}
+
+pub(crate) struct IntermediateRep;
+
+impl FocusBackend for IntermediateRep {
+    fn make_authheader(apikey: &str) -> Result<(header::HeaderName, HeaderValue), FocusError> {
+        let name = header::AUTHORIZATION;
+        let value = HeaderValue::from_str(apikey)
+            .map_err(|e| FocusError::ConfigurationError(format!("Invalid value \"{}\" in apikey for ast2sql backend: {}", apikey, e)))?;
+        Ok((name, value))
+    }
+
+    async fn check_availability() -> bool {
+        // TODO: Implement
+        true
+    }
 }
 
 pub async fn post_ast(ast: ast::Ast) -> Result<String, FocusError> {
@@ -26,12 +42,8 @@ pub async fn post_ast(ast: ast::Ast) -> Result<String, FocusError> {
         HeaderValue::from_static("application/json"),
     );
 
-    if let Some(auth_header_value) = CONFIG.auth_header.clone() {
-        headers.insert(
-            header::AUTHORIZATION,
-            HeaderValue::from_str(auth_header_value.as_str())
-                .map_err(FocusError::InvalidHeaderValue)?,
-        );
+    if let Some(auth_header) = CONFIG.backend_ast2sql_authheader.clone() {
+        headers.insert(auth_header.0, auth_header.1);
     }
 
     let resp = CONFIG

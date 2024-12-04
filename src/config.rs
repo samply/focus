@@ -3,12 +3,12 @@ use std::path::PathBuf;
 
 use beam_lib::AppId;
 use clap::Parser;
-use reqwest::{header::HeaderValue, Url};
+use reqwest::{header::{HeaderName, HeaderValue}, Url};
 use once_cell::sync::Lazy;
 use reqwest::{Certificate, Client, Proxy};
 use tracing::{debug, info, warn};
 
-use crate::errors::FocusError;
+use crate::{blaze, errors::FocusError, exporter};
 
 #[derive(clap::ValueEnum, Clone, PartialEq, Debug)]
 pub enum Obfuscate {
@@ -65,7 +65,7 @@ struct CliArgs {
     #[clap(long, env, value_parser)]
     beam_app_id_long: String,
 
-    /// This applications beam API key
+    /// This application's beam API key
     #[clap(long, env, value_parser)]
     api_key: String,
 
@@ -158,9 +158,18 @@ struct CliArgs {
     #[clap(long, env, value_parser)]
     provider_icon: Option<String>,
 
-    /// Authorization header
+    //TODO: Support blaze auth
+/*     /// Blaze Backend: API key for authentication
     #[clap(long, env, value_parser)]
-    auth_header: Option<String>,
+    backend_blaze_apikey: Option<String>,*/
+
+    /// Exporter backend: API key for authentication
+    #[clap(long, env, value_parser)]
+    backend_exporter_apikey: Option<String>,
+
+    /// AST2SQL transformer backend: API key for authentication
+    #[clap(long, env, value_parser)]
+    backend_ast2sql_apikey: Option<String>,
 
     /// Postgres connection string
     #[cfg(feature = "query-sql")]
@@ -197,7 +206,9 @@ pub(crate) struct Config {
     pub client: Client,
     pub provider: Option<String>,
     pub provider_icon: Option<String>,
-    pub auth_header: Option<String>,
+    pub backend_blaze_authheader: Option<(HeaderName, HeaderValue)>,
+    pub backend_exporter_authheader: Option<(HeaderName, HeaderValue)>,
+    pub backend_ast2sql_authheader: Option<(HeaderName, HeaderValue)>,
     #[cfg(feature = "query-sql")]
     pub postgres_connection_string: Option<String>,
     #[cfg(feature = "query-sql")]
@@ -219,6 +230,31 @@ impl Config {
         let client = prepare_reqwest_client(&tls_ca_certificates)?;
         dbg!(cli_args.endpoint_url.clone());
         dbg!(cli_args.blaze_url.clone());
+
+        let backend_blaze_authheader = {
+        //     if let Some(apikey) = cli_args.backend_blaze_apikey.as_ref() {
+        //         Some(blaze::Blaze::make_authheader(apikey)?)
+        //     } else {
+                None
+        //     }
+        };
+
+        let backend_exporter_authheader = {
+            if let Some(apikey) = cli_args.backend_exporter_apikey.as_ref() {
+                Some(exporter::Exporter::make_authheader(apikey)?)
+            } else {
+                None
+            }
+        };
+
+        let backend_ast2sql_authheader = {
+            if let Some(apikey) = cli_args.backend_ast2sql_apikey.as_ref() {
+                Some(exporter::Exporter::make_authheader(apikey)?)
+            } else {
+                None
+            }
+        };
+
         let config = Config {
             beam_proxy_url: cli_args.beam_proxy_url,
             beam_app_id_long: AppId::new_unchecked(cli_args.beam_app_id_long),
@@ -242,7 +278,9 @@ impl Config {
             queries_to_cache: cli_args.queries_to_cache,
             provider: cli_args.provider,
             provider_icon: cli_args.provider_icon,
-            auth_header: cli_args.auth_header,
+            backend_blaze_authheader,
+            backend_exporter_authheader,
+            backend_ast2sql_authheader,
             #[cfg(feature = "query-sql")]
             postgres_connection_string: cli_args.postgres_connection_string,
             #[cfg(feature = "query-sql")]
@@ -312,4 +350,9 @@ pub fn prepare_reqwest_client(certs: &Vec<Certificate>) -> Result<reqwest::Clien
     client
         .build()
         .map_err(|e| FocusError::ConfigurationError(format!("Cannot create http client: {}", e)))
+}
+
+pub(crate) trait FocusBackend {
+    fn make_authheader(apikey: &str) -> Result<(HeaderName, HeaderValue), FocusError>;
+    async fn check_availability() -> bool;
 }

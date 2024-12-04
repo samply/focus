@@ -1,9 +1,13 @@
+use reqwest::header;
+use reqwest::header::HeaderName;
+use reqwest::header::HeaderValue;
 use reqwest::StatusCode;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_json::Value;
 use tracing::{debug, warn, info};
 
+use crate::config::FocusBackend;
 use crate::errors::FocusError;
 use crate::util;
 use crate::util::get_json_field;
@@ -21,27 +25,41 @@ pub struct AstQuery {
     pub payload: String,
 }
 
-pub async fn check_availability() -> bool {
+pub(crate) struct Blaze;
 
-    debug!("Checking Blaze availability...");
-
-    let resp = match CONFIG.client
-        .get(format!("{}metadata", CONFIG.endpoint_url))
-        .send()
-        .await
-    {
-        Ok(response) => response,
-        Err(e) => {
-            warn!("Error making Blaze request: {:?}", e);
-            return false;
-        }
-    };
-
-    if resp.status().is_success() {
-        return true;
+impl FocusBackend for Blaze {
+    fn make_authheader(apikey: &str) -> Result<(HeaderName, HeaderValue), FocusError> {
+        let name = header::AUTHORIZATION;
+        let value = HeaderValue::from_str(apikey)
+            .map_err(|e| FocusError::ConfigurationError(format!("Invalid value \"{}\" in apikey for blaze backend: {}", apikey, e)))?;
+        Ok((name, value))
     }
-    false
+
+    async fn check_availability() -> bool {
+        debug!("Checking Blaze availability...");
+
+        let resp = match CONFIG.client
+            .get(format!("{}metadata", CONFIG.endpoint_url))
+            .send()
+            .await
+        {
+            Ok(response) => response,
+            Err(e) => {
+                warn!("Error making Blaze request: {:?}", e);
+                return false;
+            }
+        };
+
+        if resp.status().is_success() {
+            return true;
+        }
+        false
+    }
+
+    // TODO: Refactor other functions into a focus backend following a common trait.
 }
+
+// TODO: Respect blaze auth header
 
 pub async fn post_library(library: String) -> Result<(), FocusError> {
     debug!("Creating a Library...");
