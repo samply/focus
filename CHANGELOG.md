@@ -1,5 +1,14 @@
 # Samply.Focus v0.8.0 2024-11-04
 
+## Major changes
+* EHDS2 query support
+
+## Minor changes
+* Separated exporter API key CLA from authorization header CLA
+
+
+# Samply.Focus v0.8.0 2024-11-04
+
 In this release, we are supporting 4 types of SQL queries for Exliquid and Organoids
 
 ## Major changes
