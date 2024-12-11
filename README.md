@@ -51,7 +51,8 @@ PROJECTS_NO_OBFUSCATION = "exliquid;dktk_supervisors;exporter;ehds2" # Projects 
 QUERIES_TO_CACHE = "queries_to_cache.conf" # The path to a file containing base64 encoded queries whose results are to be cached. If not set, no results are cached
 PROVIDER = "name" #EUCAIM provider name
 PROVIDER_ICON = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABAQMAAAAl21bKAAAAA1BMVEUAAACnej3aAAAAAXRSTlMAQObYZgAAAApJREFUCNdjYAAAAAIAAeIhvDMAAAAASUVORK5CYII=" # Base64 encoded EUCAIM provider icon
-AUTH_HEADER = "ApiKey XXXX" #Authorization header
+AUTH_HEADER = "[Auth Type] XXXX" #Authorization header for accessing the store; Auth Type e.g. ApiKey, Basic, ...
+EXPORTER_API_KEY = "XXXX" # Value of header x-api-key for accessing the Exporter application
 ```
 
 In order to use Postgres querying, a Docker image built with the feature "dktk" needs to be used and this optional variable set:

@@ -1,0 +1,125 @@
+define ObservationList:
+    if InInitialPopulation then [Observation] else {} as List<Observation>
+
+// Return the value in the given system for the given Observation
+define function ObservationValueCode(observation FHIR.Observation, system_var String):
+    (observation.value as CodeableConcept).coding.where(system = system_var).code.first()
+
+// Check to see if there are any Observation resources with the
+// given system/value pair.
+define function ExistsObservationValueCode(system_var String, code_var String):
+    exists from [Observation] O
+        where ObservationValueCode(O, system_var) = code_var
+
+// Return the value associated with the extension with the given URL for the given Observation
+define function BaseObservationExtensionValue(observation FHIR.Observation, url_var String):
+    observation.extension.where(url = url_var).value
+
+// Return the value of the Observation extension with the given URL
+define function ObservationExtensionValue(observation FHIR.Observation, url_var String):
+    SensibleString(BaseObservationExtensionValue(observation, url_var))
+
+define function ExistsObservationExtensionValue(url_var String, value_var String):
+    exists from [Observation] O
+        where ObservationExtensionValue(O, url_var) = value_var
+
+// Return the pathogen type for the given Observation
+define function PathogenCode(observation FHIR.Observation):
+    ObservationValueCode(observation, 'https://ecdc.amr/pathogen-codes')
+
+// Check to see if there are any Observation resources with the
+// given pathogen type.
+define function ExistsPathogenCode(code_var String):
+    ExistsObservationValueCode('https://ecdc.amr/pathogen-codes', code_var)
+
+// Return the antibiotic type for the given Observation
+define function AntibioticCode(observation FHIR.Observation):
+    ObservationValueCode(observation, 'https://ecdc.amr/antibiotic-codes')
+
+// Check to see if there are any Observation resources with the
+// given antibiotic type.
+define function ExistsAntibioticCode(code_var String):
+    ExistsObservationValueCode('https://ecdc.amr/antibiotic-codes', code_var)
+
+// Return the resistance type for the given Observation
+define function SirCode(observation FHIR.Observation):
+    ObservationValueCode(observation, 'https://ecdc.amr/sir-codes')
+
+// Check to see if there are any Observation resources with the
+// given resistance type.
+define function ExistsSirCode(code_var String):
+    ExistsObservationValueCode('https://ecdc.amr/sir-codes', code_var)
+
+// Return the data source for the given Observation
+define function DataSource(observation FHIR.Observation):
+    ObservationExtensionValue(observation, 'https://ecdc.amr/fhir/StructureDefinition/ObservationDataSource')
+
+// Check to see if there are any Observation resources with the
+// given data source.
+define function ExistsDataSource(value_var String):
+    ExistsObservationExtensionValue('https://ecdc.amr/fhir/StructureDefinition/ObservationDataSource', value_var)
+
+// Return the isolate ID for the given Observation
+define function IsolateId(observation FHIR.Observation):
+    ObservationExtensionValue(observation, 'https://ecdc.amr/fhir/StructureDefinition/ObservationIsolateId')
+
+// Check to see if there are any Observation resources with the
+// given isolate ID.
+define function ExistsIsolateId(value_var String):
+    ExistsObservationExtensionValue('https://ecdc.amr/fhir/StructureDefinition/ObservationIsolateId', value_var)
+
+// Return the patient type for the given Observation
+define function PatientType(observation FHIR.Observation):
+    ObservationExtensionValue(observation, 'https://ecdc.amr/fhir/StructureDefinition/ObservationPatientType')
+
+// Check to see if there are any Observation resources with the
+// given patient type.
+define function ExistsPatientType(value_var String):
+    ExistsObservationExtensionValue('https://ecdc.amr/fhir/StructureDefinition/ObservationPatientType', value_var)
+
+// Return the reference guidelines SIR for the given Observation
+define function ReferenceGuidelinesSir(observation FHIR.Observation):
+    ObservationExtensionValue(observation, 'https://ecdc.amr/fhir/StructureDefinition/ObservationReferenceGuidelinesSIR')
+
+// Check to see if there are any Observation resources with the
+// given reference guidelines SIR.
+define function ExistsReferenceGuidelinesSir(value_var String):
+    ExistsObservationExtensionValue('https://ecdc.amr/fhir/StructureDefinition/ObservationReferenceGuidelinesSIR', value_var)
+
+// Return the reporting country for the given Observation
+define function ReportingCountry(observation FHIR.Observation):
+    ObservationExtensionValue(observation, 'https://ecdc.amr/fhir/StructureDefinition/ObservationReportingCountry')
+
+// Check to see if there are any Observation resources with the
+// given reporting country.
+define function ExistsReportingCountry(value_var String):
+    ExistsObservationExtensionValue('https://ecdc.amr/fhir/StructureDefinition/ObservationReportingCountry', value_var)
+
+// Return the year from the date used for statistics
+define function YearDateUsedForStatistics(observation FHIR.Observation):
+    year from observation.issued
+
+// Return the month from the date used for statistics
+define function MonthDateUsedForStatistics(observation FHIR.Observation):
+    month from observation.issued
+
+// Return the year-month from the date used for statistics
+define function YearMonthDateUsedForStatistics(observation FHIR.Observation):
+    ToString(YearDateUsedForStatistics(observation)) + '-' + ToString(MonthDateUsedForStatistics(observation))
+
+// Return the the date valid from
+define function DateValidFrom(observation FHIR.Observation):
+    ToDate(observation.effective as dateTime)
+
+// Return the year from the date valid from
+define function YearDateValidFrom(observation FHIR.Observation):
+    year from DateValidFrom(observation)
+
+// Return the month from the date valid from
+define function MonthDateValidFrom(observation FHIR.Observation):
+    month from DateValidFrom(observation)
+
+// Return the year-month from the date valid from
+define function YearMonthDateValidFrom(observation FHIR.Observation):
+    ToString(YearDateValidFrom(observation)) + '-' + ToString(MonthDateValidFrom(observation))
+

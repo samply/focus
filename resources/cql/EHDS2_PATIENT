@@ -1,0 +1,30 @@
+// Return the value of the Patient extension with the given URL.
+// Return "Unknown" if not available or empty.
+define function PatientExtensionValue(url_var String):
+    SensibleString(Patient.extension.where(url = url_var).value)
+
+// Return gender of patient
+define Gender:
+    SensibleString(Patient.gender)
+
+// Return age of patient, as an integer
+define AgeInYears:
+    ToInteger(PatientExtensionValue('https://ecdc.amr/fhir/StructureDefinition/PatientAge'))
+
+// Round patient age to the nearest multiple of 10 (i/p for a histogram).
+// Return result as a string
+define AgeClass:
+    ToString((AgeInYears div 10) * 10)
+
+// Return ID of hospital associated with patient
+define HospitalId:
+    PatientExtensionValue('https://ecdc.amr/fhir/StructureDefinition/PatientHospitalId')
+
+// Return hospital unit type associated with patient
+define HospitalUnitType:
+    PatientExtensionValue('https://ecdc.amr/fhir/StructureDefinition/PatientHospitalUnitType')
+
+// Return laboratory code associated with patient
+define LaboratoryCode:
+    PatientExtensionValue('https://ecdc.amr/fhir/StructureDefinition/PatientLaboratoryCode')
+
