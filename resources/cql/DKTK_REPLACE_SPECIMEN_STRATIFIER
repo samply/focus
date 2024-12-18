@@ -1,0 +1,4 @@
+define function SampleType(specimen FHIR.Specimen):
+specimen.type.coding.where(system = 'https://fhir.bbmri.de/CodeSystem/SampleMaterialType').code.first()
+
+define Specimen:
