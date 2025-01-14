@@ -1,6 +1,6 @@
 use std::{rc::Rc, time::Duration};
 
-use futures_util::{future::LocalBoxFuture, FutureExt, StreamExt};
+use futures_util::{future::LocalBoxFuture, stream, FutureExt, StreamExt};
 use tracing::{debug, error, info_span, warn, Instrument};
 
 use crate::{beam, errors::FocusError, BeamResult, BeamTask};
@@ -18,10 +18,10 @@ where
             debug!("Successfully claimed task");
         }
     };
-    futures_util::stream::repeat_with(beam::retrieve_tasks)
+    stream::repeat_with(beam::retrieve_tasks)
         .filter_map(|v| async {
             match v.await {
-                Ok(mut ts) => ts.pop(),
+                Ok(ts) => Some(ts),
                 Err(e) => {
                     warn!("Failed to get tasks from beam: {e}");
                     tokio::time::sleep(Duration::from_secs(10)).await;
@@ -29,6 +29,7 @@ where
                 }
             }
         })
+        .flat_map(stream::iter)
         .then(move |t| {
             let id = t.id;
             let span = info_span!("task", %id);
