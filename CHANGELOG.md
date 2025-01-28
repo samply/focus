@@ -2,6 +2,8 @@
 
 ## Major changes
 * Laplace-rs version 0.5.0 (includes a statrs breaking change)
+* Allow Zlib license
+* DKTK_REPLACE_SPECIMEN_STRATIFIER, DKTK_REPLACE_HISTOLOGY_STRATIFIER for sample centric search
 
 
 # Samply.Focus v0.9.0 2024-12-11
