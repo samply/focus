@@ -1,4 +1,14 @@
-# Samply.Focus v0.8.0 2024-11-04
+# Samply.Focus v0.10.0 2024-12-11
+
+## Major changes
+* Laplace-rs version 0.5.0 (includes a statrs breaking change)
+* DKTK_REPLACE_SPECIMEN_STRATIFIER, DKTK_REPLACE_HISTOLOGY_STRATIFIER for sample centric search
+
+## Minor changes
+* Allow Zlib license
+
+
+# Samply.Focus v0.9.0 2024-12-11
 
 ## Major changes
 * EHDS2 query support

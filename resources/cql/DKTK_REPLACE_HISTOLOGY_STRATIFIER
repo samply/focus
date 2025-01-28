@@ -1,0 +1,4 @@
+define Histo:
+if InInitialPopulation then [Observation] else {} as List <Observation>
+
+define function Histology(histo FHIR.Observation):
