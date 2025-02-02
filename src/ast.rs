@@ -9,7 +9,7 @@ pub enum Child {
     Condition(Condition),
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum Operand { //this is operator, of course, but rename would need to be coordinated with all the Lenses, EUCAIM providers, etc
     And,
