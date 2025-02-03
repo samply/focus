@@ -1,6 +1,7 @@
 use reqwest::{
     header::{self, HeaderMap, HeaderValue},
     StatusCode,
+    Url
 };
 use tracing::{debug, error, warn};
 
@@ -37,7 +38,6 @@ pub static CRITERION: Lazy<HashMap<&str, &str>> = Lazy::new(|| {
     map.insert("RID10337", "PET");
     map.insert("RID10334", "SPECT");
     map.insert("RID10321", "CT");
-    map.insert("RID10321", "CT");
     map.insert("SNOMEDCT76752008", "breast");
     map.insert("SNOMEDCT71854001", "colon");
     map.insert("SNOMEDCT39607008", "lung");
@@ -52,8 +52,8 @@ pub static CRITERION: Lazy<HashMap<&str, &str>> = Lazy::new(|| {
     map
 });
 
-pub fn build_eucaim_api_query_url(ast: ast::Ast) -> Result<String, FocusError> {
-    let mut url: String = CONFIG.endpoint_url.to_string();
+pub fn build_eucaim_api_query_url(base_url: Url, ast: ast::Ast) -> Result<String, FocusError> {
+    let mut url: String = base_url.to_string() + "?";
 
     let mut parameters: Vec<String> = Vec::new();
 
@@ -144,7 +144,7 @@ pub fn build_eucaim_api_query_url(ast: ast::Ast) -> Result<String, FocusError> {
 pub async fn send_eucaim_api_query(ast: ast::Ast) -> Result<String, FocusError> {
     debug!("Posting EUCAIM API query...");
 
-    let eucaim_api_query = if let Ok(query) = build_eucaim_api_query_url(ast) {
+    let eucaim_api_query = if let Ok(query) = build_eucaim_api_query_url(CONFIG.endpoint_url.clone(), ast) {
         query
     } else {
         return Err(FocusError::EucaimApiQueryGenerationError);
@@ -190,4 +190,34 @@ pub async fn send_eucaim_api_query(ast: ast::Ast) -> Result<String, FocusError> 
     };
 
     Ok(text)
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use pretty_assertions;
+
+    const EMPTY: &str = r#"{"ast":{"children":[],"operand":"OR"},"id":"ef8bae78-522c-498c-b7db-3f96f279a1a0__search__ef8bae78-522c-498c-b7db-3f96f279a1a0"}"#;
+
+    const JUST_RIGHT: &str = r#"{"ast":{"children":[{"children":[{"children":[{"key":"SNOMEDCT263495000","system":"","type":"EQUALS","value":"SNOMEDCT248153007"}],"operand":"OR"},{"children":[{"key":"SNOMEDCT439401001","system":"urn:snomed-org/sct","type":"EQUALS","value":"SNOMEDCT399068003"}],"operand":"OR"},{"children":[{"key":"RID10311","system":"urn:oid:2.16.840.1.113883.6.256","type":"EQUALS","value":"RID10312"}],"operand":"OR"},{"children":[{"key":"SNOMEDCT123037004","system":"urn:snomed-org/sct","type":"EQUALS","value":"SNOMEDCT76752008"}],"operand":"OR"},{"children":[{"key":"C25392","system":"http://bioontology.org/projects/ontologies/birnlex","type":"EQUALS","value":"birnlex_3065"}],"operand":"OR"}],"operand":"AND"}],"operand":"OR"},"id":"66b8bbf4-ded2-4f94-87ab-3a3ca2f4edc0__search__66b8bbf4-ded2-4f94-87ab-3a3ca2f4edc0"}"#;
+
+    const TOO_MUCH: &str = r#"{"ast":{"children":[{"children":[{"children":[{"key":"SNOMEDCT263495000","system":"","type":"EQUALS","value":"SNOMEDCT248153007"},{"key":"SNOMEDCT263495000","system":"","type":"EQUALS","value":"SNOMEDCT248152002"}],"operand":"OR"},{"children":[{"key":"SNOMEDCT439401001","system":"urn:snomed-org/sct","type":"EQUALS","value":"SNOMEDCT399068003"},{"key":"SNOMEDCT439401001","system":"urn:snomed-org/sct","type":"EQUALS","value":"SNOMEDCT254837009"}],"operand":"OR"},{"children":[{"key":"RID10311","system":"urn:oid:2.16.840.1.113883.6.256","type":"EQUALS","value":"RID10312"},{"key":"RID10311","system":"urn:oid:2.16.840.1.113883.6.256","type":"EQUALS","value":"RID10337"}],"operand":"OR"},{"children":[{"key":"SNOMEDCT123037004","system":"urn:snomed-org/sct","type":"EQUALS","value":"SNOMEDCT76752008"},{"key":"SNOMEDCT123037004","system":"urn:snomed-org/sct","type":"EQUALS","value":"SNOMEDCT41216001"}],"operand":"OR"},{"children":[{"key":"C25392","system":"http://bioontology.org/projects/ontologies/birnlex","type":"EQUALS","value":"birnlex_3065"},{"key":"C25392","system":"http://bioontology.org/projects/ontologies/birnlex","type":"EQUALS","value":"birnlex_3067"}],"operand":"OR"}],"operand":"AND"}],"operand":"OR"},"id":"c57e075c-19de-4c5a-ba9c-b8f697a98dfc__search__c57e075c-19de-4c5a-ba9c-b8f697a98dfc"}"#;
+
+    #[test]
+    fn test_build_url_empty() {
+        let url = build_eucaim_api_query_url(Url::parse("http://base.info/search").unwrap(), serde_json::from_str(EMPTY).unwrap()).unwrap();
+        pretty_assertions::assert_eq!(url, "http://base.info/search?");
+    }
+
+    #[test]
+    fn test_build_url_just_right() {
+        let url = build_eucaim_api_query_url(Url::parse("http://base.info/search").unwrap(), serde_json::from_str(JUST_RIGHT).unwrap()).unwrap();
+        pretty_assertions::assert_eq!(url, "http://base.info/search?gender=male&diagnosis=SNOMEDCT399068003&modality=MR&bodyPart=breast&manufacturer=Philips");
+    }
+
+    #[test]
+    fn test_build_url_too_much() {
+        assert!(build_eucaim_api_query_url(Url::parse("http://base.info/search").unwrap(), serde_json::from_str(TOO_MUCH).unwrap()).is_err());
+    }
+
 }
