@@ -152,11 +152,6 @@ pub async fn send_eucaim_api_query(ast: ast::Ast) -> Result<String, FocusError> 
 
     let mut headers = HeaderMap::new();
 
-    headers.insert(
-        header::CONTENT_TYPE,
-        HeaderValue::from_static("application/json"),
-    );
-
     if let Some(auth_header_value) = CONFIG.auth_header.clone() {
         headers.insert(
             header::AUTHORIZATION,
