@@ -35,7 +35,7 @@ BEAM_APP_ID_LONG = "app1.broker.example.com"
 
 ```bash
 RETRY_COUNT = "32" # The maximum number of retries for beam and blaze healthchecks; default value: 32
-ENDPOINT_TYPE = "blaze" # Type of the endpoint, allowed values: "blaze", "omop", "sql", "blaze-and-sql"; default value: "blaze"
+ENDPOINT_TYPE = "blaze" # Type of the endpoint, allowed values: "blaze", "omop", "sql", "blaze-and-sql", "eucaim-api"; default value: "blaze"
 EXPORTER_URL = " https://exporter.site/"  # The exporter URL
 OBFUSCATE = "yes" # Should the results be obfuscated - the "master switch", allowed values: "yes", "no"; default value: "yes"
 OBFUSCATE_BELOW_10_MODE = "1" # The mode of obfuscating values below 10: 0 - return zero, 1 - return ten, 2 - obfuscate using Laplace distribution and rounding, has no effect if OBFUSCATE = "no"; default value: 1
@@ -95,6 +95,11 @@ Creating a sample SQL task for a `SELECT_TEST` query using curl:
 ```bash
  curl -v -X POST -H "Content-Type: application/json" --data '{"id":"7fffefff-ffef-fcff-feef-feffffffffff","from":"app1.proxy1.broker","to":["app1.proxy1.broker"],"ttl":"10s","failure_strategy":{"retry":{"backoff_millisecs":1000,"max_tries":5}},"metadata":{"project":"exliquid"},"body":"eyJwYXlsb2FkIjoiU0VMRUNUX1RFU1QifQ=="}' -H "Authorization: ApiKey app1.proxy1.broker App1Secret" http://localhost:8081/v1/tasks
  ```
+
+ Creating a sample EUCAIM API query using curl:
+```bash
+ curl -v -X POST -H "Content-Type: application/json" --data '{"id":"7fffefff-ffef-fcff-feef-feffffffffff","from":"app1.proxy1.broker","to":["app1.proxy1.broker"],"ttl":"10s","failure_strategy":{"retry":{"backoff_millisecs":1000,"max_tries":5}},"metadata":{"project":"eucaim"},"body":"eyJsYW5nIjoiYXN0IiwicXVlcnkiOiJleUpoYzNRaU9uc2liM0JsY21GdVpDSTZJazlTSWl3aVkyaHBiR1J5Wlc0aU9sdDdJbTl3WlhKaGJtUWlPaUpCVGtRaUxDSmphR2xzWkhKbGJpSTZXM3NpYjNCbGNtRnVaQ0k2SWs5U0lpd2lZMmhwYkdSeVpXNGlPbHQ3SW10bGVTSTZJbE5PVDAxRlJFTlVNall6TkRrMU1EQXdJaXdpZEhsd1pTSTZJa1ZSVlVGTVV5SXNJbk41YzNSbGJTSTZJaUlzSW5aaGJIVmxJam9pVTA1UFRVVkVRMVF5TkRneE5UTXdNRGNpZlYxOUxIc2liM0JsY21GdVpDSTZJazlTSWl3aVkyaHBiR1J5Wlc0aU9sdDdJbXRsZVNJNklsTk9UMDFGUkVOVU5ETTVOREF4TURBeElpd2lkSGx3WlNJNklrVlJWVUZNVXlJc0luTjVjM1JsYlNJNkluVnlianB6Ym05dFpXUXRiM0puTDNOamRDSXNJblpoYkhWbElqb2lVMDVQVFVWRVExUXpOak0wTURZd01EVWlmVjE5TEhzaWIzQmxjbUZ1WkNJNklrOVNJaXdpWTJocGJHUnlaVzRpT2x0N0ltdGxlU0k2SWxKSlJERXdNekV4SWl3aWRIbHdaU0k2SWtWUlZVRk1VeUlzSW5ONWMzUmxiU0k2SW5WeWJqcHZhV1E2TWk0eE5pNDROREF1TVM0eE1UTTRPRE11Tmk0eU5UWWlMQ0oyWVd4MVpTSTZJbEpKUkRFd016RXlJbjFkZlN4N0ltOXdaWEpoYm1RaU9pSlBVaUlzSW1Ob2FXeGtjbVZ1SWpwYmV5SnJaWGtpT2lKVFRrOU5SVVJEVkRFeU16QXpOekF3TkNJc0luUjVjR1VpT2lKRlVWVkJURk1pTENKemVYTjBaVzBpT2lKMWNtNDZjMjV2YldWa0xXOXlaeTl6WTNRaUxDSjJZV3gxWlNJNklsTk9UMDFGUkVOVU56RTROVFF3TURFaWZWMTlMSHNpYjNCbGNtRnVaQ0k2SWs5U0lpd2lZMmhwYkdSeVpXNGlPbHQ3SW10bGVTSTZJa015TlRNNU1pSXNJblI1Y0dVaU9pSkZVVlZCVEZNaUxDSnplWE4wWlcwaU9pSm9kSFJ3T2k4dlltbHZiMjUwYjJ4dloza3ViM0puTDNCeWIycGxZM1J6TDI5dWRHOXNiMmRwWlhNdlltbHlibXhsZUNJc0luWmhiSFZsSWpvaVF6SXdNREUwTUNKOVhYMWRmVjE5TENKcFpDSTZJbUV5WkRrNU1qZGxMV1prTVRVdE5EY3hZUzFoWW1ReUxXSXhZMlk0TTJVM01XVXdNRjlmYzJWaGNtTm9YMTloTW1RNU9USTNaUzFtWkRFMUxUUTNNV0V0WVdKa01pMWlNV05tT0RObE56RmxNREFpZlE9PSJ9"}' -H "Authorization: ApiKey app1.proxy1.broker App1Secret" http://localhost:8081/v1/tasks
+```
 
 Creating a sample [Exporter](https://github.com/samply/exporter) "execute" task containing an Exporter query using curl:
 

@@ -103,7 +103,6 @@ pub fn build_eucaim_api_query_url(base_url: Url, ast: ast::Ast) -> Result<String
                                                     if let Some(crit) = criterion {
                                                         parameters
                                                             .push(cat.to_string() + "=" + crit);
-                                                        dbg!(&parameters);
                                                     }
                                                 }
                                                 _ => {
@@ -133,6 +132,8 @@ pub fn build_eucaim_api_query_url(base_url: Url, ast: ast::Ast) -> Result<String
             }
         }
     }
+
+    dbg!(&parameters);
 
     url += parameters.join("&").as_str();
 
