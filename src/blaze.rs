@@ -2,7 +2,7 @@ use reqwest::StatusCode;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_json::Value;
-use tracing::{debug, warn, info};
+use tracing::{debug, warn, info, trace};
 
 use crate::errors::FocusError;
 use crate::util;
