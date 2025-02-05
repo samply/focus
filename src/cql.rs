@@ -70,8 +70,6 @@ fn generate_cql(ast: ast::Ast) -> Result<String, FocusError> {
 
     cql = cql.replace("{{lists}}", lists.as_str());
 
-    dbg!(&retrieval_criteria);
-
     if retrieval_criteria.is_empty() || retrieval_criteria=="()" {
         cql = cql.replace("{{retrieval_criteria}}", "true"); //()?
     } else {
