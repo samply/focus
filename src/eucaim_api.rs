@@ -3,7 +3,7 @@ use reqwest::{
     StatusCode,
     Url
 };
-use tracing::{debug, error, warn};
+use tracing::{debug, error, warn, trace};
 
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
@@ -133,11 +133,9 @@ pub fn build_eucaim_api_query_url(base_url: Url, ast: ast::Ast) -> Result<String
         }
     }
 
-    dbg!(&parameters);
-
     url += parameters.join("&").as_str();
 
-    dbg!(&url);
+    trace!("{}", &url);
 
     Ok(url)
 }
