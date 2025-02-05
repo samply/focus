@@ -204,6 +204,8 @@ async fn process_task(
 ) -> Result<BeamResult, FocusError> {
     debug!("Processing task {}", task.id);
 
+    trace!("{}", &task.body);
+
     let metadata: Metadata = serde_json::from_value(task.metadata.clone()).unwrap_or(Metadata {
         project: "default_obfuscation".to_string(),
         task_type: None,
