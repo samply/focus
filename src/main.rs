@@ -410,6 +410,9 @@ async fn run_cql_query(
                 replace_cql_library(query.clone())?
             };
 
+            trace!("Library: {}", &query.lib);
+            trace!("Measure: {}", &query.measure);
+
             let cql_result = blaze::run_cql_query(&query.lib, &query.measure).await?;
 
             trace!("MeasureReport with unobfuscated values: {}", &cql_result);
