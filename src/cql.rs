@@ -70,7 +70,7 @@ fn generate_cql(ast: ast::Ast) -> Result<String, FocusError> {
 
     cql = cql.replace("{{lists}}", lists.as_str());
 
-    if retrieval_criteria.is_empty() || retrieval_criteria=="()" {
+    if retrieval_criteria.is_empty() || retrieval_criteria.replace("(","").replace(")", "").replace(" ", "") == "" { //to deal with an empty criteria tree of an arbitrary depth 
         cql = cql.replace("{{retrieval_criteria}}", "true"); //()?
     } else {
         let formatted_retrieval_criteria = format!("({})", retrieval_criteria);
