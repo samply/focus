@@ -1,4 +1,14 @@
-# Samply.Focus v0.10.0 2024-12-11
+# Samply.Focus v0.11.0 2025-02-??
+
+## Major changes
+* Querying EUCAIM API v1
+* CQL generation supports empty AST of an arbitary debth
+
+## Minor changes
+??
+
+
+# Samply.Focus v0.10.0 2025-02-03
 
 ## Major changes
 * Laplace-rs version 0.5.0 (includes a statrs breaking change)
