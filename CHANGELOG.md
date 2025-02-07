@@ -5,8 +5,8 @@
 * CQL generation supports empty AST of an arbitary debth
 
 ## Minor changes
-??
-
+* Add SQL query for the public SIORGP dashboard for the NeoMatch project
+* Fix and rename the SQL query for the public SIORGP dashboard for the MetPredict project
 
 # Samply.Focus v0.10.0 2025-02-03
 
