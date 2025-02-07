@@ -29,7 +29,7 @@ select t.value as pat_pseudonym,
 	t7.value as location_primary_tumor_precise,
 	t3.value as therapy,
 	t4.value as metastases_therapy,
-	t6.value::integer as age_at_enrollment
+	t6.value::numeric as age_at_enrollment
 from t
 left join t t2 on t.pat_ref = t2.pat_ref and t2.code='SIOP_LOCALISATION_PRIMARY_TUMOR' 
 left join t t3 on t.pat_ref = t3.pat_ref and t3.code='SIOP_NEOADJ_T_RECTAL_CARCINOMA' 
