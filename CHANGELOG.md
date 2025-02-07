@@ -5,8 +5,8 @@
 * CQL generation supports empty AST of an arbitary debth
 
 ## Minor changes
-??
-
+* Add SQL query for the public SIORGP dashboard for the NeoMatch project
+* Fix and rename the SQL query for the public SIORGP dashboard for the MetPredict project
 
 # Samply.Focus v0.10.0 2025-02-03
 
@@ -29,7 +29,7 @@
 
 # Samply.Focus v0.8.0 2024-11-04
 
-In this release, we are supporting 4 types of SQL queries for Exliquid and Organoids
+In this release, we are supporting 5 SQL queries for Exliquid and Organoids
 
 ## Major changes
 * Allowlist of SQL queries
