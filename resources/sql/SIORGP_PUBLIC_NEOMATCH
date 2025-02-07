@@ -1,0 +1,46 @@
+/* SIorgP NeoMatch project
+The approach chosen here is to minimize the number of tasks generated and thus network traffic via Beam
+=> one large query that returns all the most necessary fields over multiple smaller queries
+*/
+with t as (
+select
+o.resource->'subject'->>'reference' as pat_ref,
+o.resource->'code'->'coding'->0->>'code' as crf,
+  component->'code'->'coding'->0->>'code' AS code,
+  COALESCE(
+      component->'valueCodeableConcept'->'coding'->0->>'code',
+      component->>'valueDateTime',
+      component->'valueQuantity'->>'value',
+      component->>'valueString'
+    ) AS value
+FROM 
+  observation o ,
+  jsonb_array_elements(o.resource->'component') AS component
+where o.resource->'code'->'coding'->0->>'code' like 'SIOrgP%'
+),
+t2 AS (
+select t.value as pat_pseudonym,	
+	t2.value as gender,	
+	t6.value::numeric as age_at_enrollment
+from t
+left join t t2 on t.pat_ref = t2.pat_ref and t2.code='SIOP_GENDER' 
+left join t t6 on t.pat_ref = t6.pat_ref and t6.code='SIOP_AGE_STUDY_ENROLLMENT'
+left join patient p on t.pat_ref = 'Patient/' || (p.resource->>'id')::text
+where t.crf like 'SIOrgP - NeoMatch - Visite 1%' and t.code = 'SIOP_PATIENT_PSEUDONYM'
+)
+-- the total number of patients
+select 'NeoMatch' as project, 'n_patients' as field, (select count(distinct pat_pseudonym) from t2) as value
+union
+select 'NeoMatch' as project, 'gender_male' as field, (select count(distinct pat_pseudonym) from t2 where gender = 'MALE') as value
+union 
+select 'NeoMatch' as project, 'gender_female' as field, (select count(distinct pat_pseudonym) from t2 where gender = 'FEMALE') as value
+union 
+select 'NeoMatch' as project, '<=30' as field, (select count(distinct pat_pseudonym) from t2 where age_at_enrollment <= 30) as value
+union 
+select 'NeoMatch' as project, '31-40' as field, (select count(distinct pat_pseudonym) from t2 where age_at_enrollment >= 31 and age_at_enrollment <= 40) as value
+union 
+select 'NeoMatch' as project, '41-50' as field, (select count(distinct pat_pseudonym) from t2 where age_at_enrollment >= 41 and age_at_enrollment <= 50) as value
+union 
+select 'NeoMatch' as project, '51-60' as field, (select count(distinct pat_pseudonym) from t2 where age_at_enrollment >= 51 and age_at_enrollment <= 60) as value
+union 
+select 'NeoMatch' as project, '>=61' as field, (select count(distinct pat_pseudonym) from t2 where age_at_enrollment >= 61) as value;
