@@ -10,6 +10,7 @@ mod logger;
 
 mod exporter;
 mod intermediate_rep;
+mod eucaim_api;
 mod projects;
 mod task_processing;
 mod util;
@@ -160,7 +161,7 @@ async fn main_loop() -> ExitCode {
     };
     let endpoint_service_available: fn() -> BoxFuture<'static, bool> = match CONFIG.endpoint_type {
         EndpointType::Blaze => || blaze::check_availability().boxed(),
-        EndpointType::Omop => || async { true }.boxed(), // TODO health check
+        EndpointType::Omop | EndpointType::EucaimApi => || async { true }.boxed(), // TODO health check
         #[cfg(feature = "query-sql")]
         EndpointType::BlazeAndSql => || blaze::check_availability().boxed(),
         #[cfg(feature = "query-sql")]
@@ -202,6 +203,8 @@ async fn process_task(
     db_pool: Option<DbPool>,
 ) -> Result<BeamResult, FocusError> {
     debug!("Processing task {}", task.id);
+
+    trace!("{}", &task.body);
 
     let metadata: Metadata = serde_json::from_value(task.metadata.clone()).unwrap_or(Metadata {
         project: "default_obfuscation".to_string(),
@@ -344,6 +347,18 @@ async fn process_task(
             let ast: ast::Ast = serde_json::from_slice(&query_decoded)?;
     
             Ok(run_intermediate_rep_query(task, ast).await?)
+        },
+        EndpointType::EucaimApi => {
+            let decoded = util::base64_decode(&task.body)?;
+            let intermediate_rep_query: intermediate_rep::IntermediateRepQuery =
+                serde_json::from_slice(&decoded)?;
+            //TODO check that the language is ast
+            let query_decoded = general_purpose::STANDARD
+                .decode(intermediate_rep_query.query)
+                .map_err(FocusError::DecodeError)?;
+            let ast: ast::Ast = serde_json::from_slice(&query_decoded)?;
+    
+            Ok(run_eucaim_api_query(task, ast).await?)
         } 
     }
 }
@@ -394,6 +409,9 @@ async fn run_cql_query(
             } else {
                 replace_cql_library(query.clone())?
             };
+
+            trace!("Library: {}", &query.lib);
+            trace!("Measure: {}", &query.measure);
 
             let cql_result = blaze::run_cql_query(&query.lib, &query.measure).await?;
 
@@ -469,6 +487,43 @@ async fn run_intermediate_rep_query(
     }
 
     let result = beam_result(task.to_owned(), intermediate_rep_result).unwrap_or_else(|e| {
+        err.body = beam_lib::RawString(e.to_string());
+        err
+    });
+
+    Ok(result)
+}
+
+async fn run_eucaim_api_query(
+    task: &BeamTask,
+    ast: ast::Ast,
+) -> Result<BeamResult, FocusError> {
+    let mut err = beam::beam_result::perm_failed(
+        CONFIG.beam_app_id_long.clone(),
+        vec![task.to_owned().from],
+        task.to_owned().id,
+        String::new(),
+    );
+
+    let mut eucaim_api_query_result = eucaim_api::send_eucaim_api_query(ast).await?;
+
+    if let Some(provider_icon) = CONFIG.provider_icon.clone() {
+        eucaim_api_query_result = eucaim_api_query_result.replacen(
+            '{',
+            format!(r#"{{"provider_icon":"{}","#, provider_icon).as_str(),
+            1,
+        );
+    }
+
+    if let Some(provider) = CONFIG.provider.clone() {
+        eucaim_api_query_result = eucaim_api_query_result.replacen(
+            '{',
+            format!(r#"{{"provider":"{}","#, provider).as_str(),
+            1,
+        );
+    }
+
+    let result = beam_result(task.to_owned(), eucaim_api_query_result).unwrap_or_else(|e| {
         err.body = beam_lib::RawString(e.to_string());
         err
     });

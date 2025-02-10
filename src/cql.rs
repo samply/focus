@@ -70,7 +70,7 @@ fn generate_cql(ast: ast::Ast) -> Result<String, FocusError> {
 
     cql = cql.replace("{{lists}}", lists.as_str());
 
-    if retrieval_criteria.is_empty() {
+    if retrieval_criteria.is_empty() || retrieval_criteria.chars().all(|c| [' ', '(', ')'].contains(&c)) { //to deal with an empty criteria tree of an arbitrary depth 
         cql = cql.replace("{{retrieval_criteria}}", "true"); //()?
     } else {
         let formatted_retrieval_criteria = format!("({})", retrieval_criteria);
@@ -394,6 +394,8 @@ mod test {
 
     const CURRENT: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"operand":"OR","children":[{"key":"gender","type":"EQUALS","system":"","value":"male"}]},{"operand":"OR","children":[{"key":"diagnosis","type":"EQUALS","system":"http://fhir.de/CodeSystem/dimdi/icd-10-gm","value":"C61"}]},{"operand":"OR","children":[{"key":"donor_age","type":"BETWEEN","system":"","value":{"min":10,"max":90}}]}]},{"operand":"AND","children":[{"operand":"OR","children":[{"key":"sampling_date","type":"BETWEEN","system":"","value":{"min":"1900-01-01","max":"2024-10-25"}}]},{"operand":"OR","children":[{"key":"storage_temperature","type":"EQUALS","system":"","value":"temperature2to10"}]}]}]},"id":"53b4414e-75e4-401b-b794-20a2936e1be5"}"#;
 
+    const VAFAN: &str = r#"{"ast":{"nodeType":"branch","operand":"OR","children":[{"nodeType":"branch","operand":"AND","children":[]}]},"id":"0b29f6d1-4e6a-4679-9212-3327e498b304__search__0b29f6d1-4e6a-4679-9212-3327e498b304"}"#;
+
     #[test]
     fn test_common() {
         // maybe nothing here
@@ -441,6 +443,11 @@ mod test {
 
         pretty_assertions::assert_eq!(
             generate_cql(serde_json::from_str(EMPTY).unwrap()).unwrap(),
+            include_str!("../resources/test/result_empty.cql").to_string()
+        );
+
+        pretty_assertions::assert_eq!(
+            generate_cql(serde_json::from_str(VAFAN).unwrap()).unwrap(),
             include_str!("../resources/test/result_empty.cql").to_string()
         );
 
