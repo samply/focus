@@ -1,4 +1,5 @@
 use reqwest::StatusCode;
+use reqwest::Url;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_json::Value;
@@ -39,6 +40,8 @@ pub async fn check_availability() -> bool {
 
     if resp.status().is_success() {
         return true;
+    } else {
+        warn!("Request to Blaze returned response with non-200 status: {:?}", resp);
     }
     false
 }
