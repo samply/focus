@@ -6,6 +6,7 @@
 ## Minor changes
 * Warning if blaze availability check has non-200 HTTP status
 * Fix Dockerfile for ./dev/focusdev build and ENDPOINT_URL in README.md
+* Add SQL queries for Exliquid
 
 
 # Samply.Focus v0.11.0 2025-02-10
