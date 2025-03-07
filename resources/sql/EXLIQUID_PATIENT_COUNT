@@ -1,0 +1,5 @@
+-- Number of patient resources for which at least one Exliquid specimen exists
+select count(distinct p) patient_count
+from specimen s
+join patient p on (s.resource -> 'subject' ->> 'reference')::text = 'Patient/' || (p.resource ->> 'id')::text
+where (s.resource->>'identifier')::text like '%EXLIQUID%';

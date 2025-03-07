@@ -1,0 +1,38 @@
+/*
+ * The number of Exliquid diagnoses, patients, samples according to the current documentation specification. 
+ * See: https://wiki.verbis.dkfz.de/pages/viewpage.action?pageId=294716167 
+ */
+with specimen_types as (
+    select 
+    	(s.resource ->> 'id')::text s_id,
+   		(s_coding ->> 'code')::text sample_type
+    from specimen s, jsonb_array_elements(s.resource -> 'type' -> 'coding') as s_coding
+    where s_coding ->> 'system' = 'https://fhir.bbmri.de/CodeSystem/SampleMaterialType' and (s.resource->>'identifier')::text like '%EXLIQUID%'
+),
+specimen_details as (
+    select 
+		s.resource ->> 'id' s_id,       
+		st.sample_type,
+		-- (s.resource -> 'container' -> 0 -> 'specimenQuantity' ->> 'value')::float s_amountrest,
+		s.resource -> 'subject' ->> 'reference' as patient_id
+    from specimen s
+    join specimen_types st on s.resource ->> 'id' = st.s_id   
+    where (s.resource -> 'container' -> 0 -> 'specimenQuantity' ->> 'value')::float > 0
+),
+condition_details as (
+	select distinct 
+		sd.patient_id,
+		c.resource -> 'code' -> 'coding' -> 0 ->> 'code' icd10_code,
+		c.resource -> 'code' ->> 'text' diag_desc,
+		sd.sample_type
+	from specimen_details sd
+	join condition c on sd.patient_id = c.resource -> 'subject' ->> 'reference'
+)
+select 
+	icd10_code,
+	diag_desc,
+	count(distinct patient_id) patient_count,
+	sample_type,
+	count(sample_type) sample_count
+from condition_details
+group by icd10_code, diag_desc, patient_id, sample_type;
