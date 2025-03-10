@@ -1,0 +1,5 @@
+define Procedure:
+if InInitialPopulation then [Procedure] else {} as List <Procedure>
+
+define function ProcedureType(procedure FHIR.Procedure):
+procedure.category.coding.where(system = 'https://www.cancercoreeurope.eu/fhir/core/CodeSystem/SYSTTherapyTypeCS').code.first()
