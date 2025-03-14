@@ -1,7 +1,4 @@
-# Samply.Focus v0.12.0 2025-02-??
-
-## Major changes
-*
+# Samply.Focus v0.12.0 2025-03-14
 
 ## Minor changes
 * Warning if blaze availability check has non-200 HTTP status
