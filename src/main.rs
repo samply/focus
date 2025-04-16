@@ -8,9 +8,9 @@ mod errors;
 mod graceful_shutdown;
 mod logger;
 
+mod eucaim_api;
 mod exporter;
 mod intermediate_rep;
-mod eucaim_api;
 mod projects;
 mod task_processing;
 mod util;
@@ -127,12 +127,12 @@ type DbPool = ();
 type DbPool = sqlx::PgPool;
 
 #[cfg(not(feature = "query-sql"))]
-async fn get_db_pool() -> Result<Option<DbPool>,ExitCode> {
+async fn get_db_pool() -> Result<Option<DbPool>, ExitCode> {
     Ok(None)
 }
 
 #[cfg(feature = "query-sql")]
-async fn get_db_pool() -> Result<Option<DbPool>,ExitCode> {
+async fn get_db_pool() -> Result<Option<DbPool>, ExitCode> {
     use tracing::info;
 
     if let Some(connection_string) = CONFIG.postgres_connection_string.clone() {
@@ -141,7 +141,7 @@ async fn get_db_pool() -> Result<Option<DbPool>,ExitCode> {
                 error!("Error connecting to database: {}", e);
                 Err(ExitCode::from(8))
             }
-            
+
             Ok(pool) => {
                 info!("Postgresql connection established");
                 Ok(Some(pool))
@@ -157,7 +157,7 @@ async fn main_loop() -> ExitCode {
         Ok(pool) => pool,
         Err(code) => {
             return code;
-        },
+        }
     };
     let endpoint_service_available: fn() -> BoxFuture<'static, bool> = match CONFIG.endpoint_type {
         EndpointType::Blaze => || blaze::check_availability().boxed(),
@@ -249,7 +249,7 @@ async fn process_task(
                 generated_from_ast,
             )
             .await
-        },
+        }
         #[cfg(feature = "query-sql")]
         EndpointType::BlazeAndSql => {
             let mut generated_from_ast: bool = false;
@@ -258,16 +258,7 @@ async fn process_task(
                 serde_json::from_slice(&(data.clone()));
             if let Ok(sql_query) = query_maybe {
                 if let Some(pool) = db_pool {
-                    let rows = db::process_sql_task(&pool, &(sql_query.payload)).await?;
-                        let rows_json = db::serialize_rows(rows)?;
-                        trace!("result: {}", &rows_json);
-    
-                        Ok(beam::beam_result::succeeded(
-                            CONFIG.beam_app_id_long.clone(),
-                            vec![task.from.clone()],
-                            task.id,
-                            BASE64.encode(serde_json::to_string(&rows_json)?),
-                        ))
+                    run_sql_query(task, pool, sql_query, report_cache).await
                 } else {
                     Err(FocusError::CannotConnectToDatabase(
                         "SQL task but no connection String in config".into(),
@@ -293,28 +284,15 @@ async fn process_task(
                 )
                 .await
             }
-        },
-        #[cfg(feature="query-sql")]
+        }
+        #[cfg(feature = "query-sql")]
         EndpointType::Sql => {
             let data = base64_decode(&task.body)?;
-            let query_maybe: Result<db::SqlQuery, serde_json::Error> = serde_json::from_slice(&(data));
+            let query_maybe: Result<db::SqlQuery, serde_json::Error> =
+                serde_json::from_slice(&(data));
             if let Ok(sql_query) = query_maybe {
                 if let Some(pool) = db_pool {
-                    let result = db::process_sql_task(&pool, &(sql_query.payload)).await;
-                    if let Ok(rows) = result {
-                        let rows_json = db::serialize_rows(rows)?;
-    
-                        Ok(beam::beam_result::succeeded(
-                            CONFIG.beam_app_id_long.clone(),
-                            vec![task.clone().from],
-                            task.id,
-                            BASE64.encode(serde_json::to_string(&rows_json)?),
-                        ))
-                    } else {
-                        Err(FocusError::QueryResultBad(
-                            "Query executed but result not readable".into(),
-                        ))
-                    }
+                    run_sql_query(task, pool, sql_query, report_cache).await
                 } else {
                     Err(FocusError::CannotConnectToDatabase(
                         "SQL task but no connection String in config".into(),
@@ -335,7 +313,7 @@ async fn process_task(
                     ),
                 ))
             }
-        }, 
+        }
         EndpointType::Omop => {
             let decoded = util::base64_decode(&task.body)?;
             let intermediate_rep_query: intermediate_rep::IntermediateRepQuery =
@@ -345,9 +323,9 @@ async fn process_task(
                 .decode(intermediate_rep_query.query)
                 .map_err(FocusError::DecodeError)?;
             let ast: ast::Ast = serde_json::from_slice(&query_decoded)?;
-    
+
             Ok(run_intermediate_rep_query(task, ast).await?)
-        },
+        }
         EndpointType::EucaimApi => {
             let decoded = util::base64_decode(&task.body)?;
             let intermediate_rep_query: intermediate_rep::IntermediateRepQuery =
@@ -357,9 +335,68 @@ async fn process_task(
                 .decode(intermediate_rep_query.query)
                 .map_err(FocusError::DecodeError)?;
             let ast: ast::Ast = serde_json::from_slice(&query_decoded)?;
-    
+
             Ok(run_eucaim_api_query(task, ast).await?)
-        } 
+        }
+    }
+}
+
+#[cfg(feature = "query-sql")]
+async fn run_sql_query(
+    task: &TaskRequest<String>,
+    pool: sqlx::Pool<sqlx::Postgres>,
+    sql_query: db::SqlQuery,
+    report_cache: Arc<Mutex<ReportCache>>,
+) -> Result<TaskResult<beam_lib::RawString>, FocusError> {
+    let mut key_exists = false;
+    let result_from_cache = match report_cache
+        .lock()
+        .await
+        .cache
+        .get(&(sql_query.payload.clone(), false))
+    {
+        Some(existing_result) => {
+            key_exists = true;
+            if SystemTime::now().duration_since(existing_result.1).unwrap() < REPORTCACHE_TTL {
+                Some(existing_result.0.clone())
+            } else {
+                None
+            }
+        }
+        None => None,
+    };
+
+    match result_from_cache {
+        Some(some_result_from_cache) => Ok(beam::beam_result::succeeded(
+            CONFIG.beam_app_id_long.clone(),
+            vec![task.clone().from],
+            task.id,
+            BASE64.encode(serde_json::to_string(&some_result_from_cache)?),
+        )),
+        None => {
+            let result = db::process_sql_task(&pool, &(sql_query.payload)).await;
+            if let Ok(rows) = result {
+                let rows_json = db::serialize_rows(rows)?;
+
+                if key_exists {
+                    report_cache.lock().await.cache.insert(
+                        (sql_query.payload, false),
+                        (rows_json.to_string(), std::time::SystemTime::now()),
+                    );
+                }
+
+                Ok(beam::beam_result::succeeded(
+                    CONFIG.beam_app_id_long.clone(),
+                    vec![task.clone().from],
+                    task.id,
+                    BASE64.encode(serde_json::to_string(&rows_json)?),
+                ))
+            } else {
+                Err(FocusError::QueryResultBad(
+                    "Query executed but result not readable".into(),
+                ))
+            }
+        }
     }
 }
 
@@ -494,10 +531,7 @@ async fn run_intermediate_rep_query(
     Ok(result)
 }
 
-async fn run_eucaim_api_query(
-    task: &BeamTask,
-    ast: ast::Ast,
-) -> Result<BeamResult, FocusError> {
+async fn run_eucaim_api_query(task: &BeamTask, ast: ast::Ast) -> Result<BeamResult, FocusError> {
     let mut err = beam::beam_result::perm_failed(
         CONFIG.beam_app_id_long.clone(),
         vec![task.to_owned().from],
