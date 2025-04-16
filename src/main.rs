@@ -46,7 +46,7 @@ use tracing::{debug, error, trace, warn};
 // result cache
 type SearchQuery = String;
 type Obfuscated = bool;
-type Report = String;
+type QueryResult = String;
 type Created = std::time::SystemTime; //epoch
 type BeamTask = TaskRequest<String>;
 type BeamResult = TaskResult<beam_lib::RawString>;
@@ -65,11 +65,11 @@ struct Metadata {
 }
 
 #[derive(Debug, Clone, Default)]
-struct ReportCache {
-    cache: HashMap<(SearchQuery, Obfuscated), (Report, Created)>,
+struct QueryResultCache {
+    cache: HashMap<(SearchQuery, Obfuscated), (QueryResult, Created)>,
 }
 
-impl ReportCache {
+impl QueryResultCache {
     pub fn new() -> Self {
         let mut cache = HashMap::new();
 
@@ -96,7 +96,7 @@ impl ReportCache {
     }
 }
 
-const REPORTCACHE_TTL: Duration = Duration::from_secs(86400); //24h
+const QUERY_RESULTCACHE_TTL: Duration = Duration::from_secs(86400); //24h
 
 #[tokio::main]
 pub async fn main() -> ExitCode {
@@ -183,14 +183,14 @@ async fn main_loop() -> ExitCode {
             failures, CONFIG.retry_count
         );
     }
-    let report_cache = Arc::new(Mutex::new(ReportCache::new()));
+    let query_result_cache = Arc::new(Mutex::new(QueryResultCache::new()));
     let obf_cache = Arc::new(Mutex::new(ObfCache {
         cache: Default::default(),
     }));
     task_processing::process_tasks(move |task| {
         let obf_cache = obf_cache.clone();
-        let report_cache = report_cache.clone();
-        process_task(task, obf_cache, report_cache, db_pool.clone()).boxed_local()
+        let query_result_cache = query_result_cache.clone();
+        process_task(task, obf_cache, query_result_cache, db_pool.clone()).boxed_local()
     })
     .await;
     ExitCode::FAILURE
@@ -199,7 +199,7 @@ async fn main_loop() -> ExitCode {
 async fn process_task(
     task: &BeamTask,
     obf_cache: Arc<Mutex<ObfCache>>,
-    report_cache: Arc<Mutex<ReportCache>>,
+    query_result_cache: Arc<Mutex<QueryResultCache>>,
     db_pool: Option<DbPool>,
 ) -> Result<BeamResult, FocusError> {
     debug!("Processing task {}", task.id);
@@ -244,7 +244,7 @@ async fn process_task(
                 task,
                 &query,
                 obf_cache,
-                report_cache,
+                query_result_cache,
                 metadata.project,
                 generated_from_ast,
             )
@@ -258,7 +258,7 @@ async fn process_task(
                 serde_json::from_slice(&(data.clone()));
             if let Ok(sql_query) = query_maybe {
                 if let Some(pool) = db_pool {
-                    run_sql_query(task, pool, sql_query, report_cache).await
+                    run_sql_query(task, pool, sql_query, query_result_cache).await
                 } else {
                     Err(FocusError::CannotConnectToDatabase(
                         "SQL task but no connection String in config".into(),
@@ -278,7 +278,7 @@ async fn process_task(
                     task,
                     &query,
                     obf_cache,
-                    report_cache,
+                    query_result_cache,
                     metadata.project,
                     generated_from_ast,
                 )
@@ -292,7 +292,7 @@ async fn process_task(
                 serde_json::from_slice(&(data));
             if let Ok(sql_query) = query_maybe {
                 if let Some(pool) = db_pool {
-                    run_sql_query(task, pool, sql_query, report_cache).await
+                    run_sql_query(task, pool, sql_query, query_result_cache).await
                 } else {
                     Err(FocusError::CannotConnectToDatabase(
                         "SQL task but no connection String in config".into(),
@@ -346,10 +346,10 @@ async fn run_sql_query(
     task: &TaskRequest<String>,
     pool: sqlx::Pool<sqlx::Postgres>,
     sql_query: db::SqlQuery,
-    report_cache: Arc<Mutex<ReportCache>>,
+    result_cache: Arc<Mutex<QueryResultCache>>,
 ) -> Result<TaskResult<beam_lib::RawString>, FocusError> {
     let mut key_exists = false;
-    let result_from_cache = match report_cache
+    let result_from_cache = match result_cache
         .lock()
         .await
         .cache
@@ -357,7 +357,7 @@ async fn run_sql_query(
     {
         Some(existing_result) => {
             key_exists = true;
-            if SystemTime::now().duration_since(existing_result.1).unwrap() < REPORTCACHE_TTL {
+            if SystemTime::now().duration_since(existing_result.1).unwrap() < QUERY_RESULTCACHE_TTL {
                 Some(existing_result.0.clone())
             } else {
                 None
@@ -379,7 +379,7 @@ async fn run_sql_query(
                 let rows_json = db::serialize_rows(rows)?;
 
                 if key_exists {
-                    report_cache.lock().await.cache.insert(
+                    result_cache.lock().await.cache.insert(
                         (sql_query.payload, false),
                         (rows_json.to_string(), std::time::SystemTime::now()),
                     );
@@ -404,7 +404,7 @@ async fn run_cql_query(
     task: &BeamTask,
     query: &CqlQuery,
     obf_cache: Arc<Mutex<ObfCache>>,
-    report_cache: Arc<Mutex<ReportCache>>,
+    query_result_cache: Arc<Mutex<QueryResultCache>>,
     project: String,
     generated_from_ast: bool,
 ) -> Result<BeamResult, FocusError> {
@@ -421,16 +421,16 @@ async fn run_cql_query(
     let obfuscate =
         CONFIG.obfuscate == config::Obfuscate::Yes && !CONFIG.unobfuscated.contains(&project);
 
-    let report_from_cache = match report_cache
+    let result_from_cache = match query_result_cache
         .lock()
         .await
         .cache
         .get(&(encoded_query.to_string(), obfuscate))
     {
-        Some(existing_report) => {
+        Some(existing_result) => {
             key_exists = true;
-            if SystemTime::now().duration_since(existing_report.1).unwrap() < REPORTCACHE_TTL {
-                Some(existing_report.0.clone())
+            if SystemTime::now().duration_since(existing_result.1).unwrap() < QUERY_RESULTCACHE_TTL {
+                Some(existing_result.0.clone())
             } else {
                 None
             }
@@ -438,8 +438,8 @@ async fn run_cql_query(
         None => None,
     };
 
-    let cql_result_new = match report_from_cache {
-        Some(some_report_from_cache) => some_report_from_cache.to_string(),
+    let cql_result_new = match result_from_cache {
+        Some(some_result_from_cache) => some_result_from_cache.to_string(),
         None => {
             let query = if generated_from_ast {
                 query.clone()
@@ -473,7 +473,7 @@ async fn run_cql_query(
             };
 
             if key_exists {
-                report_cache.lock().await.cache.insert(
+                query_result_cache.lock().await.cache.insert(
                     (encoded_query.to_string(), obfuscate),
                     (cql_result_new.clone(), std::time::SystemTime::now()),
                 );
@@ -623,8 +623,8 @@ fn replace_cql_library(mut query: CqlQuery) -> Result<CqlQuery, FocusError> {
     Ok(query)
 }
 
-fn beam_result(task: BeamTask, measure_report: String) -> Result<BeamResult, FocusError> {
-    let data = BASE64.encode(measure_report.as_bytes());
+fn beam_result(task: BeamTask, query_result: String) -> Result<BeamResult, FocusError> {
+    let data = BASE64.encode(query_result.as_bytes());
     Ok(beam::beam_result::succeeded(
         CONFIG.beam_app_id_long.clone(),
         vec![task.from],
