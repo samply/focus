@@ -346,10 +346,10 @@ async fn run_sql_query(
     task: &TaskRequest<String>,
     pool: sqlx::Pool<sqlx::Postgres>,
     sql_query: db::SqlQuery,
-    result_cache: Arc<Mutex<QueryResultCache>>,
+    query_result_cache: Arc<Mutex<QueryResultCache>>,
 ) -> Result<TaskResult<beam_lib::RawString>, FocusError> {
     let mut key_exists = false;
-    let result_from_cache = if let Some(existing_result) = result_cache
+    if let Some(existing_result) = query_result_cache
         .lock()
         .await
         .cache
@@ -357,21 +357,13 @@ async fn run_sql_query(
     {
         key_exists = true;
         if SystemTime::now().duration_since(existing_result.1).unwrap() < QUERY_RESULTCACHE_TTL {
-            Some(existing_result.0.clone())
-        } else {
-            None
+            return Ok(beam::beam_result::succeeded(
+                CONFIG.beam_app_id_long.clone(),
+                vec![task.from.clone()],
+                task.id,
+                BASE64.encode(serde_json::to_string(&existing_result.0)?),
+            ));
         }
-    } else {
-        None
-    };
-
-    if let Some(some_result_from_cache) = result_from_cache {
-        return Ok(beam::beam_result::succeeded(
-            CONFIG.beam_app_id_long.clone(),
-            vec![task.clone().from],
-            task.id,
-            BASE64.encode(serde_json::to_string(&some_result_from_cache)?),
-        ));
     }
 
     let result = db::process_sql_task(&pool, &(sql_query.payload)).await;
@@ -379,7 +371,7 @@ async fn run_sql_query(
         let rows_json = db::serialize_rows(rows)?;
 
         if key_exists {
-            result_cache.lock().await.cache.insert(
+            query_result_cache.lock().await.cache.insert(
                 (sql_query.payload, false),
                 (rows_json.to_string(), std::time::SystemTime::now()),
             );
@@ -419,7 +411,7 @@ async fn run_cql_query(
     let obfuscate =
         CONFIG.obfuscate == config::Obfuscate::Yes && !CONFIG.unobfuscated.contains(&project);
 
-    let result_from_cache = if let Some(existing_result) = query_result_cache
+    if let Some(existing_result) = query_result_cache
         .lock()
         .await
         .cache
@@ -427,21 +419,13 @@ async fn run_cql_query(
     {
         key_exists = true;
         if SystemTime::now().duration_since(existing_result.1).unwrap() < QUERY_RESULTCACHE_TTL {
-            Some(existing_result.0.clone())
-        } else {
-            None
+            return Ok(beam::beam_result::succeeded(
+                CONFIG.beam_app_id_long.clone(),
+                vec![task.from.clone()],
+                task.id,
+                BASE64.encode(serde_json::to_string(&existing_result.0)?),
+            ));
         }
-    } else {
-        None
-    };
-
-    if let Some(some_result_from_cache) = result_from_cache {
-        return Ok(beam::beam_result::succeeded(
-            CONFIG.beam_app_id_long.clone(),
-            vec![task.clone().from],
-            task.id,
-            BASE64.encode(serde_json::to_string(&some_result_from_cache)?),
-        ));
     }
 
     let query = if generated_from_ast {
