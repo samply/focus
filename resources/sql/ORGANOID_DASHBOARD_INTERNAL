@@ -1,0 +1,119 @@
+WITH metpredict_visit_2b AS (
+    -- Each VISIT-2B has up to 6 samples (M01, M02, M03, M04, M05, M06).
+    -- Usually there should be one VISIT-2B per patient, but if there are more, we select up to 6 samples from each.
+    SELECT 
+        -- resource->'subject'->>'reference' AS patient_reference,
+        (SELECT value->>'valueString'                               FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_PATIENT_PSEUDONYM') AS patient_pseudonym,
+        (SELECT value->>'valueDateTime'                             FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_DATE_OF_VISITE') AS date_of_visite,
+        (SELECT value->>'valueString'                               FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_SAMPLE_' || sample_key || '_PSEUDONYM') AS sample_pseudonym
+        -- (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_SAMPLE_' || sample_key || '_LN2') AS sample_ln2
+    FROM observation
+    CROSS JOIN unnest(ARRAY['M01', 'M02', 'M03', 'M04', 'M05', 'M06']) AS sample_key
+    WHERE resource->'method'->'coding'->0->>'code' = 'PROFILE_SIOP_METPREDICT_VISIT-2B_SAMPLE_COLLECTION'
+        AND EXISTS (SELECT 1 FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_SAMPLE_' || sample_key || '_PSEUDONYM')
+),
+metpredict_visit_1 AS (
+    -- There should be exactly one VISIT-1 per patient, if there are more we select the first one.
+    SELECT DISTINCT ON (patient_pseudonym)
+        (SELECT value->>'valueString' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_PATIENT_PSEUDONYM') AS patient_pseudonym,
+        (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_LOCALISATION_PRIMARY_TUMOR') AS localisation_primary_tumor,
+        (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_LOCALISATION_PRIMARY_TUMOR_COLON') AS localisation_primary_tumor_colon,
+        (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_TNM_C-T') AS tnm_ct,
+        (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_TNM_C-N') AS tnm_cn,
+        (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_NEOADJ_T_RECTAL_CARCINOMA') AS neoadj_t_rectal_carcinoma,
+        (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_NEOADJ_CTX_MET') AS neoadj_ctx_met
+    FROM observation
+    WHERE resource->'method'->'coding'->0->>'code' = 'PROFILE_SIOP_METPREDICT_VISIT-1_PATIENTDATA'
+),
+neomatch_visit_2b AS (
+    -- Each VISIT-2B has only one sample.
+    SELECT
+        (SELECT value->>'valueString'                               FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_PATIENT_PSEUDONYM') AS patient_pseudonym,
+        (SELECT value->>'valueDateTime'                             FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_DATE_OF_VISITE') AS date_of_visite,
+        (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_SAMPLE_LOCALISATION') AS sample_localisation,
+        (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_SAMPLE_COLLECTION') AS sample_collection,
+        (SELECT value->>'valueString'                               FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_SAMPLE_COLLECTION_OTHER') AS sample_collection_other
+    FROM observation
+    WHERE resource->'method'->'coding'->0->>'code' = 'PROFILE_SIOP_NEOMATCH_VISIT-2B_SAMPLE_COLLECTION'
+),
+neomatch_visit_1a AS (
+    -- There should be exactly one VISIT-1A per patient, if there are more we select the first one.
+    SELECT DISTINCT ON (patient_pseudonym)
+        (SELECT value->>'valueString'                               FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_PATIENT_PSEUDONYM') AS patient_pseudonym,
+        (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_TNM_C-T') AS tnm_ct,
+        (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_TNM_C-N') AS tnm_cn,
+        (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_TNM_C-M') AS tnm_cm,
+        (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_NEOADJ_CTX') AS neoadj_ctx
+    FROM observation
+    WHERE resource->'method'->'coding'->0->>'code' = 'PROFILE_SIOP_NEOMATCH_VISIT-1A_PATIENTDATA'
+),
+neomatch_visit_1b AS (
+    -- There should be exactly one VISIT-1B per patient, if there are more we select the first one.
+    SELECT DISTINCT ON (patient_pseudonym)
+        (SELECT value->>'valueString'                               FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_PATIENT_PSEUDONYM') AS patient_pseudonym
+        -- (SELECT value->'valueCodeableConcept'->'coding'             FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_NEOADJ_CTX_REGIMEN_NEOMATCH') AS neoadj_ctx_regimen,
+    FROM observation
+    WHERE resource->'method'->'coding'->0->>'code' = 'PROFILE_SIOP_NEOMATCH_VISIT-1B_NEOADJUVANT_CTX'
+)
+
+SELECT
+    'MetPredict' AS project,
+    metpredict_visit_2b.patient_pseudonym AS patient_pseudonym,
+    metpredict_visit_2b.date_of_visite AS date_of_visite_2b,
+    metpredict_visit_2b.sample_pseudonym AS sample_pseudonym,
+    metpredict_visit_1.tnm_ct || metpredict_visit_1.tnm_cn AS clinical_tnm,
+    CASE
+        WHEN metpredict_visit_1.localisation_primary_tumor = 'COLON' THEN CASE
+            WHEN metpredict_visit_1.localisation_primary_tumor_colon = 'COLON_ASCENDENS' THEN 'Colon ascendens'
+            WHEN metpredict_visit_1.localisation_primary_tumor_colon = 'COLON_TRANSVERSUM' THEN 'Colon transversum'
+            WHEN metpredict_visit_1.localisation_primary_tumor_colon = 'COLON_DESCENDENS' THEN 'Colon descendens'
+            WHEN metpredict_visit_1.localisation_primary_tumor_colon = 'COLON_SIGMOIDEUM' THEN 'Colon sigmoideum / Sigma'
+            WHEN metpredict_visit_1.localisation_primary_tumor_colon = 'NA' THEN 'Colon'
+        END
+        WHEN metpredict_visit_1.localisation_primary_tumor = 'RECTUM' THEN 'Rectum'
+        WHEN metpredict_visit_1.localisation_primary_tumor = 'NA' THEN 'not documented'
+    END AS localisation_primary_tumor,
+    'Metastasis: resection' AS sample_type,
+    CASE
+        WHEN metpredict_visit_1.neoadj_t_rectal_carcinoma = 'YES' THEN 'Yes'
+        WHEN metpredict_visit_1.neoadj_t_rectal_carcinoma = 'NO' THEN 'No'
+        WHEN metpredict_visit_1.neoadj_t_rectal_carcinoma = 'NA' THEN 'not documented'
+    END AS neoadj_therapy_primary_tumor,
+    CASE
+        WHEN metpredict_visit_1.neoadj_ctx_met = 'YES' THEN 'Yes'
+        WHEN metpredict_visit_1.neoadj_ctx_met = 'NO' THEN 'No'
+        WHEN metpredict_visit_1.neoadj_ctx_met = 'NA' THEN 'not documented'
+    END AS neoadj_therapy_metastases
+FROM metpredict_visit_2b
+LEFT JOIN metpredict_visit_1 ON metpredict_visit_2b.patient_pseudonym = metpredict_visit_1.patient_pseudonym
+
+UNION ALL
+
+SELECT
+    'NeoMatch' as project,
+    neomatch_visit_2b.patient_pseudonym AS patient_pseudonym,
+    neomatch_visit_2b.date_of_visite AS date_of_visite_2b,
+    NULL AS sample_pseudonym,
+    neomatch_visit_1a.tnm_ct || neomatch_visit_1a.tnm_cn || neomatch_visit_1a.tnm_cm AS clinical_tnm,
+    CASE
+        WHEN neomatch_visit_2b.sample_localisation = 'PANCREASHEAD' THEN 'Head of pancreas'
+        WHEN neomatch_visit_2b.sample_localisation = 'PANCREASTAIL' THEN 'Tail of pancreas'
+        WHEN neomatch_visit_2b.sample_localisation = 'PANCREASBODY' THEN 'Body of pancreas'
+        WHEN neomatch_visit_2b.sample_localisation = 'NA' THEN 'not documented'
+    END AS localisation_primary_tumor,
+    'Primary tumor: ' ||
+    CASE
+        WHEN sample_collection = 'EUS' THEN 'Endoscopic ultrasound (EUS)'
+        WHEN sample_collection = 'OP' THEN 'Exploration / resection (surgery)'
+        WHEN sample_collection = 'OTH' THEN sample_collection_other
+        WHEN sample_collection = 'NA' THEN 'not documented'
+    END AS sample_type,
+    CASE
+        WHEN neomatch_visit_1a.neoadj_ctx = 'YES' THEN 'Yes'
+        WHEN neomatch_visit_1a.neoadj_ctx = 'NO' THEN 'No'
+        WHEN neomatch_visit_1a.neoadj_ctx = 'NA' THEN 'not documented'
+    END AS neoadj_therapy_primary_tumor,
+    'No' AS neoadj_therapy_metastases
+FROM neomatch_visit_2b
+LEFT JOIN neomatch_visit_1a ON neomatch_visit_2b.patient_pseudonym = neomatch_visit_1a.patient_pseudonym
+LEFT JOIN neomatch_visit_1b ON neomatch_visit_2b.patient_pseudonym = neomatch_visit_1b.patient_pseudonym;
