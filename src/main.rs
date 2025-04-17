@@ -349,54 +349,52 @@ async fn run_sql_query(
     result_cache: Arc<Mutex<QueryResultCache>>,
 ) -> Result<TaskResult<beam_lib::RawString>, FocusError> {
     let mut key_exists = false;
-    let result_from_cache = match result_cache
+    let result_from_cache = if let Some(existing_result) = result_cache
         .lock()
         .await
         .cache
         .get(&(sql_query.payload.clone(), false))
     {
-        Some(existing_result) => {
-            key_exists = true;
-            if SystemTime::now().duration_since(existing_result.1).unwrap() < QUERY_RESULTCACHE_TTL {
-                Some(existing_result.0.clone())
-            } else {
-                None
-            }
+        key_exists = true;
+        if SystemTime::now().duration_since(existing_result.1).unwrap() < QUERY_RESULTCACHE_TTL {
+            Some(existing_result.0.clone())
+        } else {
+            None
         }
-        None => None,
+    } else {
+        None
     };
 
-    match result_from_cache {
-        Some(some_result_from_cache) => Ok(beam::beam_result::succeeded(
+    if let Some(some_result_from_cache) = result_from_cache {
+        return Ok(beam::beam_result::succeeded(
             CONFIG.beam_app_id_long.clone(),
             vec![task.clone().from],
             task.id,
             BASE64.encode(serde_json::to_string(&some_result_from_cache)?),
-        )),
-        None => {
-            let result = db::process_sql_task(&pool, &(sql_query.payload)).await;
-            if let Ok(rows) = result {
-                let rows_json = db::serialize_rows(rows)?;
+        ));
+    }
 
-                if key_exists {
-                    result_cache.lock().await.cache.insert(
-                        (sql_query.payload, false),
-                        (rows_json.to_string(), std::time::SystemTime::now()),
-                    );
-                }
+    let result = db::process_sql_task(&pool, &(sql_query.payload)).await;
+    if let Ok(rows) = result {
+        let rows_json = db::serialize_rows(rows)?;
 
-                Ok(beam::beam_result::succeeded(
-                    CONFIG.beam_app_id_long.clone(),
-                    vec![task.clone().from],
-                    task.id,
-                    BASE64.encode(serde_json::to_string(&rows_json)?),
-                ))
-            } else {
-                Err(FocusError::QueryResultBad(
-                    "Query executed but result not readable".into(),
-                ))
-            }
+        if key_exists {
+            result_cache.lock().await.cache.insert(
+                (sql_query.payload, false),
+                (rows_json.to_string(), std::time::SystemTime::now()),
+            );
         }
+
+        Ok(beam::beam_result::succeeded(
+            CONFIG.beam_app_id_long.clone(),
+            vec![task.clone().from],
+            task.id,
+            BASE64.encode(serde_json::to_string(&rows_json)?),
+        ))
+    } else {
+        Err(FocusError::QueryResultBad(
+            "Query executed but result not readable".into(),
+        ))
     }
 }
 
@@ -421,66 +419,68 @@ async fn run_cql_query(
     let obfuscate =
         CONFIG.obfuscate == config::Obfuscate::Yes && !CONFIG.unobfuscated.contains(&project);
 
-    let result_from_cache = match query_result_cache
+    let result_from_cache = if let Some(existing_result) = query_result_cache
         .lock()
         .await
         .cache
         .get(&(encoded_query.to_string(), obfuscate))
     {
-        Some(existing_result) => {
-            key_exists = true;
-            if SystemTime::now().duration_since(existing_result.1).unwrap() < QUERY_RESULTCACHE_TTL {
-                Some(existing_result.0.clone())
-            } else {
-                None
-            }
+        key_exists = true;
+        if SystemTime::now().duration_since(existing_result.1).unwrap() < QUERY_RESULTCACHE_TTL {
+            Some(existing_result.0.clone())
+        } else {
+            None
         }
-        None => None,
+    } else {
+        None
     };
 
-    let cql_result_new = match result_from_cache {
-        Some(some_result_from_cache) => some_result_from_cache.to_string(),
-        None => {
-            let query = if generated_from_ast {
-                query.clone()
-            } else {
-                replace_cql_library(query.clone())?
-            };
+    if let Some(some_result_from_cache) = result_from_cache {
+        return Ok(beam::beam_result::succeeded(
+            CONFIG.beam_app_id_long.clone(),
+            vec![task.clone().from],
+            task.id,
+            BASE64.encode(serde_json::to_string(&some_result_from_cache)?),
+        ));
+    }
 
-            trace!("Library: {}", &query.lib);
-            trace!("Measure: {}", &query.measure);
-
-            let cql_result = blaze::run_cql_query(&query.lib, &query.measure).await?;
-
-            trace!("MeasureReport with unobfuscated values: {}", &cql_result);
-
-            let cql_result_new: String = match obfuscate {
-                true => obfuscate_counts_mr(
-                    &cql_result,
-                    obf_cache.lock().await.deref_mut(),
-                    CONFIG.obfuscate_zero,
-                    CONFIG.obfuscate_below_10_mode,
-                    CONFIG.delta_patient,
-                    CONFIG.delta_specimen,
-                    CONFIG.delta_diagnosis,
-                    CONFIG.delta_procedures,
-                    CONFIG.delta_medication_statements,
-                    CONFIG.delta_histo,
-                    CONFIG.epsilon,
-                    CONFIG.rounding_step,
-                )?,
-                false => cql_result,
-            };
-
-            if key_exists {
-                query_result_cache.lock().await.cache.insert(
-                    (encoded_query.to_string(), obfuscate),
-                    (cql_result_new.clone(), std::time::SystemTime::now()),
-                );
-            }
-            cql_result_new
-        }
+    let query = if generated_from_ast {
+        query.clone()
+    } else {
+        replace_cql_library(query.clone())?
     };
+
+    trace!("Library: {}", &query.lib);
+    trace!("Measure: {}", &query.measure);
+
+    let cql_result = blaze::run_cql_query(&query.lib, &query.measure).await?;
+
+    trace!("MeasureReport with unobfuscated values: {}", &cql_result);
+
+    let cql_result_new: String = match obfuscate {
+        true => obfuscate_counts_mr(
+            &cql_result,
+            obf_cache.lock().await.deref_mut(),
+            CONFIG.obfuscate_zero,
+            CONFIG.obfuscate_below_10_mode,
+            CONFIG.delta_patient,
+            CONFIG.delta_specimen,
+            CONFIG.delta_diagnosis,
+            CONFIG.delta_procedures,
+            CONFIG.delta_medication_statements,
+            CONFIG.delta_histo,
+            CONFIG.epsilon,
+            CONFIG.rounding_step,
+        )?,
+        false => cql_result,
+    };
+
+    if key_exists {
+        query_result_cache.lock().await.cache.insert(
+            (encoded_query.to_string(), obfuscate),
+            (cql_result_new.clone(), std::time::SystemTime::now()),
+        );
+    }
 
     let result = beam_result(task.to_owned(), cql_result_new).unwrap_or_else(|e| {
         beam::beam_result::perm_failed(
