@@ -1,7 +1,7 @@
 # Samply.Focus v0.13.0 2025-04-17
 
 ## Major changes
-* Results of SQL queries can now be cashed
+* Results of SQL queries can now be cached
 * Add query for organoid internal dashboard
 
 
