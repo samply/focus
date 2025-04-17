@@ -1,7 +1,11 @@
-# Samply.Focus v0.12.0 2025-02-??
+# Samply.Focus v0.13.0 2025-04-17
 
 ## Major changes
-*
+* Results of SQL queries can now be cashed
+* Add query for organoid internal dashboard
+
+
+# Samply.Focus v0.12.0 2025-03-14
 
 ## Minor changes
 * Warning if blaze availability check has non-200 HTTP status
