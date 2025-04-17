@@ -144,7 +144,7 @@ struct CliArgs {
     )]
     projects_no_obfuscation: String,
 
-    /// Path to a file containing BASE64 encoded queries whose results are to be cached
+    ///The path to a file containing base64 encoded CQL queries, and aliases of SQL queries, whose results are to be cached. If not set, no results are cached
     #[clap(long, env, value_parser)]
     queries_to_cache: Option<PathBuf>,
 
