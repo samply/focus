@@ -1,3 +1,12 @@
+# Samply.Focus v0.13.1 2025-04-22
+
+## Bugfixes
+* Don't double encode cached cql and sql query results
+
+## Minor changes
+* remove exliquid query with aliquotes
+* add exliquid query for samples with status available
+
 # Samply.Focus v0.13.0 2025-04-17
 
 ## Major changes
