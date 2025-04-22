@@ -1,0 +1,7 @@
+define Specimen:
+if InInitialPopulation then [Specimen] else {} as List<Specimen>
+define ExliquidSpecimen:
+  from [Specimen] S
+  where S.identifier.system contains 'http://dktk.dkfz.de/fhir/sid/exliquid-specimen' and S.status = 'available'
+define function SampleType(specimen FHIR.Specimen):
+  specimen.type.coding.where(system = 'https://fhir.bbmri.de/CodeSystem/SampleMaterialType').code.first()
