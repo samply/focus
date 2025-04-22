@@ -361,7 +361,7 @@ async fn run_sql_query(
                 CONFIG.beam_app_id_long.clone(),
                 vec![task.from.clone()],
                 task.id,
-                BASE64.encode(serde_json::to_string(&existing_result.0)?),
+                BASE64.encode(&existing_result.0),
             ));
         }
     }
@@ -423,7 +423,7 @@ async fn run_cql_query(
                 CONFIG.beam_app_id_long.clone(),
                 vec![task.from.clone()],
                 task.id,
-                BASE64.encode(serde_json::to_string(&existing_result.0)?),
+                BASE64.encode(&existing_result.0),
             ));
         }
     }
