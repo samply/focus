@@ -20,8 +20,18 @@ metpredict_visit_1 AS (
         (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_LOCALISATION_PRIMARY_TUMOR_COLON') AS localisation_primary_tumor_colon,
         (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_TNM_C-T') AS tnm_ct,
         (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_TNM_C-N') AS tnm_cn,
-        (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_NEOADJ_T_RECTAL_CARCINOMA') AS neoadj_t_rectal_carcinoma,
-        (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_NEOADJ_CTX_MET') AS neoadj_ctx_met
+        -- (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_NEOADJ_T_RECTAL_CARCINOMA') AS neoadj_t_rectal_carcinoma,
+        (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_NEOADJ_RCTX_RT_LONG_COURSE') AS neoadj_rctx_rt_long_course,
+        (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_NEOADJ_RTX_RT_SHORT_COURSE') AS neoadj_rtx_rt_short_course,
+        (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_NEOADJ_TNT') AS neoadj_tnt,
+        (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_NEOADJ_RCTX_CT_REGIMEN') AS neoadj_rctx_ct_regimen,
+        (SELECT value->>'valueString'                               FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_NEOADJ_RCTX_CT_REGIMEN_OTHER') AS neoadj_rctx_ct_regimen_other,
+        (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_NEOADJ_TNT_CT_REGIMEN') AS neoadj_tnt_ct_regimen,
+        (SELECT value->>'valueString'                               FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_NEOADJ_TNT_CT_REGIMEN_OTHER') AS neoadj_tnt_ct_regimen_other,
+        (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_NEOADJ_CTX_MET') AS neoadj_ctx_met,
+        (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_NEOADJ_CTX_REGIMEN_METPREDICT') AS neoadj_ctx_regimen_metpredict,
+        (SELECT value->>'valueString'                               FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_NEOADJ_CTX_REGIMEN_OTHER') AS neoadj_ctx_regimen_other,
+        (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_NEOADJ_CTX_ANTIBODIES') AS neoadj_ctx_antibodies
     FROM observation
     WHERE resource->'method'->'coding'->0->>'code' = 'PROFILE_SIOP_METPREDICT_VISIT-1_PATIENTDATA'
 ),
@@ -50,18 +60,26 @@ neomatch_visit_1a AS (
 neomatch_visit_1b AS (
     -- There should be exactly one VISIT-1B per patient, if there are more we select the first one.
     SELECT DISTINCT ON (patient_pseudonym)
-        (SELECT value->>'valueString'                               FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_PATIENT_PSEUDONYM') AS patient_pseudonym
-        -- (SELECT value->'valueCodeableConcept'->'coding'             FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_NEOADJ_CTX_REGIMEN_NEOMATCH') AS neoadj_ctx_regimen,
+        (SELECT value->>'valueString'                               FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_PATIENT_PSEUDONYM') AS patient_pseudonym,
+        (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_NEOADJ_CTX_REGIMEN_NEOMATCH') AS neoadj_ctx_regimen,
+        (SELECT value->>'valueString'                               FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_NEOADJ_CTX_REGIMEN_OTHER') AS neoadj_ctx_regimen_other,
+        (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_NEOADJ_CTX_ADDITIONAL_RT') AS neoadj_ctx_additional_rt
     FROM observation
     WHERE resource->'method'->'coding'->0->>'code' = 'PROFILE_SIOP_NEOMATCH_VISIT-1B_NEOADJUVANT_CTX'
 )
 
 SELECT
+    -- project
     'MetPredict' AS project,
+    -- patient pseudonym
     metpredict_visit_2b.patient_pseudonym AS patient_pseudonym,
+    -- sample collection date
     metpredict_visit_2b.date_of_visite AS date_of_visite_2b,
+    -- sample pseudonym
     metpredict_visit_2b.sample_pseudonym AS sample_pseudonym,
+    -- clinical TNM
     metpredict_visit_1.tnm_ct || metpredict_visit_1.tnm_cn AS clinical_tnm,
+    -- primary tumor localization
     CASE
         WHEN metpredict_visit_1.localisation_primary_tumor = 'COLON' THEN CASE
             WHEN metpredict_visit_1.localisation_primary_tumor_colon = 'COLON_ASCENDENS' THEN 'Colon ascendens'
@@ -73,16 +91,76 @@ SELECT
         WHEN metpredict_visit_1.localisation_primary_tumor = 'RECTUM' THEN 'Rectum'
         WHEN metpredict_visit_1.localisation_primary_tumor = 'NA' THEN 'not documented'
     END AS localisation_primary_tumor,
+    -- sample type
     'Metastasis: resection' AS sample_type,
+    -- neoadjuvant therapy for primary tumor
+    -- CASE
+    --     WHEN metpredict_visit_1.neoadj_t_rectal_carcinoma = 'YES' THEN 'Yes'
+    --     WHEN metpredict_visit_1.neoadj_t_rectal_carcinoma = 'NO' THEN 'No'
+    --     WHEN metpredict_visit_1.neoadj_t_rectal_carcinoma = 'NA' THEN 'not documented'
+    -- END AS neoadj_therapy_primary_tumor,
+    'RCTx: ' ||
     CASE
-        WHEN metpredict_visit_1.neoadj_t_rectal_carcinoma = 'YES' THEN 'Yes'
-        WHEN metpredict_visit_1.neoadj_t_rectal_carcinoma = 'NO' THEN 'No'
-        WHEN metpredict_visit_1.neoadj_t_rectal_carcinoma = 'NA' THEN 'not documented'
+        WHEN metpredict_visit_1.neoadj_rctx_rt_long_course = 'YES' THEN 'Yes'
+        WHEN metpredict_visit_1.neoadj_rctx_rt_long_course = 'NO' THEN 'No'
+        ELSE 'N/A'
+    END ||
+    CASE
+        WHEN metpredict_visit_1.neoadj_rctx_ct_regimen = '5-FU_FOLINIC-ACID' THEN ' (5-Fu (+/- Folinic acid))'
+        WHEN metpredict_visit_1.neoadj_rctx_ct_regimen = 'CAPECITABIN' THEN ' (Capecitabin)'
+        WHEN metpredict_visit_1.neoadj_rctx_ct_regimen = 'OTH' THEN ' (' || metpredict_visit_1.neoadj_rctx_ct_regimen_other || ')'
+        ELSE ''
+    END ||
+    ', RTx: ' ||
+    CASE
+        WHEN metpredict_visit_1.neoadj_rtx_rt_short_course = 'YES' THEN 'Yes'
+        WHEN metpredict_visit_1.neoadj_rtx_rt_short_course = 'NO' THEN 'No'
+        ELSE 'N/A'
+    END ||
+    ', TNT: ' ||
+    CASE
+        WHEN metpredict_visit_1.neoadj_tnt = 'YES' THEN 'Yes'
+        WHEN metpredict_visit_1.neoadj_tnt = 'NO' THEN 'No'
+        ELSE 'N/A'
+    END ||
+    CASE
+        WHEN metpredict_visit_1.neoadj_tnt_ct_regimen = 'CAPOX' THEN ' (CAPOX)'
+        WHEN metpredict_visit_1.neoadj_tnt_ct_regimen = 'FOLFOX' THEN ' (FOLFOX)'
+        WHEN metpredict_visit_1.neoadj_tnt_ct_regimen = 'FOLFIRI' THEN ' (FOLFIRI)'
+        WHEN metpredict_visit_1.neoadj_tnt_ct_regimen = 'FOLFOXIRI' THEN ' (FOLFOXIRI)'
+        WHEN metpredict_visit_1.neoadj_tnt_ct_regimen = 'OTH' THEN ' (' || metpredict_visit_1.neoadj_tnt_ct_regimen_other || ')'
+        ELSE ''
     END AS neoadj_therapy_primary_tumor,
+    -- neoadjuvant therapy for metastases
+    -- CASE
+    --     WHEN metpredict_visit_1.neoadj_ctx_met = 'YES' THEN 'Yes'
+    --     WHEN metpredict_visit_1.neoadj_ctx_met = 'NO' THEN 'No'
+    --     WHEN metpredict_visit_1.neoadj_ctx_met = 'NA' THEN 'not documented'
+    -- END AS neoadj_therapy_metastases
+    'CTX: ' ||
     CASE
         WHEN metpredict_visit_1.neoadj_ctx_met = 'YES' THEN 'Yes'
         WHEN metpredict_visit_1.neoadj_ctx_met = 'NO' THEN 'No'
-        WHEN metpredict_visit_1.neoadj_ctx_met = 'NA' THEN 'not documented'
+        ELSE 'N/A'
+    END ||
+    CASE
+        WHEN metpredict_visit_1.neoadj_ctx_regimen_metpredict = '5-FU_FOLINIC-ACID' THEN ' (5-Fu (+ Folinic acid))'
+        WHEN metpredict_visit_1.neoadj_ctx_regimen_metpredict = 'CAPECITABIN' THEN ' (Capecitabin)'
+        WHEN metpredict_visit_1.neoadj_ctx_regimen_metpredict = 'CAPOX' THEN ' (CAPOX)'
+        WHEN metpredict_visit_1.neoadj_ctx_regimen_metpredict = 'FOLFOX' THEN ' (FOLFOX)'
+        WHEN metpredict_visit_1.neoadj_ctx_regimen_metpredict = 'FOLFIRI' THEN ' (FOLFIRI)'
+        WHEN metpredict_visit_1.neoadj_ctx_regimen_metpredict = 'FOLFOXIRI' THEN ' (FOLFOXIRI)'
+        WHEN metpredict_visit_1.neoadj_ctx_regimen_metpredict = 'OTH' THEN ' (' || metpredict_visit_1.neoadj_ctx_regimen_other || ')'
+        ELSE ''
+    END ||
+    ', Antibodies: ' ||
+    CASE
+        WHEN metpredict_visit_1.neoadj_ctx_antibodies = 'NON' THEN 'No'
+        WHEN metpredict_visit_1.neoadj_ctx_antibodies = 'CETUXIMAB' THEN 'Yes (Cetuximab)'
+        WHEN metpredict_visit_1.neoadj_ctx_antibodies = 'BEVACIZUMAB' THEN 'Yes (Bevacizumab)'
+        WHEN metpredict_visit_1.neoadj_ctx_antibodies = 'PANITUMUMAB' THEN 'Yes (Panitumumab)'
+        WHEN metpredict_visit_1.neoadj_ctx_antibodies = 'OTH' THEN 'Yes'
+        ELSE 'N/A'
     END AS neoadj_therapy_metastases
 FROM metpredict_visit_2b
 LEFT JOIN metpredict_visit_1 ON metpredict_visit_2b.patient_pseudonym = metpredict_visit_1.patient_pseudonym
@@ -90,30 +168,64 @@ LEFT JOIN metpredict_visit_1 ON metpredict_visit_2b.patient_pseudonym = metpredi
 UNION ALL
 
 SELECT
+    -- project
     'NeoMatch' as project,
+    -- patient pseudonym
     neomatch_visit_2b.patient_pseudonym AS patient_pseudonym,
+    -- sample collection date
     neomatch_visit_2b.date_of_visite AS date_of_visite_2b,
-    NULL AS sample_pseudonym,
+    -- sample pseudonym
+    CASE
+        WHEN neomatch_visit_2b.sample_collection = 'EUS' THEN neomatch_visit_2b.patient_pseudonym || '-t1-T1'
+        WHEN neomatch_visit_2b.sample_collection = 'OP'  THEN neomatch_visit_2b.patient_pseudonym || '-t2-T1'
+        ELSE ''
+    END AS sample_pseudonym,
+    -- clinical TNM
     neomatch_visit_1a.tnm_ct || neomatch_visit_1a.tnm_cn || neomatch_visit_1a.tnm_cm AS clinical_tnm,
+    -- primary tumor localization
     CASE
         WHEN neomatch_visit_2b.sample_localisation = 'PANCREASHEAD' THEN 'Head of pancreas'
         WHEN neomatch_visit_2b.sample_localisation = 'PANCREASTAIL' THEN 'Tail of pancreas'
         WHEN neomatch_visit_2b.sample_localisation = 'PANCREASBODY' THEN 'Body of pancreas'
         WHEN neomatch_visit_2b.sample_localisation = 'NA' THEN 'not documented'
     END AS localisation_primary_tumor,
+    -- sample type
     'Primary tumor: ' ||
     CASE
-        WHEN sample_collection = 'EUS' THEN 'Endoscopic ultrasound (EUS)'
-        WHEN sample_collection = 'OP' THEN 'Exploration / resection (surgery)'
-        WHEN sample_collection = 'OTH' THEN sample_collection_other
-        WHEN sample_collection = 'NA' THEN 'not documented'
+        WHEN neomatch_visit_2b.sample_collection = 'EUS' THEN 'Endoscopic ultrasound (EUS)'
+        WHEN neomatch_visit_2b.sample_collection = 'OP' THEN 'Exploration / resection (surgery)'
+        WHEN neomatch_visit_2b.sample_collection = 'OTH' THEN neomatch_visit_2b.sample_collection_other
+        WHEN neomatch_visit_2b.sample_collection = 'NA' THEN 'not documented'
     END AS sample_type,
+    -- neoadjuvant therapy for primary tumor
+    -- CASE
+    --     WHEN neomatch_visit_1a.neoadj_ctx = 'YES' THEN 'Yes'
+    --     WHEN neomatch_visit_1a.neoadj_ctx = 'NO' THEN 'No'
+    --     WHEN neomatch_visit_1a.neoadj_ctx = 'NA' THEN 'not documented'
+    -- END AS neoadj_therapy_primary_tumor,
+    'CTX: ' ||
     CASE
         WHEN neomatch_visit_1a.neoadj_ctx = 'YES' THEN 'Yes'
         WHEN neomatch_visit_1a.neoadj_ctx = 'NO' THEN 'No'
-        WHEN neomatch_visit_1a.neoadj_ctx = 'NA' THEN 'not documented'
+        ELSE 'N/A'
+    END ||
+    CASE
+        WHEN neomatch_visit_1b.neoadj_ctx_regimen = 'FOLFIRINOX' THEN ' (FOLFIRINOX)'
+        WHEN neomatch_visit_1b.neoadj_ctx_regimen = 'FOLFOXIRI' THEN ' (FOLFOXIRI)'
+        WHEN neomatch_visit_1b.neoadj_ctx_regimen = 'GEMCITABIN_CISPLATIN' THEN ' (Gemcitabin / Cisplatin)'
+        WHEN neomatch_visit_1b.neoadj_ctx_regimen = 'GEMCITABIN_NAB-PACLITAXEL' THEN ' (Gemcitabin / Nab-Paclitaxel)'
+        WHEN neomatch_visit_1b.neoadj_ctx_regimen = 'NAL-IRIFOX' THEN ' (Nal-IRIFOX)'
+        WHEN neomatch_visit_1b.neoadj_ctx_regimen = 'OTH' THEN ' (' || neomatch_visit_1b.neoadj_ctx_regimen_other || ')'
+        ELSE ''
+    END ||
+    ', RTx: ' ||
+    CASE
+        WHEN neomatch_visit_1b.neoadj_ctx_additional_rt = 'YES' THEN 'Yes'
+        WHEN neomatch_visit_1b.neoadj_ctx_additional_rt = 'NO' THEN 'No'
+        ELSE 'N/A'
     END AS neoadj_therapy_primary_tumor,
-    'No' AS neoadj_therapy_metastases
+    -- neoadjuvant therapy for metastases
+    '' AS neoadj_therapy_metastases
 FROM neomatch_visit_2b
 LEFT JOIN neomatch_visit_1a ON neomatch_visit_2b.patient_pseudonym = neomatch_visit_1a.patient_pseudonym
 LEFT JOIN neomatch_visit_1b ON neomatch_visit_2b.patient_pseudonym = neomatch_visit_1b.patient_pseudonym;
