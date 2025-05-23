@@ -1,0 +1,98 @@
+WITH metpredict_visit_2b AS (
+    -- Each VISIT-2B has up to 6 samples (M01, M02, M03, M04, M05, M06).
+    -- Usually there should be one VISIT-2B per patient, but if there are more, we select up to 6 samples from each.
+    SELECT 
+        -- resource->'subject'->>'reference' AS patient_reference,
+        (SELECT value->>'valueString'                               FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_PATIENT_PSEUDONYM') AS patient_pseudonym
+    FROM observation
+    CROSS JOIN unnest(ARRAY['M01', 'M02', 'M03', 'M04', 'M05', 'M06']) AS sample_key
+    WHERE resource->'method'->'coding'->0->>'code' = 'PROFILE_SIOP_METPREDICT_VISIT-2B_SAMPLE_COLLECTION'
+        AND EXISTS (SELECT 1 FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_SAMPLE_' || sample_key || '_PSEUDONYM')
+),
+metpredict_visit_1 AS (
+    -- There should be exactly one VISIT-1 per patient, if there are more we select the first one.
+    SELECT DISTINCT ON (patient_pseudonym)
+        (SELECT value->>'valueString' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_PATIENT_PSEUDONYM') AS patient_pseudonym,
+        (SELECT value->'valueQuantity'->>'value' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_AGE_STUDY_ENROLLMENT') AS age_at_study_enrollment,
+        (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_GENDER') AS gender
+
+    FROM observation
+    WHERE resource->'method'->'coding'->0->>'code' = 'PROFILE_SIOP_METPREDICT_VISIT-1_PATIENTDATA'
+),
+neomatch_visit_2b AS (
+    -- Each VISIT-2B has only one sample.
+    SELECT
+        (SELECT value->>'valueString'                               FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_PATIENT_PSEUDONYM') AS patient_pseudonym,
+        (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_SAMPLE_COLLECTION') AS sample_collection
+    FROM observation
+    WHERE resource->'method'->'coding'->0->>'code' = 'PROFILE_SIOP_NEOMATCH_VISIT-2B_SAMPLE_COLLECTION'
+),
+neomatch_visit_1a AS (
+    -- There should be exactly one VISIT-1A per patient, if there are more we select the first one.
+    SELECT DISTINCT ON (patient_pseudonym)
+        (SELECT value->>'valueString'                               FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_PATIENT_PSEUDONYM') AS patient_pseudonym,
+        (SELECT value->'valueQuantity'->>'value' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_AGE_STUDY_ENROLLMENT') AS age_at_study_enrollment,
+        (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_GENDER') AS gender
+    FROM observation
+    WHERE resource->'method'->'coding'->0->>'code' = 'PROFILE_SIOP_NEOMATCH_VISIT-1A_PATIENTDATA'
+),
+patients AS (
+    SELECT DISTINCT ON (patient_pseudonym) *
+    FROM (
+        SELECT patient_pseudonym, age_at_study_enrollment::int, gender FROM metpredict_visit_1
+        UNION ALL
+        SELECT patient_pseudonym, age_at_study_enrollment::int, gender FROM neomatch_visit_1a
+    )
+)
+
+SELECT
+    -- number of MetPredict patients
+    (SELECT COUNT(*) FROM metpredict_visit_1) AS metpredict_patients,
+    -- number of NeoMatch patients
+    (SELECT COUNT(*) FROM neomatch_visit_1a) AS neomatch_patients,
+    -- number of MetPredict organoids
+    (SELECT COUNT(*) FROM metpredict_visit_2b) AS metpredict_organoids,
+    -- number of NeoMatch organoids
+    (SELECT COUNT(*) FROM neomatch_visit_2b) AS neomatch_organoids,
+    -- number of patients with age at study enrollment <30
+    (SELECT COUNT(*) FROM patients WHERE age_at_study_enrollment < 30) AS patients_age_lt_30,
+    -- number of patients with age at study enrollment 31-40
+    (SELECT COUNT(*) FROM patients WHERE age_at_study_enrollment >= 31 AND age_at_study_enrollment <= 40) AS patients_age_31_40,
+    -- number of patients with age at study enrollment 41-50
+    (SELECT COUNT(*) FROM patients WHERE age_at_study_enrollment >= 41 AND age_at_study_enrollment <= 50) AS patients_age_41_50,
+    -- number of patients with age at study enrollment 51-60
+    (SELECT COUNT(*) FROM patients WHERE age_at_study_enrollment >= 51 AND age_at_study_enrollment <= 60) AS patients_age_51_60,
+    -- number of patients with age at study enrollment >60
+    (SELECT COUNT(*) FROM patients WHERE age_at_study_enrollment > 60) AS patients_age_gt_60,
+    -- number of patients with unknown age at study enrollment
+    (SELECT COUNT(*) FROM patients WHERE age_at_study_enrollment IS NULL) AS unknown_age_patients,
+    -- number of male patients
+    (SELECT COUNT(*) FROM patients WHERE gender = 'MALE') AS male_patients,
+    -- number of female patients
+    (SELECT COUNT(*) FROM patients WHERE gender = 'FEMALE') AS female_patients,
+    -- number of diverse patients
+    (SELECT COUNT(*) FROM patients WHERE gender = 'DIVERSE') AS diverse_patients,
+    -- number of patients with unknown gender
+    (SELECT COUNT(*) FROM patients WHERE gender = 'NA') AS unknown_gender_patients,
+    -- organoids from metastasis
+    (SELECT COUNT(*) FROM metpredict_visit_2b) AS organoids_from_metastasis,
+    -- organoids from untreated primary tumor
+    (SELECT COUNT(*) FROM neomatch_visit_2b WHERE sample_collection = 'EUS') AS organoids_from_untreated_primary_tumor,
+    -- organoids from treated primary tumor
+    (SELECT COUNT(*) FROM neomatch_visit_2b WHERE sample_collection = 'OP') AS organoids_from_treated_primary_tumor,
+    -- organoids from unknown site
+    (SELECT COUNT(*) FROM neomatch_visit_2b WHERE sample_collection = 'OTH' OR sample_collection = 'NA') AS organoids_from_unknown_site,
+    -- MetPredict patients with <4 organoids
+    (SELECT COUNT(*) FROM (SELECT 1 FROM metpredict_visit_2b GROUP BY patient_pseudonym HAVING COUNT(*) < 4)) AS metpredict_patients_with_lt_4_organoids,
+    -- MetPredict patients with 4 organoids
+    (SELECT COUNT(*) FROM (SELECT 1 FROM metpredict_visit_2b GROUP BY patient_pseudonym HAVING COUNT(*) = 4)) AS metpredict_patients_with_4_organoids,
+    -- MetPredict patients with 5 organoids
+    (SELECT COUNT(*) FROM (SELECT 1 FROM metpredict_visit_2b GROUP BY patient_pseudonym HAVING COUNT(*) = 5)) AS metpredict_patients_with_5_organoids,
+    -- MetPredict patients with >5 organoids
+    (SELECT COUNT(*) FROM (SELECT 1 FROM metpredict_visit_2b GROUP BY patient_pseudonym HAVING COUNT(*) > 5)) AS metpredict_patients_with_gt_5_organoids,
+    -- NeoMatch patients with organoids from untreated primary tumor only
+    (SELECT COUNT(*) FROM (SELECT 1 FROM neomatch_visit_2b GROUP BY patient_pseudonym HAVING BOOL_OR(sample_collection = 'EUS') AND BOOL_AND(sample_collection != 'OP'))) AS neomatch_patients_with_untreated_organoids,
+    -- NeoMatch patients with organoids from treated primary tumor only
+    (SELECT COUNT(*) FROM (SELECT 1 FROM neomatch_visit_2b GROUP BY patient_pseudonym HAVING BOOL_OR(sample_collection = 'OP') AND BOOL_AND(sample_collection != 'EUS'))) AS neomatch_patients_with_treated_organoids,
+    -- NeoMatch patients with organoids from untreated primary tumor and organoids from treated primary tumor
+    (SELECT COUNT(*) FROM (SELECT 1 FROM neomatch_visit_2b GROUP BY patient_pseudonym HAVING BOOL_OR(sample_collection = 'EUS') AND BOOL_OR(sample_collection = 'OP'))) AS neomatch_patients_with_matched_organoids;
