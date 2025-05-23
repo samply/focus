@@ -1,3 +1,8 @@
+# Samply.Focus v0.14.0 2025-05-23
+
+## Minor changes
+* Update SQL queries for organoid dashboard
+
 # Samply.Focus v0.13.1 2025-04-22
 
 ## Bugfixes
