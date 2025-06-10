@@ -1,3 +1,9 @@
+# Samply.Focus v0.14.1 2025-06-10
+
+## Minor changes
+* Organoid SQL dashboard query: send more fine-grained organoid per patient counts
+
+
 # Samply.Focus v0.14.0 2025-05-23
 
 ## Minor changes
