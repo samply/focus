@@ -82,8 +82,12 @@ SELECT
     (SELECT COUNT(*) FROM neomatch_visit_2b WHERE sample_collection = 'OP') AS organoids_from_treated_primary_tumor,
     -- organoids from unknown site
     (SELECT COUNT(*) FROM neomatch_visit_2b WHERE sample_collection = 'OTH' OR sample_collection = 'NA') AS organoids_from_unknown_site,
-    -- MetPredict patients with <4 organoids
-    (SELECT COUNT(*) FROM (SELECT 1 FROM metpredict_visit_2b GROUP BY patient_pseudonym HAVING COUNT(*) < 4)) AS metpredict_patients_with_lt_4_organoids,
+    -- MetPredict patients with 1 organoid
+    (SELECT COUNT(*) FROM (SELECT 1 FROM metpredict_visit_2b GROUP BY patient_pseudonym HAVING COUNT(*) = 1)) AS metpredict_patients_with_1_organoids,
+    -- MetPredict patients with 2 organoids
+    (SELECT COUNT(*) FROM (SELECT 1 FROM metpredict_visit_2b GROUP BY patient_pseudonym HAVING COUNT(*) = 2)) AS metpredict_patients_with_2_organoids,
+    -- MetPredict patients with 3 organoids
+    (SELECT COUNT(*) FROM (SELECT 1 FROM metpredict_visit_2b GROUP BY patient_pseudonym HAVING COUNT(*) = 3)) AS metpredict_patients_with_3_organoids,
     -- MetPredict patients with 4 organoids
     (SELECT COUNT(*) FROM (SELECT 1 FROM metpredict_visit_2b GROUP BY patient_pseudonym HAVING COUNT(*) = 4)) AS metpredict_patients_with_4_organoids,
     -- MetPredict patients with 5 organoids
