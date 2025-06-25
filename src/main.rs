@@ -14,6 +14,8 @@ mod intermediate_rep;
 mod projects;
 mod task_processing;
 mod util;
+mod mr;
+mod criteria;
 
 #[cfg(feature = "query-sql")]
 mod db;

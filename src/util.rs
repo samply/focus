@@ -1,83 +1,15 @@
 use crate::errors::FocusError;
+use crate::mr;
 use base64::engine::general_purpose;
 use base64::Engine as _;
 use laplace_rs::{get_from_cache_or_privatize, Bin, ObfCache, ObfuscateBelow10Mode};
 use rand::thread_rng;
-use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader};
 use std::path::Path;
 use tracing::warn;
-
-#[derive(Debug, Deserialize, Serialize)]
-struct Period {
-    end: String,
-    start: String,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-struct ValueQuantity {
-    code: String,
-    system: String,
-    unit: String,
-    value: f64,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-struct ValueRatio {
-    denominator: Value,
-    numerator: Value,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct Extension {
-    url: String,
-    value_quantity: Option<ValueQuantity>,
-    value_ratio: Option<ValueRatio>,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-struct Code {
-    text: String,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-struct Coding {
-    code: String,
-    system: String,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-struct Population {
-    code: Code,
-    count: u64,
-    subject_results: Value,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-struct Group {
-    code: Code,
-    population: Value,
-    stratifier: Value,
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct MeasureReport {
-    date: String,
-    extension: Vec<Extension>,
-    group: Vec<Group>,
-    id: Option<String>,
-    measure: String,
-    meta: Option<Value>,
-    period: Period,
-    resource_type: String,
-    status: String,
-    type_: String, //because "type" is a reserved keyword
-}
 
 pub(crate) fn get_json_field(json_string: &str, field: &str) -> Result<Value, serde_json::Error> {
     let json: Value = serde_json::from_str(json_string)?;
@@ -135,12 +67,12 @@ pub fn obfuscate_counts_mr(
         2 => ObfuscateBelow10Mode::Obfuscate,
         _ => ObfuscateBelow10Mode::Obfuscate,
     };
-    let mut measure_report: MeasureReport = serde_json::from_str(json_str)
+    let mut measure_report: mr::MeasureReport = serde_json::from_str(json_str)
         .map_err(|e| FocusError::DeserializationError(format!(r#"{}. Is obfuscation turned on when it shouldn't be? Is the metadata in the task formatted correctly, like this {{"project": "name"}}? Are there any other projects stated in the projects_no_obfuscation parameter in the bridgehead?"#, e)))?;
     for g in &mut measure_report.group {
         match &g.code.text[..] {
             "patient" | "patients" => { // Prism used "patient" for catalogue, Lens uses "patients"
-                obfuscate_counts_recursive(
+                obfuscate_population(
                     &mut g.population,
                     delta_patient,
                     epsilon,
@@ -150,7 +82,7 @@ pub fn obfuscate_counts_mr(
                     obf_10.clone(),
                     rounding_step,
                 )?;
-                obfuscate_counts_recursive(
+                obfuscate_stratifier(
                     &mut g.stratifier,
                     delta_patient,
                     epsilon,
@@ -162,7 +94,7 @@ pub fn obfuscate_counts_mr(
                 )?;
             }
             "diagnosis" => {
-                obfuscate_counts_recursive(
+                obfuscate_population(
                     &mut g.population,
                     delta_diagnosis,
                     epsilon,
@@ -172,7 +104,7 @@ pub fn obfuscate_counts_mr(
                     obf_10.clone(),
                     rounding_step,
                 )?;
-                obfuscate_counts_recursive(
+                obfuscate_stratifier(
                     &mut g.stratifier,
                     delta_diagnosis,
                     epsilon,
@@ -184,7 +116,7 @@ pub fn obfuscate_counts_mr(
                 )?;
             }
             "specimen" => {
-                obfuscate_counts_recursive(
+                obfuscate_population(
                     &mut g.population,
                     delta_specimen,
                     epsilon,
@@ -194,7 +126,7 @@ pub fn obfuscate_counts_mr(
                     obf_10.clone(),
                     rounding_step,
                 )?;
-                obfuscate_counts_recursive(
+                obfuscate_stratifier(
                     &mut g.stratifier,
                     delta_specimen,
                     epsilon,
@@ -206,7 +138,7 @@ pub fn obfuscate_counts_mr(
                 )?;
             }
             "procedures" => {
-                obfuscate_counts_recursive(
+                obfuscate_population(
                     &mut g.population,
                     delta_procedures,
                     epsilon,
@@ -216,7 +148,7 @@ pub fn obfuscate_counts_mr(
                     obf_10.clone(),
                     rounding_step,
                 )?;
-                obfuscate_counts_recursive(
+                obfuscate_stratifier(
                     &mut g.stratifier,
                     delta_procedures,
                     epsilon,
@@ -228,7 +160,7 @@ pub fn obfuscate_counts_mr(
                 )?;
             }
             "medicationStatements" => {
-                obfuscate_counts_recursive(
+                obfuscate_population(
                     &mut g.population,
                     delta_medication_statements,
                     epsilon,
@@ -238,7 +170,7 @@ pub fn obfuscate_counts_mr(
                     obf_10.clone(),
                     rounding_step,
                 )?;
-                obfuscate_counts_recursive(
+                obfuscate_stratifier(
                     &mut g.stratifier,
                     delta_medication_statements,
                     epsilon,
@@ -250,7 +182,7 @@ pub fn obfuscate_counts_mr(
                 )?;
             }
             "Histo" => {
-                obfuscate_counts_recursive(
+                obfuscate_population(
                     &mut g.population,
                     delta_histo,
                     epsilon,
@@ -260,7 +192,7 @@ pub fn obfuscate_counts_mr(
                     obf_10.clone(),
                     rounding_step,
                 )?;
-                obfuscate_counts_recursive(
+                obfuscate_stratifier(
                     &mut g.stratifier,
                     delta_histo,
                     epsilon,
@@ -283,8 +215,8 @@ pub fn obfuscate_counts_mr(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn obfuscate_counts_recursive(
-    val: &mut Value,
+fn obfuscate_population(
+    val: &mut Vec<mr::Population>,
     delta: f64,
     epsilon: f64,
     bin: Bin,
@@ -294,15 +226,9 @@ fn obfuscate_counts_recursive(
     rounding_step: usize,
 ) -> Result<(), FocusError> {
     let mut rng = thread_rng();
-    match val {
-        Value::Object(map) => {
-            if let Some(count_val) = map.get_mut("count") {
-                if let Some(count) = count_val.as_u64() {
-                    if (1..=10).contains(&count) {
-                        *count_val = json!(10);
-                    } else {
-                        let obfuscated = get_from_cache_or_privatize(
-                            count,
+    for pop in val {
+         let obfuscated = get_from_cache_or_privatize(
+                            pop.count,
                             delta,
                             epsilon,
                             bin,
@@ -312,41 +238,34 @@ fn obfuscate_counts_recursive(
                             rounding_step,
                             &mut rng,
                         )
-                        .map_err(FocusError::LaplaceError);
-
-                        *count_val = json!(obfuscated?);
-                    }
-                }
-            }
-            for (_, sub_val) in map.iter_mut() {
-                obfuscate_counts_recursive(
-                    sub_val,
-                    delta,
-                    epsilon,
-                    bin,
-                    obf_cache,
-                    obfuscate_zero,
-                    obfuscate_below_10_mode.clone(),
-                    rounding_step,
-                )?;
-            }
-        }
-        Value::Array(vec) => {
-            for sub_val in vec.iter_mut() {
-                obfuscate_counts_recursive(
-                    sub_val,
-                    delta,
-                    epsilon,
-                    bin,
-                    obf_cache,
-                    obfuscate_zero,
-                    obfuscate_below_10_mode.clone(),
-                    rounding_step,
-                )?;
-            }
-        }
-        _ => {}
+                        .map_err(FocusError::LaplaceError)?;
+        pop.count = obfuscated;
     }
+   
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn obfuscate_stratifier(
+    val: &mut Vec<mr::Stratifier>,
+    delta: f64,
+    epsilon: f64,
+    bin: Bin,
+    obf_cache: &mut ObfCache,
+    obfuscate_zero: bool,
+    obfuscate_below_10_mode: ObfuscateBelow10Mode,
+    rounding_step: usize,
+) -> Result<(), FocusError> {
+    for stratifier in val.iter_mut() {
+        for stratums in stratifier.stratum.iter_mut() {
+
+            for stratum in stratums.iter_mut() {
+                obfuscate_population(&mut (stratum).population, delta, epsilon, bin, obf_cache, obfuscate_zero, obfuscate_below_10_mode.clone(), rounding_step)?;
+                
+            }
+        }
+    }
+
     Ok(())
 }
 
@@ -486,7 +405,7 @@ mod test {
         .unwrap();
 
         // Check that the obfuscated JSON can be parsed and has the same structure as the original JSON
-        let _: MeasureReport = serde_json::from_str(&obfuscated_json).unwrap();
+        let _: mr::MeasureReport = serde_json::from_str(&obfuscated_json).unwrap();
 
         // Check that the obfuscated JSON is different from the original JSON
         assert_ne!(obfuscated_json, EXAMPLE_MEASURE_REPORT_BBMRI_NEW_EXTENSION);
@@ -532,7 +451,7 @@ mod test {
         .unwrap();
 
         // Check that the obfuscated JSON can be parsed and has the same structure as the original JSON
-        let _: MeasureReport = serde_json::from_str(&obfuscated_json).unwrap();
+        let _: mr::MeasureReport = serde_json::from_str(&obfuscated_json).unwrap();
 
         // Check that the obfuscated JSON is different from the original JSON
         assert_ne!(obfuscated_json, EXAMPLE_MEASURE_REPORT_BBMRI);
@@ -579,7 +498,7 @@ mod test {
         .unwrap();
 
         // Check that the obfuscated JSON can be parsed and has the same structure as the original JSON
-        let _: MeasureReport = serde_json::from_str(&obfuscated_json).unwrap();
+        let _: mr::MeasureReport = serde_json::from_str(&obfuscated_json).unwrap();
 
         // Check that the obfuscated JSON is different from the original JSON
         pretty_assertions::assert_ne!(obfuscated_json, EXAMPLE_MEASURE_REPORT_DKTK);
@@ -625,7 +544,7 @@ mod test {
 
         pretty_assertions::assert_eq!(
             obfuscated_json.unwrap_err().to_string(),
-            r#"Deserialization error: missing field `text` at line 42 column 13. Is obfuscation turned on when it shouldn't be? Is the metadata in the task formatted correctly, like this {"project": "name"}? Are there any other projects stated in the projects_no_obfuscation parameter in the bridgehead?"#
+            r#"Deserialization error: missing field `text` at line 15 column 25. Is obfuscation turned on when it shouldn't be? Is the metadata in the task formatted correctly, like this {"project": "name"}? Are there any other projects stated in the projects_no_obfuscation parameter in the bridgehead?"#
         );
     }
 }
