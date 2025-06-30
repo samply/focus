@@ -60,11 +60,10 @@ enum Language {
     Ast(AstQuery),
 }
 
-#[derive(Clone, PartialEq, Debug, Copy, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Debug, Copy, Serialize, Deserialize, Eq, Hash)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum Transform {
     Lens,
-    Prism,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -76,7 +75,7 @@ struct Metadata {
 
 #[derive(Debug, Clone, Default)]
 struct QueryResultCache {
-    cache: HashMap<(SearchQuery, Obfuscated), (QueryResult, Created)>,
+    cache: HashMap<(SearchQuery, Obfuscated, Option<Transform>), (QueryResult, Created)>,
 }
 
 impl QueryResultCache {
@@ -92,8 +91,11 @@ impl QueryResultCache {
                             warn!("A line in the file {} is not readable", filename.display());
                             continue;
                         };
-                        cache.insert((ok_line.clone(), false), ("".into(), UNIX_EPOCH));
-                        cache.insert((ok_line, true), ("".into(), UNIX_EPOCH));
+                       
+                        cache.insert((ok_line.clone(), false, Some(Transform::Lens)), ("".into(), UNIX_EPOCH));
+                        cache.insert((ok_line.clone(), false, None), ("".into(), UNIX_EPOCH));
+                         cache.insert((ok_line.clone(), true, Some(Transform::Lens)), ("".into(), UNIX_EPOCH));
+                        cache.insert((ok_line, true, None), ("".into(), UNIX_EPOCH));
                     }
                 }
                 Err(_) => {
@@ -366,7 +368,7 @@ async fn run_sql_query(
         .lock()
         .await
         .cache
-        .get(&(sql_query.payload.clone(), false))
+        .get(&(sql_query.payload.clone(), false, None))
     {
         key_exists = true;
         if SystemTime::now().duration_since(existing_result.1).unwrap() < QUERY_RESULTCACHE_TTL {
@@ -385,7 +387,7 @@ async fn run_sql_query(
 
         if key_exists {
             query_result_cache.lock().await.cache.insert(
-                (sql_query.payload, false),
+                (sql_query.payload, false, None),
                 (rows_json.to_string(), std::time::SystemTime::now()),
             );
         }
@@ -429,7 +431,7 @@ async fn run_cql_query(
         .lock()
         .await
         .cache
-        .get(&(encoded_query.to_string(), obfuscate))
+        .get(&(encoded_query.to_string(), obfuscate, transform))
     {
         key_exists = true;
         if SystemTime::now().duration_since(existing_result.1).unwrap() < QUERY_RESULTCACHE_TTL {
@@ -473,32 +475,26 @@ async fn run_cql_query(
         false => cql_result,
     };
 
-    if key_exists {
-        query_result_cache.lock().await.cache.insert(
-            (encoded_query.to_string(), obfuscate),
-            (cql_result_new.clone(), std::time::SystemTime::now()),
-        );
-    }
-
     let result_string =
 
         match transform {
-        Some(Transform::Prism) => { 
-            let result_mr: mr::MeasureReport = serde_json::from_str(&cql_result_new)?;
-            let result_json = mr::transform_lens(result_mr)?;
-            dbg!(&result_json);
-            serde_json::to_string_pretty(&result_json).map_err(|e| FocusError::SerializationError(e.to_string()))?
-            
-        },
         Some(Transform::Lens) => {
             
             let result_mr: mr::MeasureReport = serde_json::from_str(&cql_result_new)?;
             let result_json = mr::transform_lens(result_mr)?;
+            dbg!(&result_json);
             serde_json::to_string_pretty(&result_json).map_err(|e| FocusError::SerializationError(e.to_string()))?
 
         }
         None => {cql_result_new},
     };
+
+    if key_exists {
+        query_result_cache.lock().await.cache.insert(
+            (encoded_query.to_string(), obfuscate, transform),
+            (result_string.clone(), std::time::SystemTime::now()),
+        );
+    }
 
     let result = beam_result(task.to_owned(), result_string).unwrap_or_else(|e| {
         beam::beam_result::perm_failed(

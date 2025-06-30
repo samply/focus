@@ -1,8 +1,17 @@
 use std::collections::BTreeMap;
+use serde::{Serialize, Deserialize};
 
 pub type Facets = BTreeMap<String, u64>; //stratifier
 
+pub type Totals = BTreeMap<String, u64>;
+
 pub type Stratifiers = BTreeMap<String, Facets>; //group or a collection of all stratifiers on the same level
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct Transformed {
+    pub stratifiers: Stratifiers,
+    pub totals: Totals,
+}
 
 #[allow(dead_code)]
 pub type StratifierGroups = BTreeMap<String, Stratifiers>; //the entire structure containing groups

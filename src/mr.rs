@@ -1,6 +1,6 @@
 use crate::{
     errors::FocusError,
-    transformed::{Facets, Stratifiers},
+    transformed::{Facets, Stratifiers, Transformed},
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -95,12 +95,18 @@ pub struct Stratifier {
     pub stratum: Option<Vec<Stratum>>,
 }
 
-pub fn transform_lens(measure_report: MeasureReport) -> Result<Stratifiers, FocusError> {
+pub fn transform_lens(measure_report: MeasureReport) -> Result<Transformed, FocusError> {
     //let mut stratifier_groups: StratifierGroups = StratifierGroups::new();
+    let mut transformed: Transformed = Transformed{
+        stratifiers: Default::default(),
+        totals: Default::default(),
+    };
 
-    let mut stratifiers = Stratifiers::new();
+    //let mut stratifiers = Stratifiers::new();
 
     for g in &measure_report.group {
+        
+        transformed.totals.insert(g.code.text.clone(), g.population[0].count.clone());
         for s in &g.stratifier {
             let mut facets = Facets::new();
 
@@ -122,10 +128,10 @@ pub fn transform_lens(measure_report: MeasureReport) -> Result<Stratifiers, Focu
                     facets.insert(stratum_key, value);
                 }
             }
-            stratifiers.insert(facets_key, facets);
+            transformed.stratifiers.insert(facets_key, facets);
         }
     }
-    Ok(stratifiers)
+    Ok(transformed)
 }
 
 #[cfg(test)]
