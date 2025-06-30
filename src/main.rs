@@ -8,14 +8,14 @@ mod errors;
 mod graceful_shutdown;
 mod logger;
 
+mod transformed;
 mod eucaim_api;
 mod exporter;
 mod intermediate_rep;
+mod mr;
 mod projects;
 mod task_processing;
 mod util;
-mod mr;
-mod criteria;
 
 #[cfg(feature = "query-sql")]
 mod db;
@@ -60,10 +60,18 @@ enum Language {
     Ast(AstQuery),
 }
 
+#[derive(Clone, PartialEq, Debug, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum Transform {
+    Lens,
+    Prism,
+}
+
 #[derive(Debug, Deserialize, Serialize, Clone)]
 struct Metadata {
     project: String,
     task_type: Option<exporter::TaskType>,
+    transform: Option<Transform>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -211,6 +219,7 @@ async fn process_task(
     let metadata: Metadata = serde_json::from_value(task.metadata.clone()).unwrap_or(Metadata {
         project: "default_obfuscation".to_string(),
         task_type: None,
+        transform: None,
     });
 
     if metadata.project == "focus-healthcheck" {
@@ -248,6 +257,7 @@ async fn process_task(
                 obf_cache,
                 query_result_cache,
                 metadata.project,
+                metadata.transform,
                 generated_from_ast,
             )
             .await
@@ -282,6 +292,7 @@ async fn process_task(
                     obf_cache,
                     query_result_cache,
                     metadata.project,
+                    metadata.transform,
                     generated_from_ast,
                 )
                 .await
@@ -398,6 +409,7 @@ async fn run_cql_query(
     obf_cache: Arc<Mutex<ObfCache>>,
     query_result_cache: Arc<Mutex<QueryResultCache>>,
     project: String,
+    transform: Option<Transform>,
     generated_from_ast: bool,
 ) -> Result<BeamResult, FocusError> {
     let encoded_query =
@@ -468,7 +480,27 @@ async fn run_cql_query(
         );
     }
 
-    let result = beam_result(task.to_owned(), cql_result_new).unwrap_or_else(|e| {
+    let result_string =
+
+        match transform {
+        Some(Transform::Prism) => { 
+            let result_mr: mr::MeasureReport = serde_json::from_str(&cql_result_new)?;
+            let result_json = mr::transform_lens(result_mr)?;
+            dbg!(&result_json);
+            serde_json::to_string_pretty(&result_json).map_err(|e| FocusError::SerializationError(e.to_string()))?
+            
+        },
+        Some(Transform::Lens) => {
+            
+            let result_mr: mr::MeasureReport = serde_json::from_str(&cql_result_new)?;
+            let result_json = mr::transform_lens(result_mr)?;
+            serde_json::to_string_pretty(&result_json).map_err(|e| FocusError::SerializationError(e.to_string()))?
+
+        }
+        None => {cql_result_new},
+    };
+
+    let result = beam_result(task.to_owned(), result_string).unwrap_or_else(|e| {
         beam::beam_result::perm_failed(
             CONFIG.beam_app_id_long.clone(),
             vec![task.to_owned().from],
@@ -476,6 +508,8 @@ async fn run_cql_query(
             e.to_string(),
         )
     });
+
+
 
     Ok(result)
 }
@@ -631,6 +665,7 @@ mod test {
         let metadata: Metadata = serde_json::from_str(METADATA_STRING).unwrap_or(Metadata {
             project: "default_obfuscation".to_string(),
             task_type: None,
+            transform: None,
         });
 
         assert_eq!(metadata.task_type, None);

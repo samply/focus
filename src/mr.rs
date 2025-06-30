@@ -1,6 +1,6 @@
 use crate::{
-    criteria::{Criteria, Stratifiers},
     errors::FocusError,
+    transformed::{Facets, Stratifiers},
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -95,20 +95,19 @@ pub struct Stratifier {
     pub stratum: Option<Vec<Stratum>>,
 }
 
-pub fn extract_criteria(measure_report: MeasureReport) -> Result<Stratifiers, FocusError> {
-    //let mut criteria_groups: CriteriaGroups = CriteriaGroups::new();
+pub fn transform_lens(measure_report: MeasureReport) -> Result<Stratifiers, FocusError> {
+    //let mut stratifier_groups: StratifierGroups = StratifierGroups::new();
 
     let mut stratifiers = Stratifiers::new();
 
     for g in &measure_report.group {
-
         for s in &g.stratifier {
-            let mut criteria = Criteria::new();
+            let mut facets = Facets::new();
 
-            let criteria_key = s
+            let facets_key = s
                 .code
                 .first()
-                .ok_or_else(|| FocusError::ParsingError("Missing criterion key".into()))?
+                .ok_or_else(|| FocusError::ParsingError("Missing facet key".into()))?
                 .text
                 .clone();
             if let Some(strata) = &s.stratum {
@@ -117,13 +116,13 @@ pub fn extract_criteria(measure_report: MeasureReport) -> Result<Stratifiers, Fo
                     let value = stratum
                         .population
                         .first()
-                        .ok_or_else(|| FocusError::ParsingError("Missing criterion count".into()))?
+                        .ok_or_else(|| FocusError::ParsingError("Missing facet count".into()))?
                         .count;
 
-                    criteria.insert(stratum_key, value);
+                    facets.insert(stratum_key, value);
                 }
             }
-            stratifiers.insert(criteria_key, criteria);
+            stratifiers.insert(facets_key, facets);
         }
     }
     Ok(stratifiers)
@@ -136,35 +135,34 @@ mod test {
 
     const EXAMPLE_MEASURE_REPORT_BBMRI: &str =
         include_str!("../resources/test/measure_report_bbmri.json");
-    const CRITERIA_GROUPS_BBMRI: &str =
-        include_str!("../resources/test/criteria_groups_bbmri.json");
+    const STRATIFIER_GROUPS_BBMRI: &str =
+        include_str!("../resources/test/stratifier_groups_bbmri.json");
     const EXAMPLE_MEASURE_REPORT_DKTK: &str =
         include_str!("../resources/test/measure_report_dktk.json");
-    const CRITERIA_GROUPS_DKTK: &str = include_str!("../resources/test/criteria_groups_dktk.json");
+    const STRATIFIER_GROUPS_DKTK: &str =
+        include_str!("../resources/test/stratifier_groups_dktk.json");
 
     #[test]
-    fn test_extract_criteria_bbmri() {
+    fn test_extract_facets_bbmri() {
         let measure_report: MeasureReport =
             serde_json::from_str(&EXAMPLE_MEASURE_REPORT_BBMRI).expect("Can't be deserialized");
 
-        let stratifiers =
-            extract_criteria(measure_report).expect("what, no proper criteria groups");
+        let stratifiers = transform_lens(measure_report).expect("what, no proper stratifier groups");
 
         let stratifiers_json = serde_json::to_string(&stratifiers).expect("Should be JSON");
 
-        pretty_assertions::assert_eq!(CRITERIA_GROUPS_BBMRI, stratifiers_json);
+        pretty_assertions::assert_eq!(STRATIFIER_GROUPS_BBMRI, stratifiers_json);
     }
 
     #[test]
-    fn test_extract_criteria_dktk() {
+    fn test_extract_facets_dktk() {
         let measure_report: MeasureReport =
             serde_json::from_str(&EXAMPLE_MEASURE_REPORT_DKTK).expect("Can't be deserialized");
 
-        let stratifiers =
-            extract_criteria(measure_report).expect("what, no proper criteria groups");
+        let stratifiers = transform_lens(measure_report).expect("what, no proper stratifier groups");
 
         let stratifiers_json = serde_json::to_string(&stratifiers).expect("Should be JSON");
 
-        pretty_assertions::assert_eq!(CRITERIA_GROUPS_DKTK, stratifiers_json);
+        pretty_assertions::assert_eq!(STRATIFIER_GROUPS_DKTK, stratifiers_json);
     }
 }

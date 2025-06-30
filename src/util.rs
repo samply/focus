@@ -4,7 +4,7 @@ use base64::engine::general_purpose;
 use base64::Engine as _;
 use laplace_rs::{get_from_cache_or_privatize, Bin, ObfCache, ObfuscateBelow10Mode};
 use rand::thread_rng;
-use serde_json::{json, Value};
+use serde_json::Value;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader};
@@ -71,7 +71,8 @@ pub fn obfuscate_counts_mr(
         .map_err(|e| FocusError::DeserializationError(format!(r#"{}. Is obfuscation turned on when it shouldn't be? Is the metadata in the task formatted correctly, like this {{"project": "name"}}? Are there any other projects stated in the projects_no_obfuscation parameter in the bridgehead?"#, e)))?;
     for g in &mut measure_report.group {
         match &g.code.text[..] {
-            "patient" | "patients" => { // Prism used "patient" for catalogue, Lens uses "patients"
+            "patient" | "patients" => {
+                // Prism used "patient" for catalogue, Lens uses "patients"
                 obfuscate_population(
                     &mut g.population,
                     delta_patient,
@@ -227,21 +228,21 @@ fn obfuscate_population(
 ) -> Result<(), FocusError> {
     let mut rng = thread_rng();
     for pop in val {
-         let obfuscated = get_from_cache_or_privatize(
-                            pop.count,
-                            delta,
-                            epsilon,
-                            bin,
-                            Some(obf_cache),
-                            obfuscate_zero,
-                            obfuscate_below_10_mode.clone(),
-                            rounding_step,
-                            &mut rng,
-                        )
-                        .map_err(FocusError::LaplaceError)?;
+        let obfuscated = get_from_cache_or_privatize(
+            pop.count,
+            delta,
+            epsilon,
+            bin,
+            Some(obf_cache),
+            obfuscate_zero,
+            obfuscate_below_10_mode.clone(),
+            rounding_step,
+            &mut rng,
+        )
+        .map_err(FocusError::LaplaceError)?;
         pop.count = obfuscated;
     }
-   
+
     Ok(())
 }
 
@@ -258,10 +259,17 @@ fn obfuscate_stratifier(
 ) -> Result<(), FocusError> {
     for stratifier in val.iter_mut() {
         for stratums in stratifier.stratum.iter_mut() {
-
             for stratum in stratums.iter_mut() {
-                obfuscate_population(&mut (stratum).population, delta, epsilon, bin, obf_cache, obfuscate_zero, obfuscate_below_10_mode.clone(), rounding_step)?;
-                
+                obfuscate_population(
+                    &mut (stratum).population,
+                    delta,
+                    epsilon,
+                    bin,
+                    obf_cache,
+                    obfuscate_zero,
+                    obfuscate_below_10_mode.clone(),
+                    rounding_step,
+                )?;
             }
         }
     }
@@ -279,7 +287,7 @@ mod test {
     const QUERY_BBMRI: &str = include_str!("../resources/test/query_bbmri.cql");
     const EXAMPLE_MEASURE_REPORT_BBMRI: &str =
         include_str!("../resources/test/measure_report_bbmri.json");
-        const EXAMPLE_MEASURE_REPORT_BBMRI_NEW_EXTENSION: &str =
+    const EXAMPLE_MEASURE_REPORT_BBMRI_NEW_EXTENSION: &str =
         include_str!("../resources/test/measure_report_bbmri_new_extension.json");
     const EXAMPLE_MEASURE_REPORT_DKTK: &str =
         include_str!("../resources/test/measure_report_dktk.json");
@@ -474,7 +482,6 @@ mod test {
         .unwrap();
         pretty_assertions::assert_eq!(obfuscated_json, obfuscated_json_2);
     }
-
 
     #[test]
     fn test_obfuscate_counts_dktk() {
