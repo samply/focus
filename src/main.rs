@@ -8,9 +8,11 @@ mod errors;
 mod graceful_shutdown;
 mod logger;
 
+mod transformed;
 mod eucaim_api;
 mod exporter;
 mod intermediate_rep;
+mod mr;
 mod projects;
 mod task_processing;
 mod util;
@@ -32,12 +34,12 @@ use crate::util::{base64_decode, is_cql_tampered_with, obfuscate_counts_mr};
 use crate::{config::CONFIG, errors::FocusError};
 use blaze::CqlQuery;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::ops::DerefMut;
 use std::process::ExitCode;
 use std::str;
 use std::sync::Arc;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::Instant;
 use std::{process::exit, time::Duration};
 
 use serde::{Deserialize, Serialize};
@@ -47,7 +49,6 @@ use tracing::{debug, error, trace, warn};
 type SearchQuery = String;
 type Obfuscated = bool;
 type QueryResult = String;
-type Created = std::time::SystemTime; //epoch
 type BeamTask = TaskRequest<String>;
 type BeamResult = TaskResult<beam_lib::RawString>;
 
@@ -58,45 +59,74 @@ enum Language {
     Ast(AstQuery),
 }
 
+#[derive(Clone, PartialEq, Debug, Copy, Serialize, Deserialize, Eq, Hash, Default)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum Transform {
+    Lens,
+    #[default]
+    None,
+}
+
 #[derive(Debug, Deserialize, Serialize, Clone)]
 struct Metadata {
     project: String,
     task_type: Option<exporter::TaskType>,
+    #[serde(default)]
+    transform: Transform,
 }
 
 #[derive(Debug, Clone, Default)]
 struct QueryResultCache {
-    cache: HashMap<(SearchQuery, Obfuscated), (QueryResult, Created)>,
+    queries_to_cache: HashSet<String>,
+    cache: HashMap<(SearchQuery, Obfuscated, Transform), (QueryResult, Instant)>,
 }
 
 impl QueryResultCache {
-    pub fn new() -> Self {
-        let mut cache = HashMap::new();
+    const TTL: Duration = Duration::from_secs(24 * 60 * 60); //24h
 
-        if let Some(filename) = CONFIG.queries_to_cache.clone() {
-            let lines = util::read_lines(&filename);
-            match lines {
-                Ok(ok_lines) => {
-                    for line in ok_lines {
-                        let Ok(ok_line) = line else {
-                            warn!("A line in the file {} is not readable", filename.display());
-                            continue;
-                        };
-                        cache.insert((ok_line.clone(), false), ("".into(), UNIX_EPOCH));
-                        cache.insert((ok_line, true), ("".into(), UNIX_EPOCH));
-                    }
+    pub fn new() -> Self {
+        if let Some(filename) = &CONFIG.queries_to_cache {
+            match std::fs::read_to_string(filename) {
+                Ok(content) => {
+                    let queries_to_cache = content.lines().map(ToOwned::to_owned).collect::<HashSet<String>>();
+                    return Self {
+                        cache: Default::default(),
+                        queries_to_cache,
+                    };
+                },
+                Err(e) => {
+                    warn!("Cannot read queries to cache from file {}: {e}", filename.display());
                 }
-                Err(_) => {
-                    error!("The file {} cannot be opened", filename.display()); //This shouldn't stop focus from running, it's just going to go to blaze every time, but that's not too slow
-                }
-            }
+            };
         }
 
-        Self { cache }
+        Self { cache: Default::default(), queries_to_cache: Default::default() }
+    }
+
+    pub fn insert(&mut self, key: (SearchQuery, Obfuscated, Transform), value: QueryResult) {
+        let created = Instant::now();
+        self.cache.insert(key, (value, created));
+    }
+
+    pub fn get(&self, key: &(SearchQuery, Obfuscated, Transform)) -> QueryResultCacheOutcome {
+        if !self.queries_to_cache.contains(&key.0) {
+            return QueryResultCacheOutcome::DontCache
+        }
+        if let Some((result, created)) = self.cache.get(key) {
+            if Instant::now().duration_since(*created) < Self::TTL {
+                return QueryResultCacheOutcome::Cached(result);
+            }
+        }
+        QueryResultCacheOutcome::ShouldCache
     }
 }
 
-const QUERY_RESULTCACHE_TTL: Duration = Duration::from_secs(86400); //24h
+#[must_use]
+pub enum QueryResultCacheOutcome<'a> {
+    Cached(&'a QueryResult),
+    ShouldCache,
+    DontCache,
+}
 
 #[tokio::main]
 pub async fn main() -> ExitCode {
@@ -209,6 +239,7 @@ async fn process_task(
     let metadata: Metadata = serde_json::from_value(task.metadata.clone()).unwrap_or(Metadata {
         project: "default_obfuscation".to_string(),
         task_type: None,
+        transform: Transform::None,
     });
 
     if metadata.project == "focus-healthcheck" {
@@ -246,6 +277,7 @@ async fn process_task(
                 obf_cache,
                 query_result_cache,
                 metadata.project,
+                metadata.transform,
                 generated_from_ast,
             )
             .await
@@ -280,6 +312,7 @@ async fn process_task(
                     obf_cache,
                     query_result_cache,
                     metadata.project,
+                    metadata.transform,
                     generated_from_ast,
                 )
                 .await
@@ -348,32 +381,29 @@ async fn run_sql_query(
     sql_query: db::SqlQuery,
     query_result_cache: Arc<Mutex<QueryResultCache>>,
 ) -> Result<TaskResult<beam_lib::RawString>, FocusError> {
-    let mut key_exists = false;
-    if let Some(existing_result) = query_result_cache
+    let should_cache = match query_result_cache
         .lock()
         .await
-        .cache
-        .get(&(sql_query.payload.clone(), false))
-    {
-        key_exists = true;
-        if SystemTime::now().duration_since(existing_result.1).unwrap() < QUERY_RESULTCACHE_TTL {
-            return Ok(beam::beam_result::succeeded(
-                CONFIG.beam_app_id_long.clone(),
-                vec![task.from.clone()],
-                task.id,
-                BASE64.encode(&existing_result.0),
-            ));
-        }
-    }
-
+        .get(&(sql_query.payload.clone(), false, Transform::None)) {
+            QueryResultCacheOutcome::Cached(result) => {
+                return Ok(beam::beam_result::succeeded(
+                    CONFIG.beam_app_id_long.clone(),
+                    vec![task.from.clone()],
+                    task.id,
+                    BASE64.encode(result),
+                ));
+            },
+            QueryResultCacheOutcome::ShouldCache => true,
+            QueryResultCacheOutcome::DontCache => false,
+        };
     let result = db::process_sql_task(&pool, &(sql_query.payload)).await;
     if let Ok(rows) = result {
         let rows_json = db::serialize_rows(rows)?;
 
-        if key_exists {
-            query_result_cache.lock().await.cache.insert(
-                (sql_query.payload, false),
-                (rows_json.to_string(), std::time::SystemTime::now()),
+        if should_cache {
+            query_result_cache.lock().await.insert(
+                (sql_query.payload, false, Transform::None),
+                rows_json.to_string(),
             );
         }
 
@@ -396,6 +426,7 @@ async fn run_cql_query(
     obf_cache: Arc<Mutex<ObfCache>>,
     query_result_cache: Arc<Mutex<QueryResultCache>>,
     project: String,
+    transform: Transform,
     generated_from_ast: bool,
 ) -> Result<BeamResult, FocusError> {
     let encoded_query =
@@ -406,27 +437,25 @@ async fn run_cql_query(
                 query.lib
             )))?;
 
-    let mut key_exists = false;
 
     let obfuscate =
         CONFIG.obfuscate == config::Obfuscate::Yes && !CONFIG.unobfuscated.contains(&project);
 
-    if let Some(existing_result) = query_result_cache
+    let should_cache = match query_result_cache
         .lock()
         .await
-        .cache
-        .get(&(encoded_query.to_string(), obfuscate))
-    {
-        key_exists = true;
-        if SystemTime::now().duration_since(existing_result.1).unwrap() < QUERY_RESULTCACHE_TTL {
-            return Ok(beam::beam_result::succeeded(
-                CONFIG.beam_app_id_long.clone(),
-                vec![task.from.clone()],
-                task.id,
-                BASE64.encode(&existing_result.0),
-            ));
-        }
-    }
+        .get(&(encoded_query.to_string(), obfuscate, transform)) {
+            QueryResultCacheOutcome::Cached(result) => {
+                return Ok(beam::beam_result::succeeded(
+                    CONFIG.beam_app_id_long.clone(),
+                    vec![task.from.clone()],
+                    task.id,
+                    BASE64.encode(result),
+                ));
+            },
+            QueryResultCacheOutcome::ShouldCache => true,
+            QueryResultCacheOutcome::DontCache => false,
+        };
 
     let query = if generated_from_ast {
         query.clone()
@@ -459,14 +488,23 @@ async fn run_cql_query(
         false => cql_result,
     };
 
-    if key_exists {
-        query_result_cache.lock().await.cache.insert(
-            (encoded_query.to_string(), obfuscate),
-            (cql_result_new.clone(), std::time::SystemTime::now()),
+    let result_string = match transform {
+        Transform::Lens => {
+            let result_mr: mr::MeasureReport = serde_json::from_str(&cql_result_new)?;
+            let result_json = mr::transform_lens(result_mr)?;
+            serde_json::to_string(&result_json).map_err(|e| FocusError::SerializationError(e.to_string()))?
+        }
+        Transform::None => cql_result_new,
+    };
+
+    if should_cache {
+        query_result_cache.lock().await.insert(
+            (encoded_query.to_string(), obfuscate, transform),
+            result_string.clone(),
         );
     }
 
-    let result = beam_result(task.to_owned(), cql_result_new).unwrap_or_else(|e| {
+    let result = beam_result(task.to_owned(), result_string).unwrap_or_else(|e| {
         beam::beam_result::perm_failed(
             CONFIG.beam_app_id_long.clone(),
             vec![task.to_owned().from],
@@ -629,6 +667,7 @@ mod test {
         let metadata: Metadata = serde_json::from_str(METADATA_STRING).unwrap_or(Metadata {
             project: "default_obfuscation".to_string(),
             task_type: None,
+            transform: Transform::None,
         });
 
         assert_eq!(metadata.task_type, None);
