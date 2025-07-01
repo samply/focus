@@ -16,13 +16,6 @@ pub(crate) fn get_json_field(json_string: &str, field: &str) -> Result<Value, se
     Ok(json[field].clone())
 }
 
-pub(crate) fn read_lines(filename: &Path) -> Result<io::Lines<BufReader<File>>, FocusError> {
-    let file = File::open(filename).map_err(|e| {
-        FocusError::FileOpeningError(format!("Cannot open file {}: {} ", filename.display(), e))
-    })?;
-    Ok(io::BufReader::new(file).lines())
-}
-
 pub(crate) fn base64_decode(data: impl AsRef<[u8]>) -> Result<Vec<u8>, FocusError> {
     general_purpose::STANDARD
         .decode(data)
