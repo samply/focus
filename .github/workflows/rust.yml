@@ -15,7 +15,7 @@ jobs:
       #profile: debug
       test-via-script: false
       features: '[ "bbmri", "dktk", "" ]'
-      push-to: ${{ (github.ref_protected == true || github.event_name == 'workflow_dispatch') && 'dockerhub' || 'ghcr' }}
+      push-to: ${{'dockerhub'}}
     secrets:
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
       DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
