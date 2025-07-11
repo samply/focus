@@ -242,6 +242,8 @@ async fn process_task(
         transform: Transform::None,
     });
 
+    trace!("{}", &metadata);
+
     if metadata.project == "focus-healthcheck" {
         return Ok(beam::beam_result::succeeded(
             CONFIG.beam_app_id_long.clone(),
@@ -512,6 +514,8 @@ async fn run_cql_query(
             e.to_string(),
         )
     });
+
+    trace!("{}", &result);
 
     Ok(result)
 }
