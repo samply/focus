@@ -242,7 +242,7 @@ async fn process_task(
         transform: Transform::None,
     });
 
-    trace!("{:?}", &metadata);
+    debug!("{:?}", &metadata);
 
     if metadata.project == "focus-healthcheck" {
         return Ok(beam::beam_result::succeeded(
@@ -499,6 +499,8 @@ async fn run_cql_query(
         Transform::None => cql_result_new,
     };
 
+    debug!("{:?}", &result_string);
+
     if should_cache {
         query_result_cache.lock().await.insert(
             (encoded_query.to_string(), obfuscate, transform),
@@ -514,8 +516,6 @@ async fn run_cql_query(
             e.to_string(),
         )
     });
-
-    trace!("{:?}", &result);
 
     Ok(result)
 }
