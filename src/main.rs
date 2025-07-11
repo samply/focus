@@ -499,8 +499,6 @@ async fn run_cql_query(
         Transform::None => cql_result_new,
     };
 
-    debug!("{:?}", &result_string);
-
     if should_cache {
         query_result_cache.lock().await.insert(
             (encoded_query.to_string(), obfuscate, transform),
