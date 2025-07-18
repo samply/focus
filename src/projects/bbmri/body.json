@@ -53,7 +53,7 @@
 					},
 					{
 						"code": {
-							"text": "Age"
+							"text": "age_at_diagnosis"
 						},
 						"criteria": {
 							"expression": "AgeClass",
