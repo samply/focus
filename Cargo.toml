@@ -18,7 +18,7 @@ tokio = { version = "1.25.0", default-features = false, features = ["signal", "r
 beam-lib = { git = "https://github.com/samply/beam", branch = "develop", features = ["http-util"] }
 laplace_rs = {git = "https://github.com/samply/laplace-rs.git", tag = "v0.5.0" }
 uuid = "1.8.0"
-rand = { default-features = false, version = "0.8.5" }
+rand = { default-features = false, version = "0.9.2" }
 futures-util = { version = "0.3", default-features = false, features = ["std"] }
 tryhard = "0.5"
 
