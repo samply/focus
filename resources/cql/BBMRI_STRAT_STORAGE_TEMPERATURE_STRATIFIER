@@ -1,0 +1,8 @@
+define function StorageTemperature(specimen FHIR.Specimen):
+  case singleton from (
+    specimen.extension E
+      where E.url = 'https://fhir.bbmri.de/StructureDefinition/StorageTemperature'
+      return (E.value as CodeableConcept).coding.first().code
+  )
+    else 'Unknown'
+  end
