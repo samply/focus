@@ -8,13 +8,13 @@ mod errors;
 mod graceful_shutdown;
 mod logger;
 
-mod transformed;
 mod eucaim_api;
 mod exporter;
 mod intermediate_rep;
 mod mr;
 mod projects;
 mod task_processing;
+mod transformed;
 mod util;
 
 #[cfg(feature = "query-sql")]
@@ -88,19 +88,28 @@ impl QueryResultCache {
         if let Some(filename) = &CONFIG.queries_to_cache {
             match std::fs::read_to_string(filename) {
                 Ok(content) => {
-                    let queries_to_cache = content.lines().map(ToOwned::to_owned).collect::<HashSet<String>>();
+                    let queries_to_cache = content
+                        .lines()
+                        .map(ToOwned::to_owned)
+                        .collect::<HashSet<String>>();
                     return Self {
                         cache: Default::default(),
                         queries_to_cache,
                     };
-                },
+                }
                 Err(e) => {
-                    warn!("Cannot read queries to cache from file {}: {e}", filename.display());
+                    warn!(
+                        "Cannot read queries to cache from file {}: {e}",
+                        filename.display()
+                    );
                 }
             };
         }
 
-        Self { cache: Default::default(), queries_to_cache: Default::default() }
+        Self {
+            cache: Default::default(),
+            queries_to_cache: Default::default(),
+        }
     }
 
     pub fn insert(&mut self, key: (SearchQuery, Obfuscated, Transform), value: QueryResult) {
@@ -110,7 +119,7 @@ impl QueryResultCache {
 
     pub fn get(&self, key: &(SearchQuery, Obfuscated, Transform)) -> QueryResultCacheOutcome {
         if !self.queries_to_cache.contains(&key.0) {
-            return QueryResultCacheOutcome::DontCache
+            return QueryResultCacheOutcome::DontCache;
         }
         if let Some((result, created)) = self.cache.get(key) {
             if Instant::now().duration_since(*created) < Self::TTL {
@@ -383,21 +392,22 @@ async fn run_sql_query(
     sql_query: db::SqlQuery,
     query_result_cache: Arc<Mutex<QueryResultCache>>,
 ) -> Result<TaskResult<beam_lib::RawString>, FocusError> {
-    let should_cache = match query_result_cache
-        .lock()
-        .await
-        .get(&(sql_query.payload.clone(), false, Transform::None)) {
-            QueryResultCacheOutcome::Cached(result) => {
-                return Ok(beam::beam_result::succeeded(
-                    CONFIG.beam_app_id_long.clone(),
-                    vec![task.from.clone()],
-                    task.id,
-                    BASE64.encode(result),
-                ));
-            },
-            QueryResultCacheOutcome::ShouldCache => true,
-            QueryResultCacheOutcome::DontCache => false,
-        };
+    let should_cache = match query_result_cache.lock().await.get(&(
+        sql_query.payload.clone(),
+        false,
+        Transform::None,
+    )) {
+        QueryResultCacheOutcome::Cached(result) => {
+            return Ok(beam::beam_result::succeeded(
+                CONFIG.beam_app_id_long.clone(),
+                vec![task.from.clone()],
+                task.id,
+                BASE64.encode(result),
+            ));
+        }
+        QueryResultCacheOutcome::ShouldCache => true,
+        QueryResultCacheOutcome::DontCache => false,
+    };
     let result = db::process_sql_task(&pool, &(sql_query.payload)).await;
     if let Ok(rows) = result {
         let rows_json = db::serialize_rows(rows)?;
@@ -439,25 +449,25 @@ async fn run_cql_query(
                 query.lib
             )))?;
 
-
     let obfuscate =
         CONFIG.obfuscate == config::Obfuscate::Yes && !CONFIG.unobfuscated.contains(&project);
 
-    let should_cache = match query_result_cache
-        .lock()
-        .await
-        .get(&(encoded_query.to_string(), obfuscate, transform)) {
-            QueryResultCacheOutcome::Cached(result) => {
-                return Ok(beam::beam_result::succeeded(
-                    CONFIG.beam_app_id_long.clone(),
-                    vec![task.from.clone()],
-                    task.id,
-                    BASE64.encode(result),
-                ));
-            },
-            QueryResultCacheOutcome::ShouldCache => true,
-            QueryResultCacheOutcome::DontCache => false,
-        };
+    let should_cache = match query_result_cache.lock().await.get(&(
+        encoded_query.to_string(),
+        obfuscate,
+        transform,
+    )) {
+        QueryResultCacheOutcome::Cached(result) => {
+            return Ok(beam::beam_result::succeeded(
+                CONFIG.beam_app_id_long.clone(),
+                vec![task.from.clone()],
+                task.id,
+                BASE64.encode(result),
+            ));
+        }
+        QueryResultCacheOutcome::ShouldCache => true,
+        QueryResultCacheOutcome::DontCache => false,
+    };
 
     let query = if generated_from_ast {
         query.clone()
@@ -494,7 +504,8 @@ async fn run_cql_query(
         Transform::Lens => {
             let result_mr: mr::MeasureReport = serde_json::from_str(&cql_result_new)?;
             let result_json = mr::transform_lens(result_mr)?;
-            serde_json::to_string(&result_json).map_err(|e| FocusError::SerializationError(e.to_string()))?
+            serde_json::to_string(&result_json)
+                .map_err(|e| FocusError::SerializationError(e.to_string()))?
         }
         Transform::None => cql_result_new,
     };

@@ -1,4 +1,9 @@
-use std::{path::Path, env, io::{BufWriter, Write}, fs::File};
+use std::{
+    env,
+    fs::File,
+    io::{BufWriter, Write},
+    path::Path,
+};
 
 use build_data::get_git_dirty;
 
@@ -8,9 +13,7 @@ use build_data::get_git_dirty;
 fn version() -> String {
     let version = String::from(env!("CARGO_PKG_VERSION"));
     match get_git_dirty().unwrap() {
-        false => {
-            version
-        },
+        false => version,
         true => {
             format!("{}-SNAPSHOT", version)
         }
@@ -30,15 +33,22 @@ fn build_cqlmap() {
         let cqlfile = cqlfile.unwrap();
         let cqlfilename = cqlfile.file_name().to_str().unwrap().to_owned();
         let cqlcontent = std::fs::read_to_string(cqlfile.path()).unwrap();
-        write!(&mut file, r####"
+        write!(
+            &mut file,
+            r####"
             map.insert(r###"{cqlfilename}"###, r###"{cqlcontent}"###);
-        "####).unwrap();
+        "####
+        )
+        .unwrap();
     }
 
-    writeln!(&mut file, "
+    writeln!(
+        &mut file,
+        "
         map
     }});"
-    ).unwrap();
+    )
+    .unwrap();
 }
 
 fn build_sqlmap() {
@@ -54,15 +64,22 @@ fn build_sqlmap() {
         let sqlfile = sqlfile.unwrap();
         let sqlfilename = sqlfile.file_name().to_str().unwrap().to_owned();
         let sqlcontent = std::fs::read_to_string(sqlfile.path()).unwrap();
-        write!(&mut file, r####"
+        write!(
+            &mut file,
+            r####"
             map.insert(r###"{sqlfilename}"###, r###"{sqlcontent}"###);
-        "####).unwrap();
+        "####
+        )
+        .unwrap();
     }
 
-    writeln!(&mut file, "
+    writeln!(
+        &mut file,
+        "
         map
     }});"
-    ).unwrap();
+    )
+    .unwrap();
 }
 
 fn main() {
@@ -72,7 +89,11 @@ fn main() {
     build_data::set_BUILD_TIME();
     // We must always run this build script as otherwise, we would cache old versions of CQL maps
     //build_data::no_debug_rebuilds();
-    println!("cargo:rustc-env=SAMPLY_USER_AGENT=Samply.Focus.{}/{}", env!("CARGO_PKG_NAME"), version());
+    println!(
+        "cargo:rustc-env=SAMPLY_USER_AGENT=Samply.Focus.{}/{}",
+        env!("CARGO_PKG_NAME"),
+        version()
+    );
 
     build_cqlmap();
     build_sqlmap();

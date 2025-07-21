@@ -1,5 +1,5 @@
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-use serde::{Serialize, Deserialize};
 
 pub type Facets = BTreeMap<String, u64>; //stratifier
 
@@ -48,7 +48,10 @@ pub fn combine_stratifier_groups(group1: Stratifiers, group2: Stratifiers) -> St
 }
 
 #[allow(dead_code)]
-fn combine_groups_of_stratifiers(groups1: StratifierGroups, groups2: StratifierGroups) -> StratifierGroups {
+fn combine_groups_of_stratifiers(
+    groups1: StratifierGroups,
+    groups2: StratifierGroups,
+) -> StratifierGroups {
     // here groups of stratifiers are combined using the previous function
     let mut combined_groups = groups1; // this function is used to combine maps for all the sites
 

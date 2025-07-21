@@ -4,8 +4,7 @@ use serde_json::Value;
 use sqlx::{postgres::PgPoolOptions, postgres::PgRow, PgPool};
 use sqlx_serde::SerMapPgRow;
 use std::{collections::HashMap, time::Duration};
-use tracing::{warn, info, debug};
-
+use tracing::{debug, info, warn};
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct SqlQuery {
@@ -14,7 +13,10 @@ pub struct SqlQuery {
 
 include!(concat!(env!("OUT_DIR"), "/sql_replace_map.rs"));
 
-pub async fn get_pg_connection_pool(pg_url: &str, max_db_attempts: u32) -> Result<PgPool, FocusError> {
+pub async fn get_pg_connection_pool(
+    pg_url: &str,
+    max_db_attempts: u32,
+) -> Result<PgPool, FocusError> {
     info!("Trying to establish a PostgreSQL connection pool");
 
     tryhard::retry_fn(|| async {

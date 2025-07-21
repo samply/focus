@@ -20,8 +20,7 @@ impl Project for Bbmri {
     }
 
     fn append_criterion_code_lists(&self, map: &mut HashMap<&str, Vec<&str>>) {
-        for (key, value) in 
-        [
+        for (key, value) in [
             ("diagnosis", vec!["icd10", "icd10gm", "icd10gmnew"]),
             ("body_weight", vec!["loinc"]),
             ("bmi", vec!["loinc"]),
@@ -30,8 +29,8 @@ impl Project for Bbmri {
             ("storage_temperature", vec!["StorageTemperature"]),
             ("fasting_status", vec!["FastingStatus"]),
         ] {
-            map.insert(key, value );
-        }    
+            map.insert(key, value);
+        }
     }
 
     fn append_cql_snippets(&self, map: &mut HashMap<(&str, CriterionRole), &str>) {
@@ -67,7 +66,7 @@ impl Project for Bbmri {
             ),
             (("sample_kind", CriterionRole::Query), " exists [Specimen: Code '{{C}}' from {{A1}}]"),
             (("sample_kind", CriterionRole::Filter), " (S.type.coding.code contains '{{C}}')"),
-    
+
             (
                 ("storage_temperature", CriterionRole::Filter),
                 "(S.extension.where(url='https://fhir.bbmri.de/StructureDefinition/StorageTemperature').value.coding.code contains '{{C}}')",
@@ -85,15 +84,15 @@ impl Project for Bbmri {
                 "exists from [Specimen] S\nwhere FHIRHelpers.ToDateTime(S.collection.collected) between {{D1}} and {{D2}} ",
             ),
             (
-                ("fasting_status", CriterionRole::Query),   
+                ("fasting_status", CriterionRole::Query),
                 "exists from [Specimen] S\nwhere S.collection.fastingStatus.coding.code contains '{{C}}' ",
             ),
             (
-                ("storage_temperature", CriterionRole::Query), 
+                ("storage_temperature", CriterionRole::Query),
                 "exists from [Specimen] S where (S.extension.where(url='https://fhir.bbmri.de/StructureDefinition/StorageTemperature').value.coding contains Code '{{C}}' from {{A1}}) ",
             ),
             (
-                ("smoking_status", CriterionRole::Query), 
+                ("smoking_status", CriterionRole::Query),
                 "exists from [Observation: Code '{{K}}' from {{A1}}] O\nwhere O.value.coding.code contains '{{C}}' ",
             ),
         ] {
@@ -101,7 +100,7 @@ impl Project for Bbmri {
                 (key.0, key.1),
                 value
             );
-        }    
+        }
     }
 
     fn append_mandatory_code_lists(&self, set: &mut IndexSet<&str>) {
@@ -124,22 +123,42 @@ impl Project for Bbmri {
     }
 
     fn append_sample_type_workarounds(&self, map: &mut HashMap<&str, Vec<&str>>) {
-        for (key, value) in 
-        [
-            ("blood-plasma", vec!["plasma-edta", "plasma-citrat", "plasma-heparin", "plasma-cell-free", "plasma-other", "plasma"]),
+        for (key, value) in [
+            (
+                "blood-plasma",
+                vec![
+                    "plasma-edta",
+                    "plasma-citrat",
+                    "plasma-heparin",
+                    "plasma-cell-free",
+                    "plasma-other",
+                    "plasma",
+                ],
+            ),
             ("blood-serum", vec!["serum"]),
-            ("tissue-ffpe", vec!["tumor-tissue-ffpe", "normal-tissue-ffpe", "other-tissue-ffpe", "tissue-formalin"]),
-            ("tissue-frozen", vec!["tumor-tissue-frozen", "normal-tissue-frozen", "other-tissue-frozen"]),
+            (
+                "tissue-ffpe",
+                vec![
+                    "tumor-tissue-ffpe",
+                    "normal-tissue-ffpe",
+                    "other-tissue-ffpe",
+                    "tissue-formalin",
+                ],
+            ),
+            (
+                "tissue-frozen",
+                vec![
+                    "tumor-tissue-frozen",
+                    "normal-tissue-frozen",
+                    "other-tissue-frozen",
+                ],
+            ),
             ("dna", vec!["cf-dna", "g-dna"]),
             ("tissue-other", vec!["tissue-paxgene-or-else", "tissue"]),
             ("derivative-other", vec!["derivative"]),
             ("liquid-other", vec!["liquid"]),
         ] {
-            map.insert(
-                key,
-                value
-            );
-        }   
+            map.insert(key, value);
+        }
     }
-
 }

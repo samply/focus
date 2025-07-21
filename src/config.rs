@@ -3,8 +3,8 @@ use std::path::PathBuf;
 
 use beam_lib::AppId;
 use clap::Parser;
-use reqwest::{header::HeaderValue, Url};
 use once_cell::sync::Lazy;
+use reqwest::{header::HeaderValue, Url};
 use reqwest::{Certificate, Client, Proxy};
 use tracing::{debug, info, warn};
 
@@ -19,7 +19,7 @@ pub enum Obfuscate {
 #[derive(clap::ValueEnum, Clone, PartialEq, Debug, Copy)]
 pub enum EndpointType {
     Blaze,
-    Omop, // endpoint is URL of a query mediator translating AST to provider specific SQL
+    Omop,      // endpoint is URL of a query mediator translating AST to provider specific SQL
     EucaimApi, // endpoint is URL of custom API for querying EUCAIM provider
     #[cfg(feature = "query-sql")]
     BlazeAndSql,
