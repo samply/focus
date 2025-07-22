@@ -70,7 +70,12 @@ fn generate_cql(ast: ast::Ast) -> Result<String, FocusError> {
 
     cql = cql.replace("{{lists}}", lists.as_str());
 
-    if retrieval_criteria.is_empty() || retrieval_criteria.chars().all(|c| [' ', '(', ')'].contains(&c)) { //to deal with an empty criteria tree of an arbitrary depth 
+    if retrieval_criteria.is_empty()
+        || retrieval_criteria
+            .chars()
+            .all(|c| [' ', '(', ')'].contains(&c))
+    {
+        //to deal with an empty criteria tree of an arbitrary depth
         cql = cql.replace("{{retrieval_criteria}}", "true"); //()?
     } else {
         let formatted_retrieval_criteria = format!("({})", retrieval_criteria);
@@ -147,15 +152,22 @@ pub fn process(
                         ast::ConditionValue::DateRange(date_range) => {
                             let datetime_str_min = date_range.min.as_str();
 
-                            let datetime_min_maybe: Result<DateTime<Utc>, _> = datetime_str_min.parse();
+                            let datetime_min_maybe: Result<DateTime<Utc>, _> =
+                                datetime_str_min.parse();
 
-                            let datetime_min: DateTime<Utc> = if let Ok(datetime) = datetime_min_maybe {
+                            let datetime_min: DateTime<Utc> = if let Ok(datetime) =
+                                datetime_min_maybe
+                            {
                                 datetime
                             } else {
-                                let naive_date_maybe = NaiveDate::parse_from_str(datetime_str_min, "%Y-%m-%d"); //FIXME remove once Lens2 behaves, only return the error
+                                let naive_date_maybe =
+                                    NaiveDate::parse_from_str(datetime_str_min, "%Y-%m-%d"); //FIXME remove once Lens2 behaves, only return the error
 
                                 if let Ok(naive_date) = naive_date_maybe {
-                                    DateTime::<Utc>::from_naive_utc_and_offset(naive_date.and_time(NaiveTime::default()), Utc)
+                                    DateTime::<Utc>::from_naive_utc_and_offset(
+                                        naive_date.and_time(NaiveTime::default()),
+                                        Utc,
+                                    )
                                 } else {
                                     return Err(FocusError::AstInvalidDateFormat(date_range.min));
                                 }
@@ -169,15 +181,22 @@ pub fn process(
                             // no condition needed, "" stays ""
 
                             let datetime_str_max = date_range.max.as_str();
-                            let datetime_max_maybe: Result<DateTime<Utc>, _> = datetime_str_max.parse();
+                            let datetime_max_maybe: Result<DateTime<Utc>, _> =
+                                datetime_str_max.parse();
 
-                            let datetime_max: DateTime<Utc> = if let Ok(datetime) = datetime_max_maybe {
+                            let datetime_max: DateTime<Utc> = if let Ok(datetime) =
+                                datetime_max_maybe
+                            {
                                 datetime
                             } else {
-                                let naive_date_maybe = NaiveDate::parse_from_str(datetime_str_max, "%Y-%m-%d"); //FIXME remove once Lens2 behaves, only return the error
+                                let naive_date_maybe =
+                                    NaiveDate::parse_from_str(datetime_str_max, "%Y-%m-%d"); //FIXME remove once Lens2 behaves, only return the error
 
                                 if let Ok(naive_date) = naive_date_maybe {
-                                    DateTime::<Utc>::from_naive_utc_and_offset(naive_date.and_time(NaiveTime::default()), Utc)
+                                    DateTime::<Utc>::from_naive_utc_and_offset(
+                                        naive_date.and_time(NaiveTime::default()),
+                                        Utc,
+                                    )
                                 } else {
                                     return Err(FocusError::AstInvalidDateFormat(date_range.max));
                                 }
@@ -252,7 +271,6 @@ pub fn process(
                             if !filter_string.is_empty() {
                                 filter_string = filter_humongous_string + ")";
                             }
-
                         }
                         other => {
                             return Err(FocusError::AstOperatorValueMismatch(format!(
@@ -298,7 +316,6 @@ pub fn process(
                         if !filter_string.is_empty() {
                             filter_string = filter_humongous_string + ")";
                         }
-
                     }
                     other => {
                         return Err(FocusError::AstOperatorValueMismatch(format!(
@@ -320,7 +337,6 @@ pub fn process(
             }
 
             filter_cond += filter_string.as_str(); // no condition needed, "" can be added with no change
-
         }
 
         ast::Child::Operation(operation) => {
@@ -342,7 +358,6 @@ pub fn process(
                     retrieval_cond += operator_str;
                     if !filter_cond.is_empty() {
                         filter_cond += operator_str;
-
                     }
                 }
             }
@@ -390,7 +405,8 @@ mod test {
 
     const LENS2: &str = r#"{"ast":{"children":[{"children":[{"children":[{"key":"gender","system":"","type":"EQUALS","value":"male"},{"key":"gender","system":"","type":"EQUALS","value":"female"}],"operand":"OR"},{"children":[{"key":"diagnosis","system":"","type":"EQUALS","value":"C41"},{"key":"diagnosis","system":"","type":"EQUALS","value":"C50"}],"operand":"OR"},{"children":[{"key":"sample_kind","system":"","type":"EQUALS","value":"tissue-frozen"},{"key":"sample_kind","system":"","type":"EQUALS","value":"blood-serum"}],"operand":"OR"}],"operand":"AND"},{"children":[{"children":[{"key":"gender","system":"","type":"EQUALS","value":"male"}],"operand":"OR"},{"children":[{"key":"diagnosis","system":"","type":"EQUALS","value":"C41"},{"key":"diagnosis","system":"","type":"EQUALS","value":"C50"}],"operand":"OR"},{"children":[{"key":"sample_kind","system":"","type":"EQUALS","value":"liquid-other"},{"key":"sample_kind","system":"","type":"EQUALS","value":"rna"},{"key":"sample_kind","system":"","type":"EQUALS","value":"urine"}],"operand":"OR"},{"children":[{"key":"storage_temperature","system":"","type":"EQUALS","value":"temperatureRoom"},{"key":"storage_temperature","system":"","type":"EQUALS","value":"four_degrees"}],"operand":"OR"}],"operand":"AND"}],"operand":"OR"},"id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
 
-    const EMPTY: &str = r#"{"ast":{"children":[],"operand":"OR"}, "id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
+    const EMPTY: &str =
+        r#"{"ast":{"children":[],"operand":"OR"}, "id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
 
     const CURRENT: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"operand":"OR","children":[{"key":"gender","type":"EQUALS","system":"","value":"male"}]},{"operand":"OR","children":[{"key":"diagnosis","type":"EQUALS","system":"http://fhir.de/CodeSystem/dimdi/icd-10-gm","value":"C61"}]},{"operand":"OR","children":[{"key":"donor_age","type":"BETWEEN","system":"","value":{"min":10,"max":90}}]}]},{"operand":"AND","children":[{"operand":"OR","children":[{"key":"sampling_date","type":"BETWEEN","system":"","value":{"min":"1900-01-01","max":"2024-10-25"}}]},{"operand":"OR","children":[{"key":"storage_temperature","type":"EQUALS","system":"","value":"temperature2to10"}]}]}]},"id":"53b4414e-75e4-401b-b794-20a2936e1be5"}"#;
 
@@ -455,7 +471,6 @@ mod test {
             generate_cql(serde_json::from_str(CURRENT).unwrap()).unwrap(),
             include_str!("../resources/test/result_current.cql").to_string()
         );
-
     }
 
     #[test]

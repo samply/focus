@@ -1,4 +1,7 @@
-use reqwest::{header::{self, HeaderMap, HeaderValue}, StatusCode};
+use reqwest::{
+    header::{self, HeaderMap, HeaderValue},
+    StatusCode,
+};
 use serde::Deserialize;
 use serde::Serialize;
 use tracing::{debug, warn};

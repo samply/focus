@@ -1,9 +1,8 @@
 use reqwest::{
     header::{self, HeaderMap, HeaderValue},
-    StatusCode,
-    Url
+    StatusCode, Url,
 };
-use tracing::{debug, error, warn, trace};
+use tracing::{debug, error, trace, warn};
 
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
@@ -143,11 +142,12 @@ pub fn build_eucaim_api_query_url(base_url: Url, ast: ast::Ast) -> Result<String
 pub async fn send_eucaim_api_query(ast: ast::Ast) -> Result<String, FocusError> {
     debug!("Posting EUCAIM API query...");
 
-    let eucaim_api_query = if let Ok(query) = build_eucaim_api_query_url(CONFIG.endpoint_url.clone(), ast) {
-        query
-    } else {
-        return Err(FocusError::EucaimApiQueryGenerationError);
-    };
+    let eucaim_api_query =
+        if let Ok(query) = build_eucaim_api_query_url(CONFIG.endpoint_url.clone(), ast) {
+            query
+        } else {
+            return Err(FocusError::EucaimApiQueryGenerationError);
+        };
 
     let mut headers = HeaderMap::new();
 
@@ -199,19 +199,30 @@ mod test {
 
     #[test]
     fn test_build_url_empty() {
-        let url = build_eucaim_api_query_url(Url::parse("http://base.info/search").unwrap(), serde_json::from_str(EMPTY).unwrap()).unwrap();
+        let url = build_eucaim_api_query_url(
+            Url::parse("http://base.info/search").unwrap(),
+            serde_json::from_str(EMPTY).unwrap(),
+        )
+        .unwrap();
         pretty_assertions::assert_eq!(url, "http://base.info/search?");
     }
 
     #[test]
     fn test_build_url_just_right() {
-        let url = build_eucaim_api_query_url(Url::parse("http://base.info/search").unwrap(), serde_json::from_str(JUST_RIGHT).unwrap()).unwrap();
+        let url = build_eucaim_api_query_url(
+            Url::parse("http://base.info/search").unwrap(),
+            serde_json::from_str(JUST_RIGHT).unwrap(),
+        )
+        .unwrap();
         pretty_assertions::assert_eq!(url, "http://base.info/search?gender=male&diagnosis=SNOMEDCT399068003&modality=MR&bodyPart=breast&manufacturer=Philips");
     }
 
     #[test]
     fn test_build_url_too_much() {
-        assert!(build_eucaim_api_query_url(Url::parse("http://base.info/search").unwrap(), serde_json::from_str(TOO_MUCH).unwrap()).is_err());
+        assert!(build_eucaim_api_query_url(
+            Url::parse("http://base.info/search").unwrap(),
+            serde_json::from_str(TOO_MUCH).unwrap()
+        )
+        .is_err());
     }
-
 }

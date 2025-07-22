@@ -1,7 +1,6 @@
 use serde::Deserialize;
 use serde::Serialize;
 
-
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(untagged)]
 pub enum Child {
@@ -11,7 +10,8 @@ pub enum Child {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "UPPERCASE")]
-pub enum Operand { //this is operator, of course, but rename would need to be coordinated with all the Lenses, EUCAIM providers, etc
+pub enum Operand {
+    //this is operator, of course, but rename would need to be coordinated with all the Lenses, EUCAIM providers, etc
     And,
     Or,
 }
@@ -71,14 +71,11 @@ pub struct Ast {
     pub id: String,
 }
 
-
-
 #[cfg(test)]
 mod test {
     use super::*;
 
     const EQUALS_AST: &str = r#"{"ast":{"operand":"AND","children":[{"key":"age","type":"EQUALS","value":5.0}]},"id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
-
 
     #[test]
     fn test_deserialize_ast() {
@@ -89,6 +86,4 @@ mod test {
 
         assert_eq!(EQUALS_AST, ast_string);
     }
-
-
 }

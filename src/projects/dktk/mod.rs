@@ -13,16 +13,16 @@ pub(crate) struct Dktk;
 impl Project for Dktk {
     fn append_code_lists(&self, map: &mut HashMap<&'static str, &'static str>) {
         Shared::append_code_lists(&Shared, map)
-     }
+    }
 
     fn append_observation_loinc_codes(&self, map: &mut HashMap<&'static str, &'static str>) {
         Shared::append_observation_loinc_codes(&Shared, map)
-     }
-    
-    fn append_criterion_code_lists(&self, _map: &mut HashMap<&str, Vec<&str>>) { }
-    
-    fn append_cql_snippets(&self, _map: &mut HashMap<(&str, CriterionRole), &str>) { }
-    
+    }
+
+    fn append_criterion_code_lists(&self, _map: &mut HashMap<&str, Vec<&str>>) {}
+
+    fn append_cql_snippets(&self, _map: &mut HashMap<(&str, CriterionRole), &str>) {}
+
     fn append_mandatory_code_lists(&self, map: &mut IndexSet<&str>) {
         //let mut set = map.remove(self.name()).unwrap_or(IndexSet::new());
         for value in ["icd10", "SampleMaterialType", "loinc"] {
@@ -30,11 +30,11 @@ impl Project for Dktk {
         }
         //map.insert(self.name(), set);
     }
-    
+
     fn append_cql_template(&self, _template: &mut String) {
         //include_str!("template.cql")
     }
-    
+
     fn name(&self) -> &'static ProjectName {
         &ProjectName::Dktk
     }
@@ -47,4 +47,3 @@ impl Project for Dktk {
         //none
     }
 }
-

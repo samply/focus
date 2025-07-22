@@ -97,7 +97,7 @@ pub struct Stratifier {
 
 pub fn transform_lens(measure_report: MeasureReport) -> Result<Transformed, FocusError> {
     //let mut stratifier_groups: StratifierGroups = StratifierGroups::new();
-    let mut transformed: Transformed = Transformed{
+    let mut transformed: Transformed = Transformed {
         stratifiers: Default::default(),
         totals: Default::default(),
     };
@@ -105,8 +105,9 @@ pub fn transform_lens(measure_report: MeasureReport) -> Result<Transformed, Focu
     //let mut stratifiers = Stratifiers::new();
 
     for g in &measure_report.group {
-        
-        transformed.totals.insert(g.code.text.clone(), g.population[0].count.clone());
+        transformed
+            .totals
+            .insert(g.code.text.clone(), g.population[0].count.clone());
         for s in &g.stratifier {
             let mut facets = Facets::new();
 
@@ -153,7 +154,8 @@ mod test {
         let measure_report: MeasureReport =
             serde_json::from_str(&EXAMPLE_MEASURE_REPORT_BBMRI).expect("Can't be deserialized");
 
-        let stratifiers = transform_lens(measure_report).expect("what, no proper stratifier groups");
+        let stratifiers =
+            transform_lens(measure_report).expect("what, no proper stratifier groups");
 
         let stratifiers_json = serde_json::to_string(&stratifiers).expect("Should be JSON");
 
@@ -165,7 +167,8 @@ mod test {
         let measure_report: MeasureReport =
             serde_json::from_str(&EXAMPLE_MEASURE_REPORT_DKTK).expect("Can't be deserialized");
 
-        let stratifiers = transform_lens(measure_report).expect("what, no proper stratifier groups");
+        let stratifiers =
+            transform_lens(measure_report).expect("what, no proper stratifier groups");
 
         let stratifiers_json = serde_json::to_string(&stratifiers).expect("Should be JSON");
 
