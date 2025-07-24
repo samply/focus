@@ -53,7 +53,7 @@
           },
           {
             "code": {
-              "text": "Age"
+              "text": "donor_age"
             },
             "criteria": {
               "expression": "AgeClass",
