@@ -1,3 +1,23 @@
-define retrieveCondition: First(from [Condition] C return C.code.coding.where(system = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm').code.first())
-define Diagnosis: if (retrieveCondition is null) then 'unknown' else retrieveCondition
+define Conditions:
+  [Condition] C
+    where exists (
+      C.code.coding CCode
+        where CCode.system = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm'
+    )
+    and C.recordedDate is not null
 
+define FirstMatchingCondition:
+  First(
+    from Conditions C
+      sort by date from recordedDate
+  )
+
+define DiagnosisCode:
+  First(
+    from FirstMatchingCondition.code.coding CCode
+      where CCode.system = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm'
+      return CCode.code
+  )
+
+define Diagnosis:
+  if DiagnosisCode is null then 'unknown' else DiagnosisCode

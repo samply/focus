@@ -1,3 +1,14 @@
+# Samply.Focus v0.15 2025-06-30
+
+## Major changes
+* Support transforming results into Lens result format
+
+## Minor changes
+* Add ITCC diagnosis stratifier: https://github.com/samply/focus/pull/241
+* Add storage temperature stratifier: https://github.com/samply/focus/pull/250
+* Rename BBMRI stratifier "Age" to "donor_age": https://github.com/samply/focus/pull/247
+* Changes to EXLIQUID query: https://github.com/samply/focus/pull/251
+
 # Samply.Focus v0.14.1 2025-06-10
 
 ## Minor changes

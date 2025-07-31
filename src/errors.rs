@@ -82,9 +82,9 @@ impl FocusError {
         use FocusError::*;
         // TODO: Add more match arms
         match self {
-            DecodeError(_) | ParsingError(_) | SerdeParsingError(_) =>  "Cannot parse query.",
+            DecodeError(_) | ParsingError(_) | SerdeParsingError(_) => "Cannot parse query.",
             LaplaceError(_) => "Cannot obfuscate result.",
-            _ => "Failed to execute query."
+            _ => "Failed to execute query.",
         }
     }
 }

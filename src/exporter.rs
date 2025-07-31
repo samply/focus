@@ -1,4 +1,7 @@
-use reqwest::{header::{self, HeaderMap, HeaderValue}, StatusCode};
+use reqwest::{
+    header::{self, HeaderMap, HeaderValue},
+    StatusCode,
+};
 use serde::Deserialize;
 use serde::Serialize;
 use serde_json::Value;
@@ -45,14 +48,12 @@ pub async fn post_exporter_query(body: &String, task_type: TaskType) -> Result<S
     if let Some(api_key) = CONFIG.exporter_api_key.clone() {
         headers.insert(
             "x-api-key",
-            HeaderValue::from_str(api_key.as_str())
-                .map_err(FocusError::InvalidHeaderValue)?,
+            HeaderValue::from_str(api_key.as_str()).map_err(FocusError::InvalidHeaderValue)?,
         );
     }
 
     if task_type == TaskType::Status {
-        let value: Value = serde_json::from_slice(&(util::base64_decode(body))?)
-        .map_err(|e| {
+        let value: Value = serde_json::from_slice(&(util::base64_decode(body))?).map_err(|e| {
             FocusError::DeserializationError(format!(r#"Task body is not a valid JSON: {}"#, e))
         })?;
         let id = value["query-execution-id"].as_str();

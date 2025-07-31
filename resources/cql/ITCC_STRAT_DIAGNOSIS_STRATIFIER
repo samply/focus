@@ -1,0 +1,5 @@
+define Diagnosis:
+if InInitialPopulation then [Condition] else {} as List<Condition>
+
+define function DiagnosisCode(condition FHIR.Condition):
+condition.code.coding.code.first()

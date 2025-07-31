@@ -2,18 +2,18 @@ use reqwest::StatusCode;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_json::Value;
-use tracing::{debug, warn, info};
+use tracing::{debug, info, warn};
 
+use crate::ast;
+use crate::config::CONFIG;
 use crate::errors::FocusError;
 use crate::util;
 use crate::util::get_json_field;
-use crate::config::CONFIG;
-use crate::ast;
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct CqlQuery {
     pub lib: Value,
-    pub measure: Value
+    pub measure: Value,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -22,10 +22,10 @@ pub struct AstQuery {
 }
 
 pub async fn check_availability() -> bool {
-
     debug!("Checking Blaze availability...");
 
-    let resp = match CONFIG.client
+    let resp = match CONFIG
+        .client
         .get(format!("{}metadata", CONFIG.endpoint_url))
         .send()
         .await
@@ -40,7 +40,10 @@ pub async fn check_availability() -> bool {
     if resp.status().is_success() {
         return true;
     } else {
-        warn!("Request to Blaze returned response with non-200 status: {:?}", resp);
+        warn!(
+            "Request to Blaze returned response with non-200 status: {:?}",
+            resp
+        );
     }
     false
 }
@@ -48,7 +51,8 @@ pub async fn check_availability() -> bool {
 pub async fn post_library(library: String) -> Result<(), FocusError> {
     debug!("Creating a Library...");
 
-    let resp = CONFIG.client
+    let resp = CONFIG
+        .client
         .post(format!("{}Library", CONFIG.endpoint_url))
         .header("Content-Type", "application/json")
         .body(library)
@@ -68,7 +72,8 @@ pub async fn post_library(library: String) -> Result<(), FocusError> {
 
 pub async fn post_measure(measure: String) -> Result<(), FocusError> {
     debug!("Creating a Measure...");
-    let resp = CONFIG.client
+    let resp = CONFIG
+        .client
         .post(format!("{}Measure", CONFIG.endpoint_url))
         .header("Content-Type", "application/json")
         .body(measure)
@@ -88,11 +93,11 @@ pub async fn post_measure(measure: String) -> Result<(), FocusError> {
 
 pub async fn evaluate_measure(url: String) -> Result<String, FocusError> {
     debug!("Evaluating the Measure with canonical URL: {}", url);
-    let resp = CONFIG.client
+    let resp = CONFIG
+        .client
         .get(format!(
-        "{}Measure/$evaluate-measure?measure={}&periodStart=2000&periodEnd=2030",
-        CONFIG.endpoint_url,
-        url
+            "{}Measure/$evaluate-measure?measure={}&periodStart=2000&periodEnd=2030",
+            CONFIG.endpoint_url, url
         ))
         .send()
         .await
@@ -103,16 +108,18 @@ pub async fn evaluate_measure(url: String) -> Result<String, FocusError> {
             "Successfully evaluated the Measure with canonical URL: {}",
             url
         );
-        resp
-            .text()
+        resp.text()
             .await
-            .map_err( FocusError::MeasureEvaluationErrorReqwest)
+            .map_err(FocusError::MeasureEvaluationErrorReqwest)
     } else {
         warn!(
             "Error while evaluating the Measure with canonical URL `{}`: {:?}",
             url, resp
         );
-        Err(FocusError::MeasureEvaluationErrorBlaze(format!( "Error while evaluating the Measure with canonical URL `{}`: {:?}", url, resp)))
+        Err(FocusError::MeasureEvaluationErrorBlaze(format!(
+            "Error while evaluating the Measure with canonical URL `{}`: {:?}",
+            url, resp
+        )))
     }
 }
 

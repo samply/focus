@@ -4,10 +4,15 @@ pub(crate) fn print_banner() {
     let commit = match env!("GIT_DIRTY") {
         "false" => {
             env!("GIT_COMMIT_SHORT")
-        },
-        _ => {
-            "SNAPSHOT"
         }
+        _ => "SNAPSHOT",
     };
-    info!("🔭 Samply.Focus ({}) v{} (built {} {}, {}) starting up ...", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"), env!("BUILD_DATE"), env!("BUILD_TIME"), commit);
+    info!(
+        "🔭 Samply.Focus ({}) v{} (built {} {}, {}) starting up ...",
+        env!("CARGO_PKG_NAME"),
+        env!("CARGO_PKG_VERSION"),
+        env!("BUILD_DATE"),
+        env!("BUILD_TIME"),
+        commit
+    );
 }
