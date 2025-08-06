@@ -4,12 +4,12 @@ define Conditions:
       C.code.coding CCode
         where CCode.system = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm'
     )
-    and C.recordedDate is not null
+    and C.onset is not null
 
 define FirstMatchingCondition:
   First(
     from Conditions C
-      sort by date from recordedDate
+      sort by date from onset
   )
 
 define DiagnosisCode:
