@@ -1,3 +1,8 @@
+# Samply.Focus v0.15.1 2025-08-14
+
+## Minor changes
+* Fixes for EXLIQUID query: https://github.com/samply/focus/pull/254
+
 # Samply.Focus v0.15 2025-06-30
 
 ## Major changes
