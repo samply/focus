@@ -22,6 +22,8 @@ pub enum EndpointType {
     Omop,      // endpoint is URL of a query mediator translating AST to provider specific SQL
     EucaimApi, // endpoint is URL of custom API for querying EUCAIM provider
     #[cfg(feature = "query-sql")]
+    EucaimSql, 
+    #[cfg(feature = "query-sql")]
     BlazeAndSql,
     #[cfg(feature = "query-sql")]
     Sql,
@@ -33,6 +35,8 @@ impl fmt::Display for EndpointType {
             EndpointType::Blaze => write!(f, "blaze"),
             EndpointType::Omop => write!(f, "omop"),
             EndpointType::EucaimApi => write!(f, "eucaim_api"),
+            #[cfg(feature = "query-sql")]
+            EndpointType::EucaimSql => write!(f, "eucaim_sql"),
             #[cfg(feature = "query-sql")]
             EndpointType::BlazeAndSql => write!(f, "blaze_and_sql"),
             #[cfg(feature = "query-sql")]

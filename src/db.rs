@@ -42,7 +42,7 @@ pub async fn run_query(pool: &PgPool, query: &str) -> Result<Vec<PgRow>, FocusEr
         .map_err(FocusError::ErrorExecutingSqlQuery)
 }
 
-pub async fn process_sql_task(pool: &PgPool, key: &str) -> Result<Vec<PgRow>, FocusError> {
+pub async fn process_sql_key_task(pool: &PgPool, key: &str) -> Result<Vec<PgRow>, FocusError> {
     debug!("Executing query with key = {}", &key);
     let sql_query = SQL_REPLACE_MAP.get(&key);
     let Some(query) = sql_query else {
@@ -50,6 +50,12 @@ pub async fn process_sql_task(pool: &PgPool, key: &str) -> Result<Vec<PgRow>, Fo
     };
     debug!("Executing query {}", &query);
 
+    run_query(pool, query).await
+}
+
+pub async fn process_sql_task(pool: &PgPool, query: &str) -> Result<Vec<PgRow>, FocusError> {
+    
+    debug!("Executing query {}", &query);
     run_query(pool, query).await
 }
 

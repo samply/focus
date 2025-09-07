@@ -60,7 +60,7 @@ pub fn build_eucaim_api_query_url(base_url: Url, ast: ast::Ast) -> Result<String
 
     if children.len() > 1 {
         error!("Too many children! AND/OR queries not supported.");
-        return Err(FocusError::EucaimApiQueryGenerationError);
+        return Err(FocusError::EucaimQueryGenerationError);
     }
 
     for child in children {
@@ -69,19 +69,19 @@ pub fn build_eucaim_api_query_url(base_url: Url, ast: ast::Ast) -> Result<String
             ast::Child::Operation(operation) => {
                 if operation.operand == ast::Operand::Or {
                     error!("OR found as first level operator");
-                    return Err(FocusError::EucaimApiQueryGenerationError);
+                    return Err(FocusError::EucaimQueryGenerationError);
                 }
                 for grandchild in operation.children {
                     match grandchild {
                         ast::Child::Operation(operation) => {
                             if operation.operand == ast::Operand::And {
                                 error!("AND found as second level operator");
-                                return Err(FocusError::EucaimApiQueryGenerationError);
+                                return Err(FocusError::EucaimQueryGenerationError);
                             }
                             let greatgrandchildren = operation.children;
                             if greatgrandchildren.len() > 1 {
                                 error!("Too many children! OR operator between criteria of the same type not supported.");
-                                return Err(FocusError::EucaimApiQueryGenerationError);
+                                return Err(FocusError::EucaimQueryGenerationError);
                             }
 
                             for greatgrandchild in greatgrandchildren {
@@ -90,7 +90,7 @@ pub fn build_eucaim_api_query_url(base_url: Url, ast: ast::Ast) -> Result<String
                                         error!(
                                             "Search tree has too many levels. Query not supported"
                                         );
-                                        return Err(FocusError::EucaimApiQueryGenerationError);
+                                        return Err(FocusError::EucaimQueryGenerationError);
                                     }
                                     ast::Child::Condition(condition) => {
                                         let category = CATEGORY.get(&(condition.key).as_str());
@@ -107,7 +107,7 @@ pub fn build_eucaim_api_query_url(base_url: Url, ast: ast::Ast) -> Result<String
                                                 _ => {
                                                     error!("The only supported condition value type is string");
                                                     return Err(
-                                                        FocusError::EucaimApiQueryGenerationError,
+                                                        FocusError::EucaimQueryGenerationError,
                                                     );
                                                 }
                                             }
@@ -119,7 +119,7 @@ pub fn build_eucaim_api_query_url(base_url: Url, ast: ast::Ast) -> Result<String
                         ast::Child::Condition(_) => {
                             // must be operation
                             error!("Condition found as second level child");
-                            return Err(FocusError::EucaimApiQueryGenerationError);
+                            return Err(FocusError::EucaimQueryGenerationError);
                         }
                     }
                 }
@@ -127,7 +127,7 @@ pub fn build_eucaim_api_query_url(base_url: Url, ast: ast::Ast) -> Result<String
             ast::Child::Condition(_) => {
                 // must be operation
                 error!("Condition found as first level child");
-                return Err(FocusError::EucaimApiQueryGenerationError);
+                return Err(FocusError::EucaimQueryGenerationError);
             }
         }
     }
@@ -146,7 +146,7 @@ pub async fn send_eucaim_api_query(ast: ast::Ast) -> Result<String, FocusError> 
         if let Ok(query) = build_eucaim_api_query_url(CONFIG.endpoint_url.clone(), ast) {
             query
         } else {
-            return Err(FocusError::EucaimApiQueryGenerationError);
+            return Err(FocusError::EucaimQueryGenerationError);
         };
 
     let mut headers = HeaderMap::new();
