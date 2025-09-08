@@ -236,7 +236,12 @@ impl Config {
             beam_app_id_long: AppId::new_unchecked(cli_args.beam_app_id_long),
             api_key: cli_args.api_key,
             retry_count: cli_args.retry_count,
-            endpoint_url: cli_args.endpoint_url.unwrap_or_else(|| cli_args.blaze_url.expect("Look, mate, you need to set endpoint-url or blaze-url, can't work without, sry")),
+            endpoint_url: match cli_args.endpoint_type{
+                EndpointType::Sql|EndpointType::EucaimSql => {Url::parse("http://localhost").unwrap()} // dummy value, never used, only Postgres connection string is used in those cases
+                _ => {
+                    cli_args.endpoint_url.unwrap_or_else(|| cli_args.blaze_url.expect("Look, mate, you need to set endpoint-url or blaze-url, can't work without, sry"))
+                }
+            },
             exporter_url: cli_args.exporter_url,
             endpoint_type: cli_args.endpoint_type,
             obfuscate: cli_args.obfuscate,
