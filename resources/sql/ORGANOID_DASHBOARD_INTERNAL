@@ -41,6 +41,7 @@ neomatch_visit_2b AS (
         (SELECT value->>'valueString'                               FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_PATIENT_PSEUDONYM') AS patient_pseudonym,
         (SELECT value->>'valueDateTime'                             FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_DATE_OF_VISITE') AS date_of_visite,
         (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_SAMPLE_LOCALISATION') AS sample_localisation,
+        (SELECT value->>'valueString'                               FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_SAMPLE_LOCALISATION_OTHER') AS sample_localisation_other,
         (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_SAMPLE_COLLECTION') AS sample_collection,
         (SELECT value->>'valueString'                               FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_SAMPLE_COLLECTION_OTHER') AS sample_collection_other
     FROM observation
@@ -187,6 +188,7 @@ SELECT
         WHEN neomatch_visit_2b.sample_localisation = 'PANCREASHEAD' THEN 'Head of pancreas'
         WHEN neomatch_visit_2b.sample_localisation = 'PANCREASTAIL' THEN 'Tail of pancreas'
         WHEN neomatch_visit_2b.sample_localisation = 'PANCREASBODY' THEN 'Body of pancreas'
+        WHEN neomatch_visit_2b.sample_localisation = 'OTH' THEN neomatch_visit_2b.sample_localisation_other
         WHEN neomatch_visit_2b.sample_localisation = 'NA' THEN 'not documented'
     END AS localisation_primary_tumor,
     -- sample type
