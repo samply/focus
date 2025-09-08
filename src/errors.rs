@@ -41,8 +41,8 @@ pub enum FocusError {
     UnableToPostAst(reqwest::Error),
     #[error("Unable to post EUCAIM API query: {0}")]
     UnableToPostEucaimApiQuery(reqwest::Error),
-    #[error("EUCAIM API query generation error")]
-    EucaimApiQueryGenerationError,
+    #[error("EUCAIM query generation error")]
+    EucaimQueryGenerationError,
     #[error("Unable to post Exporter query: {0}")]
     UnableToPostExporterQuery(reqwest::Error),
     #[error("Unable to get Exporter query status: {0}")]

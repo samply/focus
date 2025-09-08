@@ -20,6 +20,12 @@ mod util;
 #[cfg(feature = "query-sql")]
 mod db;
 
+#[cfg(feature = "query-sql")]
+mod eucaim_sql;
+
+#[cfg(feature = "query-sql")]
+use sqlx::Row;
+
 use base64::engine::general_purpose;
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine as _};
 use beam_lib::{TaskRequest, TaskResult};
@@ -137,6 +143,39 @@ pub enum QueryResultCacheOutcome<'a> {
     DontCache,
 }
 
+#[derive(Serialize)]
+struct EucaimResponse {
+    collections: Vec<Collection>,
+    total: TotalCount,
+    provider: String,
+    provider_icon: String,
+}
+
+#[derive(Serialize)]
+struct Collection {
+    age_range: AgeRange,
+    body_parts: Vec<String>,
+    description: String,
+    gender: Vec<String>,
+    id: String,
+    modalities: Vec<String>,
+    name: String,
+    studies_count: i32,
+    subjects_count: i32,
+}
+
+#[derive(Serialize)]
+struct AgeRange {
+    min: u8,
+    max: u8,
+}
+
+#[derive(Serialize)]
+struct TotalCount {
+    studies_count: i32,
+    subjects_count: i32,
+}
+
 #[tokio::main]
 pub async fn main() -> ExitCode {
     if let Err(e) = logger::init_logger() {
@@ -201,6 +240,8 @@ async fn main_loop() -> ExitCode {
     let endpoint_service_available: fn() -> BoxFuture<'static, bool> = match CONFIG.endpoint_type {
         EndpointType::Blaze => || blaze::check_availability().boxed(),
         EndpointType::Omop | EndpointType::EucaimApi => || async { true }.boxed(), // TODO health check
+        #[cfg(feature = "query-sql")]
+        EndpointType::EucaimSql => || async { true }.boxed(),
         #[cfg(feature = "query-sql")]
         EndpointType::BlazeAndSql => || blaze::check_availability().boxed(),
         #[cfg(feature = "query-sql")]
@@ -301,7 +342,7 @@ async fn process_task(
                 serde_json::from_slice(&(data.clone()));
             if let Ok(sql_query) = query_maybe {
                 if let Some(pool) = db_pool {
-                    run_sql_query(task, pool, sql_query, query_result_cache).await
+                    run_sql_key_query(task, pool, sql_query, query_result_cache).await
                 } else {
                     Err(FocusError::CannotConnectToDatabase(
                         "SQL task but no connection String in config".into(),
@@ -336,7 +377,7 @@ async fn process_task(
                 serde_json::from_slice(&(data));
             if let Ok(sql_query) = query_maybe {
                 if let Some(pool) = db_pool {
-                    run_sql_query(task, pool, sql_query, query_result_cache).await
+                    run_sql_key_query(task, pool, sql_query, query_result_cache).await
                 } else {
                     Err(FocusError::CannotConnectToDatabase(
                         "SQL task but no connection String in config".into(),
@@ -382,11 +423,128 @@ async fn process_task(
 
             Ok(run_eucaim_api_query(task, ast).await?)
         }
+        #[cfg(feature = "query-sql")]
+        EndpointType::EucaimSql => {
+            let decoded = util::base64_decode(&task.body)?;
+            let intermediate_rep_query: intermediate_rep::IntermediateRepQuery =
+                serde_json::from_slice(&decoded)?;
+            //TODO check that the language is ast
+            let query_decoded = general_purpose::STANDARD
+                .decode(intermediate_rep_query.query)
+                .map_err(FocusError::DecodeError)?;
+            let ast: ast::Ast = serde_json::from_slice(&query_decoded)?;
+
+            let sql_query_maybe = eucaim_sql::build_eucaim_sql_query(ast);
+            if let Ok(sql_query) = sql_query_maybe {
+                if let Some(pool) = db_pool {
+                    run_eucaim_sql_query(task, pool, sql_query, query_result_cache).await
+                } else {
+                    Err(FocusError::CannotConnectToDatabase(
+                        "SQL task but no connection String in config".into(),
+                    ))
+                }
+            } else {
+                warn!(
+                    "Wrong type of query for an SQL only store: {}, {:?}",
+                    CONFIG.endpoint_type, decoded
+                );
+                Ok(beam::beam_result::perm_failed(
+                    CONFIG.beam_app_id_long.clone(),
+                    vec![task.from.clone()],
+                    task.id,
+                    format!(
+                        "Wrong type of query for an SQL only store: {}, {:?}",
+                        CONFIG.endpoint_type, decoded
+                    ),
+                ))
+            }
+        }
     }
 }
 
 #[cfg(feature = "query-sql")]
-async fn run_sql_query(
+async fn run_eucaim_sql_query(
+    task: &TaskRequest<String>,
+    pool: sqlx::Pool<sqlx::Postgres>,
+    sql_query: String,
+    query_result_cache: Arc<Mutex<QueryResultCache>>,
+) -> Result<TaskResult<beam_lib::RawString>, FocusError> {
+    let should_cache =
+        match query_result_cache
+            .lock()
+            .await
+            .get(&(sql_query.clone(), false, Transform::None))
+        {
+            QueryResultCacheOutcome::Cached(result) => {
+                return Ok(beam::beam_result::succeeded(
+                    CONFIG.beam_app_id_long.clone(),
+                    vec![task.from.clone()],
+                    task.id,
+                    BASE64.encode(result),
+                ));
+            }
+            QueryResultCacheOutcome::ShouldCache => true,
+            QueryResultCacheOutcome::DontCache => false,
+        };
+    let result = db::process_sql_task(&pool, &(sql_query)).await;
+    let mut response: EucaimResponse = EucaimResponse {
+        collections: Vec::new(),
+        total: TotalCount {
+            studies_count: 0,
+            subjects_count: 0,
+        },
+        provider: CONFIG.provider.clone().unwrap_or_default(),
+        provider_icon: CONFIG.provider_icon.clone().unwrap_or_default(),
+    };
+    let mut studies_count: i32 = 0;
+    let mut subjects_count: i32 = 0;
+    if let Ok(rows) = result {
+        for row in rows {
+            let collection: Collection = Collection {
+                age_range: AgeRange { min: 0, max: 0 },
+                body_parts: Vec::new(),
+                description: row.get("description"),
+                gender: Vec::new(),
+                id: row.get("id"),
+                modalities: Vec::new(),
+                name: row.get("name"),
+                studies_count: row.get("studies_count"),
+                subjects_count: row.get("subjects_count"),
+            };
+            studies_count += collection.studies_count;
+            subjects_count += collection.subjects_count;
+            response.collections.push(collection);
+        }
+        response.total.studies_count = studies_count;
+        response.total.subjects_count = subjects_count;
+
+        let response_json: String = serde_json::to_string(&response)
+            .map_err(|e| FocusError::SerializationError(e.to_string()))?;
+
+        dbg!(&response_json);
+
+        if should_cache {
+            query_result_cache
+                .lock()
+                .await
+                .insert((sql_query, false, Transform::None), response_json.clone());
+        }
+
+        Ok(beam::beam_result::succeeded(
+            CONFIG.beam_app_id_long.clone(),
+            vec![task.clone().from],
+            task.id,
+            BASE64.encode(serde_json::to_string(&response_json)?),
+        ))
+    } else {
+        Err(FocusError::QueryResultBad(
+            "Query executed but result not readable".into(),
+        ))
+    }
+}
+
+#[cfg(feature = "query-sql")]
+async fn run_sql_key_query(
     task: &TaskRequest<String>,
     pool: sqlx::Pool<sqlx::Postgres>,
     sql_query: db::SqlQuery,
@@ -408,7 +566,7 @@ async fn run_sql_query(
         QueryResultCacheOutcome::ShouldCache => true,
         QueryResultCacheOutcome::DontCache => false,
     };
-    let result = db::process_sql_task(&pool, &(sql_query.payload)).await;
+    let result = db::process_sql_key_task(&pool, &(sql_query.payload)).await;
     if let Ok(rows) = result {
         let rows_json = db::serialize_rows(rows)?;
 
