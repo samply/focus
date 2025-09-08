@@ -237,6 +237,7 @@ impl Config {
             api_key: cli_args.api_key,
             retry_count: cli_args.retry_count,
             endpoint_url: match cli_args.endpoint_type{
+                #[cfg(feature = "query-sql")]
                 EndpointType::Sql|EndpointType::EucaimSql => {Url::parse("http://localhost").unwrap()} // dummy value, never used, only Postgres connection string is used in those cases
                 _ => {
                     cli_args.endpoint_url.unwrap_or_else(|| cli_args.blaze_url.expect("Look, mate, you need to set endpoint-url or blaze-url, can't work without, sry"))
