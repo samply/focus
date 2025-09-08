@@ -148,7 +148,7 @@ struct EucaimResponse {
     collections: Vec<Collection>,
     total: TotalCount,
     provider: String,
-    provider_icon: String
+    provider_icon: String,
 }
 
 #[derive(Serialize)]
@@ -437,7 +437,7 @@ async fn process_task(
             let sql_query_maybe = eucaim_sql::build_eucaim_sql_query(ast);
             if let Ok(sql_query) = sql_query_maybe {
                 if let Some(pool) = db_pool {
-                   run_eucaim_sql_query(task, pool, sql_query, query_result_cache).await
+                    run_eucaim_sql_query(task, pool, sql_query, query_result_cache).await
                 } else {
                     Err(FocusError::CannotConnectToDatabase(
                         "SQL task but no connection String in config".into(),
@@ -458,7 +458,6 @@ async fn process_task(
                     ),
                 ))
             }
-            
         }
     }
 }
@@ -470,62 +469,65 @@ async fn run_eucaim_sql_query(
     sql_query: String,
     query_result_cache: Arc<Mutex<QueryResultCache>>,
 ) -> Result<TaskResult<beam_lib::RawString>, FocusError> {
-    let should_cache = match query_result_cache.lock().await.get(&(
-        sql_query.clone(),
-        false,
-        Transform::None,
-    )) {
-        QueryResultCacheOutcome::Cached(result) => {
-            return Ok(beam::beam_result::succeeded(
-                CONFIG.beam_app_id_long.clone(),
-                vec![task.from.clone()],
-                task.id,
-                BASE64.encode(result),
-            ));
-        }
-        QueryResultCacheOutcome::ShouldCache => true,
-        QueryResultCacheOutcome::DontCache => false,
-    };
+    let should_cache =
+        match query_result_cache
+            .lock()
+            .await
+            .get(&(sql_query.clone(), false, Transform::None))
+        {
+            QueryResultCacheOutcome::Cached(result) => {
+                return Ok(beam::beam_result::succeeded(
+                    CONFIG.beam_app_id_long.clone(),
+                    vec![task.from.clone()],
+                    task.id,
+                    BASE64.encode(result),
+                ));
+            }
+            QueryResultCacheOutcome::ShouldCache => true,
+            QueryResultCacheOutcome::DontCache => false,
+        };
     let result = db::process_sql_task(&pool, &(sql_query)).await;
-    let mut response : EucaimResponse = EucaimResponse { 
-        collections: Vec::new(), 
-        total: TotalCount { studies_count: 0, subjects_count: 0 }, 
-        provider: CONFIG.provider.clone().unwrap_or_default(), 
-        provider_icon: CONFIG.provider_icon.clone().unwrap_or_default() 
+    let mut response: EucaimResponse = EucaimResponse {
+        collections: Vec::new(),
+        total: TotalCount {
+            studies_count: 0,
+            subjects_count: 0,
+        },
+        provider: CONFIG.provider.clone().unwrap_or_default(),
+        provider_icon: CONFIG.provider_icon.clone().unwrap_or_default(),
     };
     let mut studies_count: i32 = 0;
     let mut subjects_count: i32 = 0;
     if let Ok(rows) = result {
-        for row in rows{
-            let collection: Collection = Collection { 
-                age_range: AgeRange { min: 0, max: 0 }, 
-                body_parts: Vec::new(), 
-                description: row.get("description"), 
-                gender: Vec::new(), 
-                id: row.get("id"), 
-                modalities: Vec::new(), 
-                name: row.get("name"), 
-                studies_count: row.get("studies_count"), 
-                subjects_count: row.get("subjects_count"),  
+        for row in rows {
+            let collection: Collection = Collection {
+                age_range: AgeRange { min: 0, max: 0 },
+                body_parts: Vec::new(),
+                description: row.get("description"),
+                gender: Vec::new(),
+                id: row.get("id"),
+                modalities: Vec::new(),
+                name: row.get("name"),
+                studies_count: row.get("studies_count"),
+                subjects_count: row.get("subjects_count"),
             };
-            studies_count += collection.studies_count;     
-            subjects_count += collection.subjects_count;     
+            studies_count += collection.studies_count;
+            subjects_count += collection.subjects_count;
             response.collections.push(collection);
         }
         response.total.studies_count = studies_count;
         response.total.subjects_count = subjects_count;
 
-        let response_json: String =  serde_json::to_string(&response)
-                .map_err(|e| FocusError::SerializationError(e.to_string()))?;
-
+        let response_json: String = serde_json::to_string(&response)
+            .map_err(|e| FocusError::SerializationError(e.to_string()))?;
 
         dbg!(&response_json);
 
         if should_cache {
-            query_result_cache.lock().await.insert(
-                (sql_query, false, Transform::None),
-                response_json.clone(),
-            );
+            query_result_cache
+                .lock()
+                .await
+                .insert((sql_query, false, Transform::None), response_json.clone());
         }
 
         Ok(beam::beam_result::succeeded(
@@ -540,7 +542,6 @@ async fn run_eucaim_sql_query(
         ))
     }
 }
-
 
 #[cfg(feature = "query-sql")]
 async fn run_sql_key_query(

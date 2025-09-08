@@ -22,7 +22,7 @@ pub enum EndpointType {
     Omop,      // endpoint is URL of a query mediator translating AST to provider specific SQL
     EucaimApi, // endpoint is URL of custom API for querying EUCAIM provider
     #[cfg(feature = "query-sql")]
-    EucaimSql, 
+    EucaimSql,
     #[cfg(feature = "query-sql")]
     BlazeAndSql,
     #[cfg(feature = "query-sql")]

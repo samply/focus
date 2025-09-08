@@ -1,4 +1,4 @@
-use tracing::{trace, error};
+use tracing::{error, trace};
 
 use once_cell::sync::Lazy;
 use std::collections::HashMap;

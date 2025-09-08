@@ -54,7 +54,6 @@ pub async fn process_sql_key_task(pool: &PgPool, key: &str) -> Result<Vec<PgRow>
 }
 
 pub async fn process_sql_task(pool: &PgPool, query: &str) -> Result<Vec<PgRow>, FocusError> {
-    
     debug!("Executing query {}", &query);
     run_query(pool, query).await
 }
