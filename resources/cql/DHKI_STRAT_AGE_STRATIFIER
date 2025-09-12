@@ -1,0 +1,2 @@
+define AgeClass:
+ToString((AgeInYears() div 10) * 10)
