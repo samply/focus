@@ -7,11 +7,11 @@ on:
 
 jobs:
   build-with-samply:
-    uses: samply/github-workflows/.github/workflows/rust.yml@main
+    uses: samply/github-workflows/.github/workflows/rust.yml@faster
     with:
       image-prefix: "samply/"
       components: '[ "focus" ]'
-      #architectures: '[ "amd64", "arm64" ]'
+      architectures: '[ "amd64", "arm64" ]'
       #profile: debug
       test-via-script: false
       features: '[ "bbmri", "dktk", "query-sql", "" ]'
