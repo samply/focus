@@ -1,0 +1,4 @@
+define function SampleType(specimen FHIR.Specimen):
+specimen.type.coding.where(system = 'https://www.cancercoreeurope.eu/fhir/core/CodeSystem/SampleMaterialType').code.first()
+
+define Specimen:

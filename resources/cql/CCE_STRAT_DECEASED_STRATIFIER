@@ -1,0 +1,4 @@
+define PatientDeceased:
+First (from [Observation: Code '75186-7' from loinc] O return O.value.coding.where(system = 'https://www.cancercoreeurope.eu/fhir/core/CodeSystem/VitalstatusCS').code.first())
+define Deceased:
+if (PatientDeceased is null) then 'unknown' else PatientDeceased
