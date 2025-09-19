@@ -1,3 +1,11 @@
+# Samply.Focus v0.15.2 2025-09-19
+
+## Minor changes
+
+* Update organoid dashboard internal query
+* Add DHKI age stratifier
+* Disallow CQL in BBMRI
+
 # Samply.Focus v0.15.1 2025-08-14
 
 ## Minor changes
