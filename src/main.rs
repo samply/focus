@@ -61,6 +61,7 @@ type BeamResult = TaskResult<beam_lib::RawString>;
 #[derive(Deserialize, Debug)]
 #[serde(tag = "lang", rename_all = "lowercase")]
 enum Language {
+    #[cfg(not(feature = "bbmri"))]
     Cql(CqlQuery),
     Ast(AstQuery),
 }
@@ -315,6 +316,7 @@ async fn process_task(
             let mut generated_from_ast: bool = false;
             let data = base64_decode(&task.body)?;
             let query: CqlQuery = match serde_json::from_slice::<Language>(&data)? {
+                #[cfg(not(feature = "bbmri"))]
                 Language::Cql(cql_query) => cql_query,
                 Language::Ast(ast_query) => {
                     generated_from_ast = true;
@@ -350,6 +352,7 @@ async fn process_task(
                 }
             } else {
                 let query: CqlQuery = match serde_json::from_slice::<Language>(&data)? {
+                    #[cfg(not(feature = "bbmri"))]
                     Language::Cql(cql_query) => cql_query,
                     Language::Ast(ast_query) => {
                         generated_from_ast = true;
