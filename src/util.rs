@@ -197,8 +197,11 @@ pub fn obfuscate_counts_mr(
                     rounding_step,
                 )?;
             }
-            _ => {
-                warn!("Focus is not aware of {} type of stratifier, therefore it will not obfuscate the values.", &g.code.text[..])
+            strat => {
+                warn!("Focus is not aware of {strat} type of stratifier, therefore it will not obfuscate the values.");
+                return Err(FocusError::CQLTemperedWithError(
+                    "Unknown stratifier".to_string(),
+                ));
             }
         }
     }
