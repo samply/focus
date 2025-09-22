@@ -14,7 +14,7 @@ jobs:
       #architectures: '[ "amd64", "arm64" ]'
       #profile: debug
       test-via-script: false
-      features: '[ "bbmri", "dktk", "query-sql", "" ]'
+      features: '[ "bbmri", "dktk", "query-sql", "nngm", "" ]'
       push-to: ${{ (github.ref_protected == true || github.event_name == 'workflow_dispatch') && 'dockerhub' || 'ghcr' }}
       cargo-fmt-check: true
     secrets:
