@@ -1,10 +1,18 @@
+# Samply.Focus v0.15.3 2025-09-22
+
+* Security fix: Reject unknown stratifiers in obfuscation
+
 # Samply.Focus v0.15.2 2025-09-19
+
+## Major changes
+
+* Support SQL translation for EUCAIM's CDM
 
 ## Minor changes
 
 * Update organoid dashboard internal query
 * Add DHKI age stratifier
-* Disallow CQL in BBMRI
+* Security fix: Disallow CQL as input for BBMRI queries; only allow AST queries
 
 # Samply.Focus v0.15.1 2025-08-14
 
