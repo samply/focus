@@ -71,6 +71,8 @@ pub enum FocusError {
     QueryResultBad(String),
     #[error("Query not allowed: {0}")]
     QueryNotAllowed(String),
+    #[error("CQL lang not enabled")]
+    CqlLangNotEnabled,
     #[cfg(feature = "query-sql")]
     #[error("Error executing SQL query: {0}")]
     ErrorExecutingSqlQuery(sqlx::Error),
