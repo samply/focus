@@ -356,7 +356,10 @@ pub fn process(
                 // Only concatenate operator if it's not the last element
                 if index < operation.children.len() - 1 {
                     retrieval_cond += operator_str;
-                    if !filter_cond.is_empty() {
+                    if !filter_cond.is_empty()
+                        && !filter_cond.ends_with(" or ")
+                        && !filter_cond.ends_with(" and ")
+                    {
                         filter_cond += operator_str;
                     }
                 }
