@@ -162,6 +162,12 @@ impl Project for Dktk {
                 vec!["verlauftumorstatusfernmetastasencs"],
             ),
             ("vitalStatus", vec!["vitalstatuscs"]),
+            ("TNM-T", vec!["loinc", "TNMTCS"]),
+            ("TNM-N", vec!["loinc", "TNMNCS"]),
+            ("TNM-M", vec!["loinc", "TNMMCS"]),
+            ("TNM-m-Symbol", vec!["loinc", "TNMmSymbolCS"]),
+            ("TNM-y-Symbol", vec!["loinc", "TNMySymbolCS"]),
+            ("TNM-r-Symbol", vec!["loinc", "TNMrSymbolCS"]),
         ]);
     }
 
@@ -303,14 +309,14 @@ impl Project for Dktk {
         (("sample_kind", CriterionRole::Query), "exists [Specimen: Code '{{C}}' from {{A1}}]"),
         (("sample_kind", CriterionRole::Filter), "(S.type.coding.code contains '{{C}}')"),
         (("retrieveSpecimenByType", CriterionRole::Query), "(S.type.coding.code contains '{{C}}')"),
-        (
-            ("TNMc", CriterionRole::Query),
-            "exists from [Observation: Code '21908-9' from {{A1}}] O\nwhere O.component.where(code.coding contains Code '{{K}}' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}",
-          ),
-        (
-            ("TNMp", CriterionRole::Query),
-            "exists from [Observation: Code '21902-2' from {{A1}}] O\nwhere O.component.where(code.coding contains Code '{{K}}' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}",
-          ),
+
+        (("TNM-T", CriterionRole::Query), "(exists from [Observation: Code '21908-9' from {{A1}}] O where O.component.where(code.coding contains Code '21905-5' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}) or\n(exists from [Observation: Code '21902-2' from {{A1}}] O where O.component.where(code.coding contains Code '21905-5' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}) or\n(exists from [Observation: Code '21908-9' from {{A1}}] O where O.component.where(code.coding contains Code '21899-0' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}) or\n(exists from [Observation: Code '21902-2' from {{A1}}] O where O.component.where(code.coding contains Code '21899-0' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}})"),
+        (("TNM-N", CriterionRole::Query), "(exists from [Observation: Code '21908-9' from {{A1}}] O where O.component.where(code.coding contains Code '21906-3' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}) or\n(exists from [Observation: Code '21902-2' from {{A1}}] O where O.component.where(code.coding contains Code '21906-3' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}) or\n(exists from [Observation: Code '21908-9' from {{A1}}] O where O.component.where(code.coding contains Code '21900-6' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}) or\n(exists from [Observation: Code '21902-2' from {{A1}}] O where O.component.where(code.coding contains Code '21900-6' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}})"),
+        (("TNM-M", CriterionRole::Query), "(exists from [Observation: Code '21908-9' from {{A1}}] O where O.component.where(code.coding contains Code '21907-1' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}) or\n(exists from [Observation: Code '21902-2' from {{A1}}] O where O.component.where(code.coding contains Code '21907-1' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}) or\n(exists from [Observation: Code '21908-9' from {{A1}}] O where O.component.where(code.coding contains Code '21901-4' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}) or\n(exists from [Observation: Code '21902-2' from {{A1}}] O where O.component.where(code.coding contains Code '21901-4' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}})"),
+        (("TNM-m-Symbol", CriterionRole::Query), "(exists from [Observation: Code '21908-9' from {{A1}}] O where O.component.where(code.coding contains Code '42030-7' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}) or\n(exists from [Observation: Code '21902-2' from {{A1}}] O where O.component.where(code.coding contains Code '42030-7' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}})"),
+        (("TNM-y-Symbol", CriterionRole::Query), "(exists from [Observation: Code '21908-9' from {{A1}}] O where O.component.where(code.coding contains Code '59479-6' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}) or\n(exists from [Observation: Code '21902-2' from {{A1}}] O where O.component.where(code.coding contains Code '59479-6' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}})"),
+        (("TNM-r-Symbol", CriterionRole::Query), "(exists from [Observation: Code '21908-9' from {{A1}}] O where O.component.where(code.coding contains Code '21983-2' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}) or\n(exists from [Observation: Code '21902-2' from {{A1}}] O where O.component.where(code.coding contains Code '21983-2' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}})"),
+
         (
             ("Organization", CriterionRole::Query),
             "Patient.managingOrganization.reference = \"Organization Ref\"('Klinisches Krebsregister/ITM')",
