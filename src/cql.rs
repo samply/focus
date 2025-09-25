@@ -502,15 +502,49 @@ mod test {
         );
     }
 
+    const DIAGNOSIS_C30: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"key":"diagnosis","operand":"OR","children":[{"operand":"OR","key":"diagnosis","children":[{"key":"diagnosis","type":"EQUALS","system":"http://fhir.de/CodeSystem/dimdi/icd-10-gm","value":"C30"},{"key":"diagnosis","type":"EQUALS","system":"http://fhir.de/CodeSystem/dimdi/icd-10-gm","value":"C30.1"},{"key":"diagnosis","type":"EQUALS","system":"http://fhir.de/CodeSystem/dimdi/icd-10-gm","value":"C30.0"}]}]}]}]},"id":"54bd1d51-aa35-4153-b49e-56753774fa2d"}"#;
+
+    const YEAR_OF_DIAGNOSIS_2000_TO_2010: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"key":"year_of_diagnosis","operand":"OR","children":[{"key":"year_of_diagnosis","type":"BETWEEN","system":"","value":{"min":2000,"max":2010}}]}]}]},"id":"c9024169-dfcf-4915-ac06-1edd090054f4"}"#;
+    
+    const BODY_SITE_LEFT: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"key":"bodySite","operand":"OR","children":[{"key":"bodySite","type":"EQUALS","system":"http://dktk.dkfz.de/fhir/onco/core/CodeSystem/SeitenlokalisationCS","value":"L"}]}]}]},"id":"c3481b0c-4807-4d54-b7c9-498426f165c2"}"#;
+
+    const GRADING_LOW_GRADE: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"key":"grading","operand":"OR","children":[{"key":"grading","type":"EQUALS","system":"http://dktk.dkfz.de/fhir/onco/core/CodeSystem/GradingCS","value":"L"}]}]}]},"id":"34fbeac2-6685-4e48-b531-372d8aa8589f"}"#;
+
+    const TNM_T_2: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"key":"TNM-T","operand":"OR","children":[{"key":"TNM-T","type":"EQUALS","system":"","value":"2"}]}]}]},"id":"3cc4f25a-e086-4a09-afa1-b07ae77d7144"}"#;
+
+    const SAMPLE_KIND_FFPE: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"key":"sample_kind","operand":"OR","children":[{"key":"Gewebe FFPE","operand":"AND","children":[{"operand":"OR","children":[{"key":"sample_kind","type":"EQUALS","system":"","value":"tumor-tissue-ffpe"},{"key":"histology","type":"EQUALS","system":"","value":"tumor-tissue-ffpe"},{"key":"sample_kind","type":"EQUALS","system":"","value":"tissue-ffpe"},{"key":"sample_kind","type":"EQUALS","system":"","value":"normal-tissue-ffpe"},{"key":"sample_kind","type":"EQUALS","system":"","value":"other-tissue-ffpe"}]}]}]}]}]},"id":"bd5112af-e712-4091-9c94-892c4e667a29"}"#;
+
     #[test]
     #[cfg(feature = "dktk")]
     fn test_dktk() {
-        //use crate::projects::{self, dktk::Dktk};
+        pretty_assertions::assert_eq!(
+            generate_cql(serde_json::from_str(DIAGNOSIS_C30).unwrap()).unwrap(),
+            include_str!("../resources/test/result_diagnosis_c30.cql").to_string()
+        );
 
-        // TODO Implement DKTK CQL generation and create files with results
+        pretty_assertions::assert_eq!(
+            generate_cql(serde_json::from_str(YEAR_OF_DIAGNOSIS_2000_TO_2010).unwrap()).unwrap(),
+            include_str!("../resources/test/result_year_of_diagnosis_2000_to_2010.cql").to_string()
+        );
 
-        //pretty_assertions::assert_eq!(generate_cql(serde_json::from_str(AST).unwrap(), Bbmri).unwrap(), include_str!("../resources/test/result_ast.cql").to_string());
+        pretty_assertions::assert_eq!(
+            generate_cql(serde_json::from_str(BODY_SITE_LEFT).unwrap()).unwrap(),
+            include_str!("../resources/test/result_body_site_left.cql").to_string()
+        );
 
-        //pretty_assertions::assert_eq!(generate_cql(serde_json::from_str(ALL_GLIOMS).unwrap(), Bbmri).unwrap(), include_str!("../resources/test/result_all_glioms.cql").to_string());
+        pretty_assertions::assert_eq!(
+            generate_cql(serde_json::from_str(GRADING_LOW_GRADE).unwrap()).unwrap(),
+            include_str!("../resources/test/result_grading_low_grade.cql").to_string()
+        );
+
+        pretty_assertions::assert_eq!(
+            generate_cql(serde_json::from_str(TNM_T_2).unwrap()).unwrap(),
+            include_str!("../resources/test/result_tnm_t_2.cql").to_string()
+        );
+
+        pretty_assertions::assert_eq!(
+            generate_cql(serde_json::from_str(SAMPLE_KIND_FFPE).unwrap()).unwrap(),
+            include_str!("../resources/test/result_sample_kind_ffpe.cql").to_string()
+        );
     }
 }
