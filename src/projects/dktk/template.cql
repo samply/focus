@@ -44,11 +44,5 @@ procedure.category.coding.where(system = 'http://dktk.dkfz.de/fhir/onco/core/Cod
 define MedicationStatement:
 if InInitialPopulation then [MedicationStatement] else {} as List <MedicationStatement>
 
-define Histo:
-if InInitialPopulation then [Observation] else {} as List <Observation>
-
-define function Histology(histo FHIR.Observation):
-if histo.code.coding.where(code = '59847-4').code.first() is null then 0 else 1
-
 define InInitialPopulation:
 {{retrieval_criteria}}
