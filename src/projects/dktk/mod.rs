@@ -96,20 +96,6 @@ impl Project for Dktk {
                 "http://dktk.dkfz.de/fhir/onco/core/CodeSystem/TNMmSymbolCS",
             ),
             ("molecularMarker", "http://www.genenames.org"),
-            ("BBMRI_icd10", "http://hl7.org/fhir/sid/icd-10"),
-            ("BBMRI_icd10gm", "http://fhir.de/CodeSystem/dimdi/icd-10-gm"),
-            (
-                "BBMRI_SampleMaterialType",
-                "https://fhir.bbmri.de/CodeSystem/SampleMaterialType",
-            ),
-            (
-                "BBMRI_StorageTemperature",
-                "https://fhir.bbmri.de/CodeSystem/StorageTemperature",
-            ),
-            (
-                "BBMRI_SmokingStatus",
-                "http://hl7.org/fhir/uv/ips/ValueSet/current-smoking-status-uv-ips",
-            ),
         ])
     }
 
