@@ -133,7 +133,8 @@ pub fn process(
                 let observation_code_option = OBSERVATION_LOINC_CODE.get(&condition_key_trans);
 
                 if let Some(observation_code) = observation_code_option {
-                    condition_string = condition_string.replace("{{K}}", observation_code);
+                    condition_string = condition_string
+                        .replace("{{K}}", escape((**observation_code).to_string()).as_str());
                 } else {
                     return Err(FocusError::AstUnknownOption(
                         condition_key_trans.to_string(),
@@ -176,9 +177,9 @@ pub fn process(
                             let date_str_min = format!("@{}", datetime_min.format("%Y-%m-%d"));
 
                             condition_string =
-                                condition_string.replace("{{D1}}", date_str_min.as_str());
-                            filter_string = filter_string.replace("{{D1}}", date_str_min.as_str());
-                            // no condition needed, "" stays ""
+                                condition_string.replace("{{D1}}", date_str_min.as_str()); // no CQL injection possible here
+                            filter_string = filter_string.replace("{{D1}}", date_str_min.as_str()); // no CQL injection possible here
+                                                                                                    // no condition needed, "" stays ""
 
                             let datetime_str_max = date_range.max.as_str();
                             let datetime_max_maybe: Result<DateTime<Utc>, _> =
@@ -204,20 +205,22 @@ pub fn process(
                             let date_str_max = format!("@{}", datetime_max.format("%Y-%m-%d"));
 
                             condition_string =
-                                condition_string.replace("{{D2}}", date_str_max.as_str());
+                                condition_string.replace("{{D2}}", date_str_max.as_str()); // no CQL injection possible here
                             filter_string = filter_string.replace("{{D2}}", date_str_max.as_str());
+                            // no CQL injection possible here
 
                             // no condition needed, "" stays ""
                         }
                         ast::ConditionValue::NumRange(num_range) => {
                             condition_string = condition_string
-                                .replace("{{D1}}", num_range.min.to_string().as_str());
+                                .replace("{{D1}}", num_range.min.to_string().as_str()); // no CQL injection possible here
                             condition_string = condition_string
-                                .replace("{{D2}}", num_range.max.to_string().as_str());
+                                .replace("{{D2}}", num_range.max.to_string().as_str()); // no CQL injection possible here
                             filter_string =
-                                filter_string.replace("{{D1}}", num_range.min.to_string().as_str()); // no condition needed, "" stays ""
+                                filter_string.replace("{{D1}}", num_range.min.to_string().as_str()); // no condition needed, "" stays ""; no CQL injection possible here
                             filter_string =
                                 filter_string.replace("{{D2}}", num_range.max.to_string().as_str());
+                            // no CQL injection possible here
 
                             // no condition needed, "" stays ""
                         }
@@ -252,13 +255,13 @@ pub fn process(
                                     + "("
                                     + condition_string.as_str()
                                     + ")";
-                                condition_humongous_string =
-                                    condition_humongous_string.replace("{{C}}", string.as_str());
+                                condition_humongous_string = condition_humongous_string
+                                    .replace("{{C}}", escape((**string).to_string()).as_str());
 
                                 filter_humongous_string =
                                     filter_humongous_string + "(" + filter_string.as_str() + ")";
-                                filter_humongous_string =
-                                    filter_humongous_string.replace("{{C}}", string.as_str());
+                                filter_humongous_string = filter_humongous_string
+                                    .replace("{{C}}", escape((**string).to_string()).as_str());
 
                                 // Only concatenate operator if it's not the last element
                                 if index < string_array_with_workarounds.len() - 1 {
@@ -297,13 +300,13 @@ pub fn process(
                         for (index, string) in string_array_with_workarounds.iter().enumerate() {
                             condition_humongous_string =
                                 condition_humongous_string + "(" + condition_string.as_str() + ")";
-                            condition_humongous_string =
-                                condition_humongous_string.replace("{{C}}", string.as_str());
+                            condition_humongous_string = condition_humongous_string
+                                .replace("{{C}}", escape((**string).to_string()).as_str());
 
                             filter_humongous_string =
                                 filter_humongous_string + "(" + filter_string.as_str() + ")";
-                            filter_humongous_string =
-                                filter_humongous_string.replace("{{C}}", string.as_str());
+                            filter_humongous_string = filter_humongous_string
+                                .replace("{{C}}", escape((**string).to_string()).as_str());
 
                             // Only concatenate operator if it's not the last element
                             if index < string_array_with_workarounds.len() - 1 {
@@ -385,6 +388,16 @@ pub fn process(
     Ok(())
 }
 
+fn escape(value: String) -> String {
+    value
+        .replace("\\", "\\\\")
+        .replace("\"", "\\\"")
+        .replace("\'", "\\\'")
+        .replace("\r", "\\r")
+        .replace("\t", "\\t")
+        .replace("\n", "\\n")
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -415,9 +428,22 @@ mod test {
 
     const VAFAN: &str = r#"{"ast":{"nodeType":"branch","operand":"OR","children":[{"nodeType":"branch","operand":"AND","children":[]}]},"id":"0b29f6d1-4e6a-4679-9212-3327e498b304__search__0b29f6d1-4e6a-4679-9212-3327e498b304"}"#;
 
+    const QUOTE: &str = r#"{"ast": {"operand":"OR","children":[{"operand":"AND","children":[{"operand":"OR","children":[{"key":"diagnosis","type":"EQUALS","system":"http://fhir.de/CodeSystem/dimdi/icd-10-gm","value":"C61\"'\\\n\r\t"}]},{"operand":"OR","children":[{"key":"gender","type":"EQUALS","system":"","value":"male"}]}]}]}, "id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
+
     #[test]
     fn test_common() {
         // maybe nothing here
+    }
+
+    #[test]
+    #[cfg(feature = "bbmri")]
+    fn test_bbmri_quote() {
+        use crate::projects::{self, bbmri::Bbmri};
+
+        pretty_assertions::assert_eq!(
+            generate_cql(serde_json::from_str(QUOTE).unwrap()).unwrap(),
+            include_str!("../resources/test/result_quote.cql").to_string()
+        );
     }
 
     #[test]
