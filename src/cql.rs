@@ -444,6 +444,7 @@ mod test {
             generate_cql(serde_json::from_str(QUOTE).unwrap()).unwrap(),
             include_str!("../resources/test/result_quote.cql").to_string()
         );
+
     }
 
     #[test]
