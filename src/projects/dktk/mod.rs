@@ -189,158 +189,197 @@ impl Project for Dktk {
         let observation = "exists from [Observation: Code '{{K}}' from {{A1}}] O\nwhere O.value.coding.code contains '{{C}}'";
 
         map.extend([
-            (("gender", CriterionRole::Query), "Patient.gender = '{{C}}'"),
-        (("pseudo_projects", CriterionRole::Query),"  exists ( Patient.extension E where E.url = 'http://dktk.dkfz.de/fhir/projects/{{C}}')",),
-
-        (("diagnosis", CriterionRole::Query), "exists [Condition: Code '{{C}}' from {{A1}}]"),
-        (
-            ("bodySite", CriterionRole::Query),
-            "exists from [Condition] C\nwhere C.bodySite.coding contains Code '{{C}}' from {{A1}}",
-          ),
-          // TODO: Should we revert to first expression now that https://github.com/samply/blaze/issues/808 is solved?
-          // ("conditionLocalization", "exists from [Condition] C\nwhere C.bodySite.coding contains Code '{{C}}' from {{A1}}"),
-        (
-            ("conditionLocalization", CriterionRole::Query),
-            "exists from [Condition] C\nwhere C.bodySite.coding.code contains '{{C}}'",
-          ),
-        (
-            ("year_of_diagnosis", CriterionRole::Query),
-            "exists from [Condition] C\nwhere year from C.onset between {{D1}} and {{D2}}",
-          ),
-        (
-            ("conditionLowerThanDate", CriterionRole::Query),
-            "exists from [Condition] C\nwhere year from C.onset <= {{D2}}",
-          ),
-        (
-            ("conditionGreaterThanDate", CriterionRole::Query),
-            "exists from [Condition] C\nwhere year from C.onset >= {{D1}}",
-          ),
-        (
-            ("age_at_diagnosis", CriterionRole::Query),
-            "exists [Condition] C\nwhere AgeInYearsAt(FHIRHelpers.ToDateTime(C.onset)) between {{D1}} and {{D2}}",
-          ),
-        (
-            ("conditionLowerThanAge", CriterionRole::Query),
-            "exists [Condition] C\nwhere AgeInYearsAt(FHIRHelpers.ToDateTime(C.onset)) <= {{D2}}",
-          ),
-        (
-            ("conditionGreaterThanAge", CriterionRole::Query),
-            "exists [Condition] C\nwhere AgeInYearsAt(FHIRHelpers.ToDateTime(C.onset)) >= {{D1}}",
-          ),
-        (
-            ("year_of_primary_diagnosis", CriterionRole::Query),
-            "year from PrimaryDiagnosis.onset between {{D1}} and {{D2}}",
-          ),
-        (
-            ("primaryConditionLowerThanDate", CriterionRole::Query),
-            "year from PrimaryDiagnosis.onset <= {{D2}}",
-          ),
-        (
-            ("primaryConditionGreaterThanDate", CriterionRole::Query),
-            "year from PrimaryDiagnosis.onset >= {{D1}}",
-          ),
-        (
-            ("age_at_primary_diagnosis", CriterionRole::Query),
-            "AgeInYearsAt(FHIRHelpers.ToDateTime(PrimaryDiagnosis.onset)) between {{D1}} and {{D2}}",
-          ),
-        (
-            ("primaryConditionLowerThanAge", CriterionRole::Query),
-            "AgeInYearsAt(FHIRHelpers.ToDateTime(PrimaryDiagnosis.onset)) <= {{D2}}",
-          ),
-        (
-            ("primaryConditionGreaterThanAge", CriterionRole::Query),
-            "AgeInYearsAt(FHIRHelpers.ToDateTime(PrimaryDiagnosis.onset)) >= {{D1}}",
-          ),
-        (
-            ("grading", CriterionRole::Query),
-            observation,
-          ),
-
-                  (
-            ("morphology", CriterionRole::Query),
-            observation,
-          ),
-                            (
-            ("responseOverTime", CriterionRole::Query),
-            observation,
-          ),
-                                      (
-            ("localRegionalRecurrence", CriterionRole::Query),
-            observation,
-          ),                            (
-            ("lymphNodeRecurrence", CriterionRole::Query),
-            observation,
-          ),                            (
-            ("distantMetastases", CriterionRole::Query),
-            observation,
-          ),
- (
-            ("vitalStatus", CriterionRole::Query),
-            observation,
-          ),
-        (
-            ("metastases_present", CriterionRole::Query),
-            "exists from [Observation: Code '21907-1' from {{A1}}] O\nwhere O.value.coding.code contains '{{C}}'",
-          ),
-        (
-            ("localization_metastases", CriterionRole::Query),
-            "exists from [Observation: Code '21907-1' from {{A1}}] O\nwhere O.bodySite.coding.code contains '{{C}}'",
-          ),
-        (
-            ("observationMolecularMarkerName", CriterionRole::Query),
-            "exists from [Observation: Code '69548-6' from {{A1}}] O\nwhere O.component.where(code.coding contains Code '{{K}}' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}",
-          ),
-        (
-            ("observationMolecularMarkerAminoacidchange", CriterionRole::Query),
-            "exists from [Observation: Code '69548-6' from {{A1}}] O\nwhere O.component.where(code.coding contains Code '{{K}}' from {{A1}}).value = '{{C}}'",
-          ),
-        (
-            ("observationMolecularMarkerDNAchange", CriterionRole::Query),
-            "exists from [Observation: Code '69548-6' from {{A1}}] O\nwhere O.component.where(code.coding contains Code '{{K}}' from {{A1}}).value = '{{C}}'",
-          ),
-        (
-            ("observationMolecularMarkerSeqRefNCBI", CriterionRole::Query),
-            "exists from [Observation: Code '69548-6' from {{A1}}] O\nwhere O.component.where(code.coding contains Code '{{K}}' from {{A1}}).value = '{{C}}'",
-          ),
-        (
-            ("observationMolecularMarkerEnsemblID", CriterionRole::Query),
-            "exists from [Observation: Code '69548-6' from {{A1}}] O\nwhere O.component.where(code.coding contains Code '{{K}}' from {{A1}}).value = '{{C}}'",
-          ),
-        (("procedure", CriterionRole::Query), "exists [Procedure: category in Code '{{C}}' from {{A1}}]"),
-
-                  (
-            ("medicationStatement", CriterionRole::Query),
-            "exists [MedicationStatement: category in Code '{{C}}' from {{A1}}]",
-          ),
-        (
-            ("local_assessment_residual_tumor", CriterionRole::Query),
-            "exists from [Procedure: category in Code 'OP' from {{A1}}] P\nwhere P.outcome.coding.code contains '{{C}}'",
-          ),
-        (("sample_kind", CriterionRole::Query), "exists [Specimen: Code '{{C}}' from {{A1}}]"),
-        (("sample_kind", CriterionRole::Filter), "(S.type.coding.code contains '{{C}}')"),
-        (("retrieveSpecimenByType", CriterionRole::Query), "(S.type.coding.code contains '{{C}}')"),
-
-        (("TNM-T", CriterionRole::Query), "(exists from [Observation: Code '21908-9' from {{A1}}] O where O.component.where(code.coding contains Code '21905-5' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}) or\n(exists from [Observation: Code '21902-2' from {{A1}}] O where O.component.where(code.coding contains Code '21905-5' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}) or\n(exists from [Observation: Code '21908-9' from {{A1}}] O where O.component.where(code.coding contains Code '21899-0' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}) or\n(exists from [Observation: Code '21902-2' from {{A1}}] O where O.component.where(code.coding contains Code '21899-0' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}})"),
-        (("TNM-N", CriterionRole::Query), "(exists from [Observation: Code '21908-9' from {{A1}}] O where O.component.where(code.coding contains Code '21906-3' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}) or\n(exists from [Observation: Code '21902-2' from {{A1}}] O where O.component.where(code.coding contains Code '21906-3' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}) or\n(exists from [Observation: Code '21908-9' from {{A1}}] O where O.component.where(code.coding contains Code '21900-6' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}) or\n(exists from [Observation: Code '21902-2' from {{A1}}] O where O.component.where(code.coding contains Code '21900-6' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}})"),
-        (("TNM-M", CriterionRole::Query), "(exists from [Observation: Code '21908-9' from {{A1}}] O where O.component.where(code.coding contains Code '21907-1' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}) or\n(exists from [Observation: Code '21902-2' from {{A1}}] O where O.component.where(code.coding contains Code '21907-1' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}) or\n(exists from [Observation: Code '21908-9' from {{A1}}] O where O.component.where(code.coding contains Code '21901-4' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}) or\n(exists from [Observation: Code '21902-2' from {{A1}}] O where O.component.where(code.coding contains Code '21901-4' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}})"),
-        (("TNM-m-Symbol", CriterionRole::Query), "(exists from [Observation: Code '21908-9' from {{A1}}] O where O.component.where(code.coding contains Code '42030-7' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}) or\n(exists from [Observation: Code '21902-2' from {{A1}}] O where O.component.where(code.coding contains Code '42030-7' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}})"),
-        (("TNM-y-Symbol", CriterionRole::Query), "(exists from [Observation: Code '21908-9' from {{A1}}] O where O.component.where(code.coding contains Code '59479-6' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}) or\n(exists from [Observation: Code '21902-2' from {{A1}}] O where O.component.where(code.coding contains Code '59479-6' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}})"),
-        (("TNM-r-Symbol", CriterionRole::Query), "(exists from [Observation: Code '21908-9' from {{A1}}] O where O.component.where(code.coding contains Code '21983-2' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}) or\n(exists from [Observation: Code '21902-2' from {{A1}}] O where O.component.where(code.coding contains Code '21983-2' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}})"),
-
-        (
-            ("Organization", CriterionRole::Query),
-            "Patient.managingOrganization.reference = \"Organization Ref\"('Klinisches Krebsregister/ITM')",
-          ),
-        (
-            ("department", CriterionRole::Query),
-            "exists from [Encounter] I\nwhere I.identifier.value = '{{C}}' ",
-          ),
-        (
-            ("uiccstadium", CriterionRole::Query),
-            "(exists ([Observation: Code '21908-9' from loinc] O where O.value.coding.code contains '{{C}}')) or (exists ([Observation: Code '21902-2' from loinc] O where O.value.coding.code contains '{{C}}'))",
-          ),
-        (("histology", CriterionRole::Query), "exists from [Observation: Code '59847-4' from loinc] O\n"),
-                ])
+            (
+                ("gender", CriterionRole::Query),
+                "Patient.gender = '{{C}}'",
+            ),
+            (
+                ("pseudo_projects", CriterionRole::Query),
+                "exists ( Patient.extension E where E.url = 'http://dktk.dkfz.de/fhir/projects/{{C}}')",
+            ),
+            (
+                ("diagnosis", CriterionRole::Query),
+                "exists [Condition: Code '{{C}}' from {{A1}}]",
+            ),
+            (
+                ("bodySite", CriterionRole::Query),
+                "exists from [Condition] C\nwhere C.bodySite.coding contains Code '{{C}}' from {{A1}}",
+            ),
+            // TODO: Should we revert to first expression now that https://github.com/samply/blaze/issues/808 is solved?
+            // ("conditionLocalization", "exists from [Condition] C\nwhere C.bodySite.coding contains Code '{{C}}' from {{A1}}"),
+            (
+                ("conditionLocalization", CriterionRole::Query),
+                "exists from [Condition] C\nwhere C.bodySite.coding.code contains '{{C}}'",
+            ),
+            (
+                ("year_of_diagnosis", CriterionRole::Query),
+                "exists from [Condition] C\nwhere year from C.onset between {{D1}} and {{D2}}",
+            ),
+            (
+                ("conditionLowerThanDate", CriterionRole::Query),
+                "exists from [Condition] C\nwhere year from C.onset <= {{D2}}",
+            ),
+            (
+                ("conditionGreaterThanDate", CriterionRole::Query),
+                "exists from [Condition] C\nwhere year from C.onset >= {{D1}}",
+            ),
+            (
+                ("age_at_diagnosis", CriterionRole::Query),
+                "exists [Condition] C\nwhere AgeInYearsAt(FHIRHelpers.ToDateTime(C.onset)) between {{D1}} and {{D2}}",
+            ),
+            (
+                ("conditionLowerThanAge", CriterionRole::Query),
+                "exists [Condition] C\nwhere AgeInYearsAt(FHIRHelpers.ToDateTime(C.onset)) <= {{D2}}",
+            ),
+            (
+                ("conditionGreaterThanAge", CriterionRole::Query),
+                "exists [Condition] C\nwhere AgeInYearsAt(FHIRHelpers.ToDateTime(C.onset)) >= {{D1}}",
+            ),
+            (
+                ("year_of_primary_diagnosis", CriterionRole::Query),
+                "year from PrimaryDiagnosis.onset between {{D1}} and {{D2}}",
+            ),
+            (
+                ("primaryConditionLowerThanDate", CriterionRole::Query),
+                "year from PrimaryDiagnosis.onset <= {{D2}}",
+            ),
+            (
+                ("primaryConditionGreaterThanDate", CriterionRole::Query),
+                "year from PrimaryDiagnosis.onset >= {{D1}}",
+            ),
+            (
+                ("age_at_primary_diagnosis", CriterionRole::Query),
+                "AgeInYearsAt(FHIRHelpers.ToDateTime(PrimaryDiagnosis.onset)) between {{D1}} and {{D2}}",
+            ),
+            (
+                ("primaryConditionLowerThanAge", CriterionRole::Query),
+                "AgeInYearsAt(FHIRHelpers.ToDateTime(PrimaryDiagnosis.onset)) <= {{D2}}",
+            ),
+            (
+                ("primaryConditionGreaterThanAge", CriterionRole::Query),
+                "AgeInYearsAt(FHIRHelpers.ToDateTime(PrimaryDiagnosis.onset)) >= {{D1}}",
+            ),
+            (
+                ("grading", CriterionRole::Query),
+                observation,
+            ),
+            (
+                ("morphology", CriterionRole::Query),
+                observation,
+            ),
+            (
+                ("responseOverTime", CriterionRole::Query),
+                observation,
+            ),
+            (
+                ("localRegionalRecurrence", CriterionRole::Query),
+                observation,
+            ),
+            (
+                ("lymphNodeRecurrence", CriterionRole::Query),
+                observation,
+            ),
+            (
+                ("distantMetastases", CriterionRole::Query),
+                observation,
+            ),
+            (
+                ("vitalStatus", CriterionRole::Query),
+                observation,
+            ),
+            (
+                ("metastases_present", CriterionRole::Query),
+                "exists from [Observation: Code '21907-1' from {{A1}}] O\nwhere O.value.coding.code contains '{{C}}'",
+            ),
+            (
+                ("localization_metastases", CriterionRole::Query),
+                "exists from [Observation: Code '21907-1' from {{A1}}] O\nwhere O.bodySite.coding.code contains '{{C}}'",
+            ),
+            (
+                ("observationMolecularMarkerName", CriterionRole::Query),
+                "exists from [Observation: Code '69548-6' from {{A1}}] O\nwhere O.component.where(code.coding contains Code '{{K}}' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}",
+            ),
+            (
+                ("observationMolecularMarkerAminoacidchange", CriterionRole::Query),
+                "exists from [Observation: Code '69548-6' from {{A1}}] O\nwhere O.component.where(code.coding contains Code '{{K}}' from {{A1}}).value = '{{C}}'",
+            ),
+            (
+                ("observationMolecularMarkerDNAchange", CriterionRole::Query),
+                "exists from [Observation: Code '69548-6' from {{A1}}] O\nwhere O.component.where(code.coding contains Code '{{K}}' from {{A1}}).value = '{{C}}'",
+            ),
+            (
+                ("observationMolecularMarkerSeqRefNCBI", CriterionRole::Query),
+                "exists from [Observation: Code '69548-6' from {{A1}}] O\nwhere O.component.where(code.coding contains Code '{{K}}' from {{A1}}).value = '{{C}}'",
+            ),
+            (
+                ("observationMolecularMarkerEnsemblID", CriterionRole::Query),
+                "exists from [Observation: Code '69548-6' from {{A1}}] O\nwhere O.component.where(code.coding contains Code '{{K}}' from {{A1}}).value = '{{C}}'",
+            ),
+            (
+                ("procedure", CriterionRole::Query),
+                "exists [Procedure: category in Code '{{C}}' from {{A1}}]",
+            ),
+            (
+                ("medicationStatement", CriterionRole::Query),
+                "exists [MedicationStatement: category in Code '{{C}}' from {{A1}}]",
+            ),
+            (
+                ("local_assessment_residual_tumor", CriterionRole::Query),
+                "exists from [Procedure: category in Code 'OP' from {{A1}}] P\nwhere P.outcome.coding.code contains '{{C}}'",
+            ),
+            (
+                ("sample_kind", CriterionRole::Query),
+                "exists [Specimen: Code '{{C}}' from {{A1}}]",
+            ),
+            (
+                ("sample_kind", CriterionRole::Filter),
+                "(S.type.coding.code contains '{{C}}')",
+            ),
+            (
+                ("retrieveSpecimenByType", CriterionRole::Query),
+                "(S.type.coding.code contains '{{C}}')",
+            ),
+            (
+                ("TNM-T", CriterionRole::Query),
+                "(exists from [Observation: Code '21908-9' from {{A1}}] O where O.component.where(code.coding contains Code '21905-5' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}) or\n(exists from [Observation: Code '21902-2' from {{A1}}] O where O.component.where(code.coding contains Code '21905-5' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}) or\n(exists from [Observation: Code '21908-9' from {{A1}}] O where O.component.where(code.coding contains Code '21899-0' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}) or\n(exists from [Observation: Code '21902-2' from {{A1}}] O where O.component.where(code.coding contains Code '21899-0' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}})",
+            ),
+            (
+                ("TNM-N", CriterionRole::Query),
+                "(exists from [Observation: Code '21908-9' from {{A1}}] O where O.component.where(code.coding contains Code '21906-3' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}) or\n(exists from [Observation: Code '21902-2' from {{A1}}] O where O.component.where(code.coding contains Code '21906-3' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}) or\n(exists from [Observation: Code '21908-9' from {{A1}}] O where O.component.where(code.coding contains Code '21900-6' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}) or\n(exists from [Observation: Code '21902-2' from {{A1}}] O where O.component.where(code.coding contains Code '21900-6' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}})",
+            ),
+            (
+                ("TNM-M", CriterionRole::Query),
+                "(exists from [Observation: Code '21908-9' from {{A1}}] O where O.component.where(code.coding contains Code '21907-1' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}) or\n(exists from [Observation: Code '21902-2' from {{A1}}] O where O.component.where(code.coding contains Code '21907-1' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}) or\n(exists from [Observation: Code '21908-9' from {{A1}}] O where O.component.where(code.coding contains Code '21901-4' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}) or\n(exists from [Observation: Code '21902-2' from {{A1}}] O where O.component.where(code.coding contains Code '21901-4' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}})",
+            ),
+            (
+                ("TNM-m-Symbol", CriterionRole::Query),
+                "(exists from [Observation: Code '21908-9' from {{A1}}] O where O.component.where(code.coding contains Code '42030-7' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}) or\n(exists from [Observation: Code '21902-2' from {{A1}}] O where O.component.where(code.coding contains Code '42030-7' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}})",
+            ),
+            (
+                ("TNM-y-Symbol", CriterionRole::Query),
+                "(exists from [Observation: Code '21908-9' from {{A1}}] O where O.component.where(code.coding contains Code '59479-6' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}) or\n(exists from [Observation: Code '21902-2' from {{A1}}] O where O.component.where(code.coding contains Code '59479-6' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}})",
+            ),
+            (
+                ("TNM-r-Symbol", CriterionRole::Query),
+                "(exists from [Observation: Code '21908-9' from {{A1}}] O where O.component.where(code.coding contains Code '21983-2' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}) or\n(exists from [Observation: Code '21902-2' from {{A1}}] O where O.component.where(code.coding contains Code '21983-2' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}})",
+            ),
+            (
+                ("Organization", CriterionRole::Query),
+                "Patient.managingOrganization.reference = \"Organization Ref\"('Klinisches Krebsregister/ITM')",
+            ),
+            (
+                ("department", CriterionRole::Query),
+                "exists from [Encounter] I\nwhere I.identifier.value = '{{C}}' ",
+            ),
+            (
+                ("uiccstadium", CriterionRole::Query),
+                "(exists ([Observation: Code '21908-9' from loinc] O where O.value.coding.code contains '{{C}}')) or (exists ([Observation: Code '21902-2' from loinc] O where O.value.coding.code contains '{{C}}'))",
+            ),
+            (
+                ("histology", CriterionRole::Query),
+                "exists from [Observation: Code '59847-4' from loinc] O\n",
+            ),
+        ]);
     }
 
     fn append_mandatory_code_lists(&self, set: &mut IndexSet<&str>) {
