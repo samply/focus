@@ -184,7 +184,7 @@ impl Project for Dktk {
     fn append_cql_snippets(&self, map: &mut HashMap<(&str, CriterionRole), &str>) {
         // Shared::append_cql_snippets(&Shared, map);
 
-        // TODO Revert to first expression if https://github.com/samply/blaze/issues/808 is solved
+        // TODO: Should we revert to first expression now that https://github.com/samply/blaze/issues/808 is solved?
         // let observation = "exists from [Observation: Code '{{K}}' from {{A1}}] O\nwhere O.value.coding contains Code '{{C}}' from {{A2}}";
         let observation = "exists from [Observation: Code '{{K}}' from {{A1}}] O\nwhere O.value.coding.code contains '{{C}}'";
 
@@ -197,7 +197,7 @@ impl Project for Dktk {
             ("bodySite", CriterionRole::Query),
             "exists from [Condition] C\nwhere C.bodySite.coding contains Code '{{C}}' from {{A1}}",
           ),
-          //TODO Revert to first expression if https://github.com/samply/blaze/issues/808 is solved
+          // TODO: Should we revert to first expression now that https://github.com/samply/blaze/issues/808 is solved?
           // ("conditionLocalization", "exists from [Condition] C\nwhere C.bodySite.coding contains Code '{{C}}' from {{A1}}"),
         (
             ("conditionLocalization", CriterionRole::Query),
@@ -293,7 +293,7 @@ impl Project for Dktk {
         (
             ("observationMolecularMarkerAminoacidchange", CriterionRole::Query),
             "exists from [Observation: Code '69548-6' from {{A1}}] O\nwhere O.component.where(code.coding contains Code '{{K}}' from {{A1}}).value = '{{C}}'",
-          ), //TODO @ThomasK replace C with S
+          ),
         (
             ("observationMolecularMarkerDNAchange", CriterionRole::Query),
             "exists from [Observation: Code '69548-6' from {{A1}}] O\nwhere O.component.where(code.coding contains Code '{{K}}' from {{A1}}).value = '{{C}}'",
