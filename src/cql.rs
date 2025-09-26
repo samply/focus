@@ -436,7 +436,6 @@ mod test {
     }
 
     #[test]
-    #[ignore]
     #[cfg(feature = "bbmri")]
     fn test_bbmri_quote() {
 
