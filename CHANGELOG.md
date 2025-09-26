@@ -1,3 +1,7 @@
+# Samply.Focus v0.16.0 2025-09-26
+
+* Add DKTK CQL generation: https://github.com/samply/focus/pull/266
+
 # Samply.Focus v0.15.3 2025-09-22
 
 * Security fix: Reject unknown stratifiers in obfuscation
