@@ -11,6 +11,9 @@ pub(crate) mod bbmri;
 #[cfg(feature = "dktk")]
 pub(crate) mod dktk;
 
+#[cfg(feature = "cce")]
+pub(crate) mod cce;
+
 pub(crate) trait Project: PartialEq + Eq + PartialOrd + Ord + Clone + Copy + Hash {
     fn append_code_lists(&self, _map: &mut HashMap<&'static str, &'static str>);
     fn append_observation_loinc_codes(&self, _map: &mut HashMap<&'static str, &'static str>);
@@ -29,6 +32,8 @@ pub enum ProjectName {
     Bbmri,
     #[cfg(feature = "dktk")]
     Dktk,
+    #[cfg(feature = "cce")]
+    Cce,
     NotSpecified,
 }
 
@@ -48,6 +53,9 @@ pub static CODE_LISTS: Lazy<HashMap<&str, &str>> = Lazy::new(|| {
     #[cfg(feature = "dktk")]
     dktk::Dktk.append_code_lists(&mut map);
 
+    #[cfg(feature = "cce")]
+    cce::Cce.append_code_lists(&mut map);
+
     map
 });
 
@@ -59,6 +67,9 @@ pub static OBSERVATION_LOINC_CODE: Lazy<HashMap<&str, &str>> = Lazy::new(|| {
 
     #[cfg(feature = "dktk")]
     dktk::Dktk.append_observation_loinc_codes(&mut map);
+
+    #[cfg(feature = "cce")]
+    cce::Cce.append_observation_loinc_codes(&mut map);
 
     map
 });
@@ -73,6 +84,9 @@ pub static SAMPLE_TYPE_WORKAROUNDS: Lazy<HashMap<&str, Vec<&str>>> = Lazy::new(|
     #[cfg(feature = "dktk")]
     dktk::Dktk.append_sample_type_workarounds(&mut map);
 
+    #[cfg(feature = "cce")]
+    cce::Cce.append_sample_type_workarounds(&mut map);
+
     map
 });
 
@@ -85,6 +99,9 @@ pub static CRITERION_CODE_LISTS: Lazy<HashMap<&str, Vec<&str>>> = Lazy::new(|| {
 
     #[cfg(feature = "dktk")]
     dktk::Dktk.append_criterion_code_lists(&mut map);
+
+    #[cfg(feature = "cce")]
+    cce::Cce.append_criterion_code_lists(&mut map);
 
     map
 });
@@ -99,6 +116,9 @@ pub static CQL_SNIPPETS: Lazy<HashMap<(&str, CriterionRole), &str>> = Lazy::new(
     #[cfg(feature = "dktk")]
     dktk::Dktk.append_cql_snippets(&mut map);
 
+    #[cfg(feature = "cce")]
+    cce::Cce.append_cql_snippets(&mut map);
+
     map
 });
 
@@ -110,6 +130,9 @@ pub static MANDATORY_CODE_SYSTEMS: Lazy<IndexSet<&str>> = Lazy::new(|| {
 
     #[cfg(feature = "dktk")]
     dktk::Dktk.append_mandatory_code_lists(&mut set);
+
+    #[cfg(feature = "cce")]
+    cce::Cce.append_mandatory_code_lists(&mut map);
 
     set
 });
@@ -123,6 +146,9 @@ pub static CQL_TEMPLATE: Lazy<&'static str> = Lazy::new(|| {
     #[cfg(feature = "dktk")]
     dktk::Dktk.append_cql_template(&mut template);
 
+    #[cfg(feature = "cce")]
+    cce::Cce.append_cql_template(&mut map);
+
     template.leak()
 });
 
@@ -134,6 +160,9 @@ pub static BODY: Lazy<&'static str> = Lazy::new(|| {
 
     #[cfg(feature = "dktk")]
     dktk::Dktk.append_body(&mut body);
+
+    #[cfg(feature = "cce")]
+    cce::Cce.append_body(&mut map);
 
     body.leak()
 });
