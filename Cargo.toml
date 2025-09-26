@@ -66,7 +66,6 @@ kurtbuilds_sqlx_serde = { version = "0.3.2", features = [
   "uuid",
 ], optional = true }
 
-
 [features]
 default = ["query-sql"]
 query-sql = ["dep:sqlx", "dep:kurtbuilds_sqlx_serde"]
