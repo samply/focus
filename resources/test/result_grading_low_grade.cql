@@ -2,7 +2,9 @@ library Retrieve
 using FHIR version '4.0.0'
 include FHIRHelpers version '4.0.0'
 
-{{lists}}
+codesystem loinc: 'http://loinc.org'
+codesystem gradingcs: 'http://dktk.dkfz.de/fhir/onco/core/CodeSystem/GradingCS'
+
 
 context Patient
 
@@ -33,7 +35,7 @@ define function SampleType(specimen FHIR.Specimen):
 specimen.type.coding.where(system = 'https://fhir.bbmri.de/CodeSystem/SampleMaterialType').code.first()
 
 define Specimen:
-if InInitialPopulation then [Specimen] S {{filter_criteria}} else {} as List<Specimen>
+if InInitialPopulation then [Specimen] S  else {} as List<Specimen>
 
 define Procedure:
 if InInitialPopulation then [Procedure] else {} as List <Procedure>
@@ -45,4 +47,5 @@ define MedicationStatement:
 if InInitialPopulation then [MedicationStatement] else {} as List <MedicationStatement>
 
 define InInitialPopulation:
-{{retrieval_criteria}}
+((((((exists from [Observation: Code '59542-1' from loinc] O
+where O.value.coding.code contains 'L'))))))

@@ -1,25 +1,45 @@
 {
   "lang": "cql",
   "lib": {
+    "resourceType": "Library",
+    "url": "{{LIBRARY_UUID}}",
+    "status": "active",
+    "type": {
+      "coding": [
+        {
+          "system": "http://terminology.hl7.org/CodeSystem/library-type",
+          "code": "logic-library"
+        }
+      ]
+    },
     "content": [
       {
         "contentType": "text/cql",
         "data": "{{LIBRARY_ENCODED}}"
       }
-    ],
-    "resourceType": "Library",
+    ]
+  },
+  "measure": {
+    "resourceType": "Measure",
+    "url": "{{MEASURE_UUID}}",
     "status": "active",
-    "type": {
+    "subjectCodeableConcept": {
       "coding": [
         {
-          "code": "logic-library",
-          "system": "http://terminology.hl7.org/CodeSystem/library-type"
+          "system": "http://hl7.org/fhir/resource-types",
+          "code": "Patient"
         }
       ]
     },
-    "url": "{{LIBRARY_UUID}}"
-  },
-  "measure": {
+    "library": "{{LIBRARY_UUID}}",
+    "scoring": {
+      "coding": [
+        {
+          "system": "http://terminology.hl7.org/CodeSystem/measure-scoring",
+          "code": "cohort"
+        }
+      ]
+    },
     "group": [
       {
         "code": {
@@ -30,14 +50,14 @@
             "code": {
               "coding": [
                 {
-                  "code": "initial-population",
-                  "system": "http://terminology.hl7.org/CodeSystem/measure-population"
+                  "system": "http://terminology.hl7.org/CodeSystem/measure-population",
+                  "code": "initial-population"
                 }
               ]
             },
             "criteria": {
-              "expression": "InInitialPopulation",
-              "language": "text/cql-identifier"
+              "language": "text/cql-identifier",
+              "expression": "InInitialPopulation"
             }
           }
         ],
@@ -47,8 +67,8 @@
               "text": "gender"
             },
             "criteria": {
-              "expression": "Gender",
-              "language": "text/cql"
+              "language": "text/cql",
+              "expression": "Gender"
             }
           },
           {
@@ -56,17 +76,17 @@
               "text": "75186-7"
             },
             "criteria": {
-              "expression": "Deceased",
-              "language": "text/cql"
+              "language": "text/cql",
+              "expression": "Deceased"
             }
           },
           {
             "code": {
-              "text": "Age"
+              "text": "age_at_diagnosis"
             },
             "criteria": {
-              "expression": "AgeClass",
-              "language": "text/cql"
+              "language": "text/cql",
+              "expression": "AgeClass"
             }
           }
         ]
@@ -86,14 +106,14 @@
             "code": {
               "coding": [
                 {
-                  "code": "initial-population",
-                  "system": "http://terminology.hl7.org/CodeSystem/measure-population"
+                  "system": "http://terminology.hl7.org/CodeSystem/measure-population",
+                  "code": "initial-population"
                 }
               ]
             },
             "criteria": {
-              "expression": "Diagnosis",
-              "language": "text/cql-identifier"
+              "language": "text/cql-identifier",
+              "expression": "Diagnosis"
             }
           }
         ],
@@ -103,8 +123,8 @@
               "text": "diagnosis"
             },
             "criteria": {
-              "expression": "DiagnosisCode",
-              "language": "text/cql-identifier"
+              "language": "text/cql-identifier",
+              "expression": "DiagnosisCode"
             }
           }
         ]
@@ -124,14 +144,14 @@
             "code": {
               "coding": [
                 {
-                  "code": "initial-population",
-                  "system": "http://terminology.hl7.org/CodeSystem/measure-population"
+                  "system": "http://terminology.hl7.org/CodeSystem/measure-population",
+                  "code": "initial-population"
                 }
               ]
             },
             "criteria": {
-              "expression": "Specimen",
-              "language": "text/cql-identifier"
+              "language": "text/cql-identifier",
+              "expression": "Specimen"
             }
           }
         ],
@@ -141,8 +161,8 @@
               "text": "sample_kind"
             },
             "criteria": {
-              "expression": "SampleType",
-              "language": "text/cql"
+              "language": "text/cql",
+              "expression": "SampleType"
             }
           }
         ]
@@ -162,25 +182,25 @@
             "code": {
               "coding": [
                 {
-                  "code": "initial-population",
-                  "system": "http://terminology.hl7.org/CodeSystem/measure-population"
+                  "system": "http://terminology.hl7.org/CodeSystem/measure-population",
+                  "code": "initial-population"
                 }
               ]
             },
             "criteria": {
-              "expression": "Procedure",
-              "language": "text/cql-identifier"
+              "language": "text/cql-identifier",
+              "expression": "Procedure"
             }
           }
         ],
         "stratifier": [
           {
             "code": {
-              "text": "ProcedureType"
+              "text": "therapy_of_tumor"
             },
             "criteria": {
-              "expression": "ProcedureType",
-              "language": "text/cql"
+              "language": "text/cql",
+              "expression": "ProcedureType"
             }
           }
         ]
@@ -200,87 +220,29 @@
             "code": {
               "coding": [
                 {
-                  "code": "initial-population",
-                  "system": "http://terminology.hl7.org/CodeSystem/measure-population"
+                  "system": "http://terminology.hl7.org/CodeSystem/measure-population",
+                  "code": "initial-population"
                 }
               ]
             },
             "criteria": {
-              "expression": "MedicationStatement",
-              "language": "text/cql-identifier"
+              "language": "text/cql-identifier",
+              "expression": "MedicationStatement"
             }
           }
         ],
         "stratifier": [
           {
             "code": {
-              "text": "MedicationType"
+              "text": "medicationStatements"
             },
             "criteria": {
-              "expression": "ProcedureType",
-              "language": "text/cql"
-            }
-          }
-        ]
-      },
-      {
-        "code": {
-          "text": "Histo"
-        },
-        "extension": [
-          {
-            "url": "http://hl7.org/fhir/us/cqfmeasures/StructureDefinition/cqfm-populationBasis",
-            "valueCode": "Observation"
-          }
-        ],
-        "population": [
-          {
-            "code": {
-              "coding": [
-                {
-                  "code": "initial-population",
-                  "system": "http://terminology.hl7.org/CodeSystem/measure-population"
-                }
-              ]
-            },
-            "criteria": {
-              "expression": "Histo",
-              "language": "text/cql-identifier"
-            }
-          }
-        ],
-        "stratifier": [
-          {
-            "code": {
-              "text": "Histlogoies"
-            },
-            "criteria": {
-              "expression": "Histlogoy",
-              "language": "text/cql-identifier"
+              "language": "text/cql",
+              "expression": "ProcedureType"
             }
           }
         ]
       }
-    ],
-    "library": "{{LIBRARY_UUID}}",
-    "resourceType": "Measure",
-    "scoring": {
-      "coding": [
-        {
-          "code": "cohort",
-          "system": "http://terminology.hl7.org/CodeSystem/measure-scoring"
-        }
-      ]
-    },
-    "status": "active",
-    "subjectCodeableConcept": {
-      "coding": [
-        {
-          "code": "Patient",
-          "system": "http://hl7.org/fhir/resource-types"
-        }
-      ]
-    },
-    "url": "{{MEASURE_UUID}}"
+    ]
   }
 }

@@ -95,6 +95,10 @@ struct CliArgs {
     #[clap(long, env, value_parser = clap::value_parser!(EndpointType), default_value = "blaze")]
     endpoint_type: EndpointType,
 
+    /// Set this flag to true to enable CQL queries. Warning: This allows for data exfiltration if you do not filter the queries before they are sent to Focus.
+    #[clap(long, env, value_parser, default_value_t = false)]
+    enable_cql_lang: bool,
+
     /// Should the results be obfuscated
     #[clap(long, env, value_parser = clap::value_parser!(Obfuscate), default_value = "yes")]
     obfuscate: Obfuscate,
@@ -192,6 +196,7 @@ pub(crate) struct Config {
     pub endpoint_url: Url,
     pub exporter_url: Option<Url>,
     pub endpoint_type: EndpointType,
+    pub enable_cql_lang: bool,
     pub obfuscate: Obfuscate,
     pub obfuscate_zero: bool,
     pub obfuscate_below_10_mode: usize,
@@ -239,6 +244,7 @@ impl Config {
             endpoint_url: cli_args.endpoint_url.unwrap_or_else(|| cli_args.blaze_url.expect("Look, mate, you need to set endpoint-url or blaze-url, can't work without, sry")),
             exporter_url: cli_args.exporter_url,
             endpoint_type: cli_args.endpoint_type,
+            enable_cql_lang: cli_args.enable_cql_lang,
             obfuscate: cli_args.obfuscate,
             obfuscate_zero: cli_args.obfuscate_zero,
             obfuscate_below_10_mode: cli_args.obfuscate_below_10_mode,

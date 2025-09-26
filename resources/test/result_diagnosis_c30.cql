@@ -2,7 +2,9 @@ library Retrieve
 using FHIR version '4.0.0'
 include FHIRHelpers version '4.0.0'
 
-{{lists}}
+codesystem loinc: 'http://loinc.org'
+codesystem icd10: 'http://fhir.de/CodeSystem/bfarm/icd-10-gm'
+
 
 context Patient
 
@@ -33,7 +35,7 @@ define function SampleType(specimen FHIR.Specimen):
 specimen.type.coding.where(system = 'https://fhir.bbmri.de/CodeSystem/SampleMaterialType').code.first()
 
 define Specimen:
-if InInitialPopulation then [Specimen] S {{filter_criteria}} else {} as List<Specimen>
+if InInitialPopulation then [Specimen] S  else {} as List<Specimen>
 
 define Procedure:
 if InInitialPopulation then [Procedure] else {} as List <Procedure>
@@ -45,4 +47,4 @@ define MedicationStatement:
 if InInitialPopulation then [MedicationStatement] else {} as List <MedicationStatement>
 
 define InInitialPopulation:
-{{retrieval_criteria}}
+(((((((exists [Condition: Code 'C30' from icd10]))) or (((exists [Condition: Code 'C30.1' from icd10]))) or (((exists [Condition: Code 'C30.0' from icd10])))))))
