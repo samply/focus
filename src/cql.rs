@@ -133,8 +133,7 @@ pub fn process(
                 let observation_code_option = OBSERVATION_LOINC_CODE.get(&condition_key_trans);
 
                 if let Some(observation_code) = observation_code_option {
-                    condition_string = condition_string
-                        .replace("{{K}}", &escape(observation_code));
+                    condition_string = condition_string.replace("{{K}}", &escape(observation_code));
                 } else {
                     return Err(FocusError::AstUnknownOption(
                         condition_key_trans.to_string(),
@@ -255,13 +254,13 @@ pub fn process(
                                     + "("
                                     + condition_string.as_str()
                                     + ")";
-                                condition_humongous_string = condition_humongous_string
-                                    .replace("{{C}}", &escape(string));
+                                condition_humongous_string =
+                                    condition_humongous_string.replace("{{C}}", &escape(string));
 
                                 filter_humongous_string =
                                     filter_humongous_string + "(" + filter_string.as_str() + ")";
-                                filter_humongous_string = filter_humongous_string
-                                    .replace("{{C}}", &escape(string));
+                                filter_humongous_string =
+                                    filter_humongous_string.replace("{{C}}", &escape(string));
 
                                 // Only concatenate operator if it's not the last element
                                 if index < string_array_with_workarounds.len() - 1 {
@@ -300,13 +299,13 @@ pub fn process(
                         for (index, string) in string_array_with_workarounds.iter().enumerate() {
                             condition_humongous_string =
                                 condition_humongous_string + "(" + condition_string.as_str() + ")";
-                            condition_humongous_string = condition_humongous_string
-                                .replace("{{C}}", &escape(string));
+                            condition_humongous_string =
+                                condition_humongous_string.replace("{{C}}", &escape(string));
 
                             filter_humongous_string =
                                 filter_humongous_string + "(" + filter_string.as_str() + ")";
-                            filter_humongous_string = filter_humongous_string
-                                .replace("{{C}}", &escape(string));
+                            filter_humongous_string =
+                                filter_humongous_string.replace("{{C}}", &escape(string));
 
                             // Only concatenate operator if it's not the last element
                             if index < string_array_with_workarounds.len() - 1 {
@@ -438,18 +437,15 @@ mod test {
     #[test]
     #[cfg(feature = "bbmri")]
     fn test_bbmri_quote() {
-
         pretty_assertions::assert_eq!(
             generate_cql(serde_json::from_str(QUOTE).unwrap()).unwrap(),
             include_str!("../resources/test/result_quote.cql").to_string()
         );
-
     }
 
     #[test]
     #[cfg(feature = "bbmri")]
     fn test_bbmri() {
-
         pretty_assertions::assert_eq!(
             generate_cql(serde_json::from_str(MALE_OR_FEMALE).unwrap()).unwrap(),
             include_str!("../resources/test/result_male_or_female.cql").to_string()
@@ -504,7 +500,7 @@ mod test {
     const DIAGNOSIS_C30: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"key":"diagnosis","operand":"OR","children":[{"operand":"OR","key":"diagnosis","children":[{"key":"diagnosis","type":"EQUALS","system":"http://fhir.de/CodeSystem/dimdi/icd-10-gm","value":"C30"},{"key":"diagnosis","type":"EQUALS","system":"http://fhir.de/CodeSystem/dimdi/icd-10-gm","value":"C30.1"},{"key":"diagnosis","type":"EQUALS","system":"http://fhir.de/CodeSystem/dimdi/icd-10-gm","value":"C30.0"}]}]}]}]},"id":"54bd1d51-aa35-4153-b49e-56753774fa2d"}"#;
 
     const YEAR_OF_DIAGNOSIS_2000_TO_2010: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"key":"year_of_diagnosis","operand":"OR","children":[{"key":"year_of_diagnosis","type":"BETWEEN","system":"","value":{"min":2000,"max":2010}}]}]}]},"id":"c9024169-dfcf-4915-ac06-1edd090054f4"}"#;
-    
+
     const BODY_SITE_LEFT: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"key":"bodySite","operand":"OR","children":[{"key":"bodySite","type":"EQUALS","system":"http://dktk.dkfz.de/fhir/onco/core/CodeSystem/SeitenlokalisationCS","value":"L"}]}]}]},"id":"c3481b0c-4807-4d54-b7c9-498426f165c2"}"#;
 
     const GRADING_LOW_GRADE: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"key":"grading","operand":"OR","children":[{"key":"grading","type":"EQUALS","system":"http://dktk.dkfz.de/fhir/onco/core/CodeSystem/GradingCS","value":"L"}]}]}]},"id":"34fbeac2-6685-4e48-b531-372d8aa8589f"}"#;
