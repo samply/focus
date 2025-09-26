@@ -134,7 +134,7 @@ pub fn process(
 
                 if let Some(observation_code) = observation_code_option {
                     condition_string = condition_string
-                        .replace("{{K}}", escape((**observation_code).to_string()).as_str());
+                        .replace("{{K}}", &escape(observation_code));
                 } else {
                     return Err(FocusError::AstUnknownOption(
                         condition_key_trans.to_string(),
@@ -256,12 +256,12 @@ pub fn process(
                                     + condition_string.as_str()
                                     + ")";
                                 condition_humongous_string = condition_humongous_string
-                                    .replace("{{C}}", escape((**string).to_string()).as_str());
+                                    .replace("{{C}}", &escape(string));
 
                                 filter_humongous_string =
                                     filter_humongous_string + "(" + filter_string.as_str() + ")";
                                 filter_humongous_string = filter_humongous_string
-                                    .replace("{{C}}", escape((**string).to_string()).as_str());
+                                    .replace("{{C}}", &escape(string));
 
                                 // Only concatenate operator if it's not the last element
                                 if index < string_array_with_workarounds.len() - 1 {
@@ -301,12 +301,12 @@ pub fn process(
                             condition_humongous_string =
                                 condition_humongous_string + "(" + condition_string.as_str() + ")";
                             condition_humongous_string = condition_humongous_string
-                                .replace("{{C}}", escape((**string).to_string()).as_str());
+                                .replace("{{C}}", &escape(string));
 
                             filter_humongous_string =
                                 filter_humongous_string + "(" + filter_string.as_str() + ")";
                             filter_humongous_string = filter_humongous_string
-                                .replace("{{C}}", escape((**string).to_string()).as_str());
+                                .replace("{{C}}", &escape(string));
 
                             // Only concatenate operator if it's not the last element
                             if index < string_array_with_workarounds.len() - 1 {
@@ -388,7 +388,7 @@ pub fn process(
     Ok(())
 }
 
-fn escape(value: String) -> String {
+fn escape(value: &str) -> String {
     value
         .replace("\\", "\\\\")
         .replace("\"", "\\\"")
