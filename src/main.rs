@@ -317,7 +317,12 @@ async fn process_task(
             let data = base64_decode(&task.body)?;
             let query: CqlQuery = match serde_json::from_slice::<Language>(&data)? {
                 #[cfg(not(feature = "bbmri"))]
-                Language::Cql(cql_query) => cql_query,
+                Language::Cql(cql_query) => {
+                    if !CONFIG.enable_cql_lang {
+                        return Err(FocusError::CqlLangNotEnabled);
+                    }
+                    cql_query
+                }
                 Language::Ast(ast_query) => {
                     generated_from_ast = true;
                     serde_json::from_str(&cql::generate_body(parse_blaze_query_payload_ast(
@@ -353,7 +358,12 @@ async fn process_task(
             } else {
                 let query: CqlQuery = match serde_json::from_slice::<Language>(&data)? {
                     #[cfg(not(feature = "bbmri"))]
-                    Language::Cql(cql_query) => cql_query,
+                    Language::Cql(cql_query) => {
+                        if !CONFIG.enable_cql_lang {
+                            return Err(FocusError::CqlLangNotEnabled);
+                        }
+                        cql_query
+                    }
                     Language::Ast(ast_query) => {
                         generated_from_ast = true;
                         serde_json::from_str(&cql::generate_body(parse_blaze_query_payload_ast(

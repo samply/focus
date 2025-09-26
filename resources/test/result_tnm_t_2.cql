@@ -2,7 +2,9 @@ library Retrieve
 using FHIR version '4.0.0'
 include FHIRHelpers version '4.0.0'
 
-{{lists}}
+codesystem loinc: 'http://loinc.org'
+codesystem TNMTCS: 'http://dktk.dkfz.de/fhir/onco/core/CodeSystem/TNMTCS'
+
 
 context Patient
 
@@ -33,7 +35,7 @@ define function SampleType(specimen FHIR.Specimen):
 specimen.type.coding.where(system = 'https://fhir.bbmri.de/CodeSystem/SampleMaterialType').code.first()
 
 define Specimen:
-if InInitialPopulation then [Specimen] S {{filter_criteria}} else {} as List<Specimen>
+if InInitialPopulation then [Specimen] S  else {} as List<Specimen>
 
 define Procedure:
 if InInitialPopulation then [Procedure] else {} as List <Procedure>
@@ -45,4 +47,7 @@ define MedicationStatement:
 if InInitialPopulation then [MedicationStatement] else {} as List <MedicationStatement>
 
 define InInitialPopulation:
-{{retrieval_criteria}}
+(((((((exists from [Observation: Code '21908-9' from loinc] O where O.component.where(code.coding contains Code '21905-5' from loinc).value.coding contains Code '2' from TNMTCS) or
+(exists from [Observation: Code '21902-2' from loinc] O where O.component.where(code.coding contains Code '21905-5' from loinc).value.coding contains Code '2' from TNMTCS) or
+(exists from [Observation: Code '21908-9' from loinc] O where O.component.where(code.coding contains Code '21899-0' from loinc).value.coding contains Code '2' from TNMTCS) or
+(exists from [Observation: Code '21902-2' from loinc] O where O.component.where(code.coding contains Code '21899-0' from loinc).value.coding contains Code '2' from TNMTCS)))))))

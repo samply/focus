@@ -133,7 +133,8 @@ pub fn process(
                 let observation_code_option = OBSERVATION_LOINC_CODE.get(&condition_key_trans);
 
                 if let Some(observation_code) = observation_code_option {
-                    condition_string = condition_string.replace("{{K}}", observation_code);
+                    condition_string = condition_string
+                        .replace("{{K}}", &escape(observation_code));
                 } else {
                     return Err(FocusError::AstUnknownOption(
                         condition_key_trans.to_string(),
@@ -176,9 +177,9 @@ pub fn process(
                             let date_str_min = format!("@{}", datetime_min.format("%Y-%m-%d"));
 
                             condition_string =
-                                condition_string.replace("{{D1}}", date_str_min.as_str());
-                            filter_string = filter_string.replace("{{D1}}", date_str_min.as_str());
-                            // no condition needed, "" stays ""
+                                condition_string.replace("{{D1}}", date_str_min.as_str()); // no CQL injection possible here
+                            filter_string = filter_string.replace("{{D1}}", date_str_min.as_str()); // no CQL injection possible here
+                                                                                                    // no condition needed, "" stays ""
 
                             let datetime_str_max = date_range.max.as_str();
                             let datetime_max_maybe: Result<DateTime<Utc>, _> =
@@ -204,20 +205,22 @@ pub fn process(
                             let date_str_max = format!("@{}", datetime_max.format("%Y-%m-%d"));
 
                             condition_string =
-                                condition_string.replace("{{D2}}", date_str_max.as_str());
+                                condition_string.replace("{{D2}}", date_str_max.as_str()); // no CQL injection possible here
                             filter_string = filter_string.replace("{{D2}}", date_str_max.as_str());
+                            // no CQL injection possible here
 
                             // no condition needed, "" stays ""
                         }
                         ast::ConditionValue::NumRange(num_range) => {
                             condition_string = condition_string
-                                .replace("{{D1}}", num_range.min.to_string().as_str());
+                                .replace("{{D1}}", num_range.min.to_string().as_str()); // no CQL injection possible here
                             condition_string = condition_string
-                                .replace("{{D2}}", num_range.max.to_string().as_str());
+                                .replace("{{D2}}", num_range.max.to_string().as_str()); // no CQL injection possible here
                             filter_string =
-                                filter_string.replace("{{D1}}", num_range.min.to_string().as_str()); // no condition needed, "" stays ""
+                                filter_string.replace("{{D1}}", num_range.min.to_string().as_str()); // no condition needed, "" stays ""; no CQL injection possible here
                             filter_string =
                                 filter_string.replace("{{D2}}", num_range.max.to_string().as_str());
+                            // no CQL injection possible here
 
                             // no condition needed, "" stays ""
                         }
@@ -252,13 +255,13 @@ pub fn process(
                                     + "("
                                     + condition_string.as_str()
                                     + ")";
-                                condition_humongous_string =
-                                    condition_humongous_string.replace("{{C}}", string.as_str());
+                                condition_humongous_string = condition_humongous_string
+                                    .replace("{{C}}", &escape(string));
 
                                 filter_humongous_string =
                                     filter_humongous_string + "(" + filter_string.as_str() + ")";
-                                filter_humongous_string =
-                                    filter_humongous_string.replace("{{C}}", string.as_str());
+                                filter_humongous_string = filter_humongous_string
+                                    .replace("{{C}}", &escape(string));
 
                                 // Only concatenate operator if it's not the last element
                                 if index < string_array_with_workarounds.len() - 1 {
@@ -297,13 +300,13 @@ pub fn process(
                         for (index, string) in string_array_with_workarounds.iter().enumerate() {
                             condition_humongous_string =
                                 condition_humongous_string + "(" + condition_string.as_str() + ")";
-                            condition_humongous_string =
-                                condition_humongous_string.replace("{{C}}", string.as_str());
+                            condition_humongous_string = condition_humongous_string
+                                .replace("{{C}}", &escape(string));
 
                             filter_humongous_string =
                                 filter_humongous_string + "(" + filter_string.as_str() + ")";
-                            filter_humongous_string =
-                                filter_humongous_string.replace("{{C}}", string.as_str());
+                            filter_humongous_string = filter_humongous_string
+                                .replace("{{C}}", &escape(string));
 
                             // Only concatenate operator if it's not the last element
                             if index < string_array_with_workarounds.len() - 1 {
@@ -356,7 +359,10 @@ pub fn process(
                 // Only concatenate operator if it's not the last element
                 if index < operation.children.len() - 1 {
                     retrieval_cond += operator_str;
-                    if !filter_cond.is_empty() {
+                    if !filter_cond.is_empty()
+                        && !filter_cond.ends_with(" or ")
+                        && !filter_cond.ends_with(" and ")
+                    {
                         filter_cond += operator_str;
                     }
                 }
@@ -380,6 +386,16 @@ pub fn process(
     }
 
     Ok(())
+}
+
+fn escape(value: &str) -> String {
+    value
+        .replace("\\", "\\\\")
+        .replace("\"", "\\\"")
+        .replace("\'", "\\\'")
+        .replace("\r", "\\r")
+        .replace("\t", "\\t")
+        .replace("\n", "\\n")
 }
 
 #[cfg(test)]
@@ -412,6 +428,8 @@ mod test {
 
     const VAFAN: &str = r#"{"ast":{"nodeType":"branch","operand":"OR","children":[{"nodeType":"branch","operand":"AND","children":[]}]},"id":"0b29f6d1-4e6a-4679-9212-3327e498b304__search__0b29f6d1-4e6a-4679-9212-3327e498b304"}"#;
 
+    const QUOTE: &str = r#"{"ast": {"operand":"OR","children":[{"operand":"AND","children":[{"operand":"OR","children":[{"key":"diagnosis","type":"EQUALS","system":"http://fhir.de/CodeSystem/dimdi/icd-10-gm","value":"C61\"'\\\n\r\t"}]},{"operand":"OR","children":[{"key":"gender","type":"EQUALS","system":"","value":"male"}]}]}]}, "id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
+
     #[test]
     fn test_common() {
         // maybe nothing here
@@ -419,8 +437,18 @@ mod test {
 
     #[test]
     #[cfg(feature = "bbmri")]
+    fn test_bbmri_quote() {
+
+        pretty_assertions::assert_eq!(
+            generate_cql(serde_json::from_str(QUOTE).unwrap()).unwrap(),
+            include_str!("../resources/test/result_quote.cql").to_string()
+        );
+
+    }
+
+    #[test]
+    #[cfg(feature = "bbmri")]
     fn test_bbmri() {
-        use crate::projects::{self, bbmri::Bbmri};
 
         pretty_assertions::assert_eq!(
             generate_cql(serde_json::from_str(MALE_OR_FEMALE).unwrap()).unwrap(),
@@ -473,15 +501,49 @@ mod test {
         );
     }
 
+    const DIAGNOSIS_C30: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"key":"diagnosis","operand":"OR","children":[{"operand":"OR","key":"diagnosis","children":[{"key":"diagnosis","type":"EQUALS","system":"http://fhir.de/CodeSystem/dimdi/icd-10-gm","value":"C30"},{"key":"diagnosis","type":"EQUALS","system":"http://fhir.de/CodeSystem/dimdi/icd-10-gm","value":"C30.1"},{"key":"diagnosis","type":"EQUALS","system":"http://fhir.de/CodeSystem/dimdi/icd-10-gm","value":"C30.0"}]}]}]}]},"id":"54bd1d51-aa35-4153-b49e-56753774fa2d"}"#;
+
+    const YEAR_OF_DIAGNOSIS_2000_TO_2010: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"key":"year_of_diagnosis","operand":"OR","children":[{"key":"year_of_diagnosis","type":"BETWEEN","system":"","value":{"min":2000,"max":2010}}]}]}]},"id":"c9024169-dfcf-4915-ac06-1edd090054f4"}"#;
+    
+    const BODY_SITE_LEFT: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"key":"bodySite","operand":"OR","children":[{"key":"bodySite","type":"EQUALS","system":"http://dktk.dkfz.de/fhir/onco/core/CodeSystem/SeitenlokalisationCS","value":"L"}]}]}]},"id":"c3481b0c-4807-4d54-b7c9-498426f165c2"}"#;
+
+    const GRADING_LOW_GRADE: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"key":"grading","operand":"OR","children":[{"key":"grading","type":"EQUALS","system":"http://dktk.dkfz.de/fhir/onco/core/CodeSystem/GradingCS","value":"L"}]}]}]},"id":"34fbeac2-6685-4e48-b531-372d8aa8589f"}"#;
+
+    const TNM_T_2: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"key":"TNM-T","operand":"OR","children":[{"key":"TNM-T","type":"EQUALS","system":"","value":"2"}]}]}]},"id":"3cc4f25a-e086-4a09-afa1-b07ae77d7144"}"#;
+
+    const SAMPLE_KIND_FFPE: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"key":"sample_kind","operand":"OR","children":[{"key":"Gewebe FFPE","operand":"AND","children":[{"operand":"OR","children":[{"key":"sample_kind","type":"EQUALS","system":"","value":"tumor-tissue-ffpe"},{"key":"histology","type":"EQUALS","system":"","value":"tumor-tissue-ffpe"},{"key":"sample_kind","type":"EQUALS","system":"","value":"tissue-ffpe"},{"key":"sample_kind","type":"EQUALS","system":"","value":"normal-tissue-ffpe"},{"key":"sample_kind","type":"EQUALS","system":"","value":"other-tissue-ffpe"}]}]}]}]}]},"id":"bd5112af-e712-4091-9c94-892c4e667a29"}"#;
+
     #[test]
     #[cfg(feature = "dktk")]
     fn test_dktk() {
-        //use crate::projects::{self, dktk::Dktk};
+        pretty_assertions::assert_eq!(
+            generate_cql(serde_json::from_str(DIAGNOSIS_C30).unwrap()).unwrap(),
+            include_str!("../resources/test/result_diagnosis_c30.cql").to_string()
+        );
 
-        // TODO Implement DKTK CQL generation and create files with results
+        pretty_assertions::assert_eq!(
+            generate_cql(serde_json::from_str(YEAR_OF_DIAGNOSIS_2000_TO_2010).unwrap()).unwrap(),
+            include_str!("../resources/test/result_year_of_diagnosis_2000_to_2010.cql").to_string()
+        );
 
-        //pretty_assertions::assert_eq!(generate_cql(serde_json::from_str(AST).unwrap(), Bbmri).unwrap(), include_str!("../resources/test/result_ast.cql").to_string());
+        pretty_assertions::assert_eq!(
+            generate_cql(serde_json::from_str(BODY_SITE_LEFT).unwrap()).unwrap(),
+            include_str!("../resources/test/result_body_site_left.cql").to_string()
+        );
 
-        //pretty_assertions::assert_eq!(generate_cql(serde_json::from_str(ALL_GLIOMS).unwrap(), Bbmri).unwrap(), include_str!("../resources/test/result_all_glioms.cql").to_string());
+        pretty_assertions::assert_eq!(
+            generate_cql(serde_json::from_str(GRADING_LOW_GRADE).unwrap()).unwrap(),
+            include_str!("../resources/test/result_grading_low_grade.cql").to_string()
+        );
+
+        pretty_assertions::assert_eq!(
+            generate_cql(serde_json::from_str(TNM_T_2).unwrap()).unwrap(),
+            include_str!("../resources/test/result_tnm_t_2.cql").to_string()
+        );
+
+        pretty_assertions::assert_eq!(
+            generate_cql(serde_json::from_str(SAMPLE_KIND_FFPE).unwrap()).unwrap(),
+            include_str!("../resources/test/result_sample_kind_ffpe.cql").to_string()
+        );
     }
 }
