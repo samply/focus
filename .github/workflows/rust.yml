@@ -15,7 +15,6 @@ jobs:
       #profile: debug
       test-via-script: false
       features: '[ "bbmri", "dktk", "query-sql", "" ]'
-      push-to: ${{ (github.ref_protected == true || github.event_name == 'workflow_dispatch') && 'dockerhub' || 'ghcr' }}
       cargo-fmt-check: true
     secrets:
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
