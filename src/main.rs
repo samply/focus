@@ -345,18 +345,9 @@ async fn process_task(
         EndpointType::BlazeAndSql => {
             let mut generated_from_ast: bool = false;
             let data = base64_decode(&task.body)?;
-            let query_maybe: Result<db::SqlQuery, serde_json::Error> =
-                serde_json::from_slice(&(data.clone()));
-            if let Ok(sql_query) = query_maybe {
-                if let Some(pool) = db_pool {
-                    run_sql_key_query(task, pool, sql_query, query_result_cache).await
-                } else {
-                    Err(FocusError::CannotConnectToDatabase(
-                        "SQL task but no connection String in config".into(),
-                    ))
-                }
-            } else {
-                let query: CqlQuery = match serde_json::from_slice::<Language>(&data)? {
+            let query_maybe: Result<Language, serde_json::Error> = serde_json::from_slice(&data);
+            if let Ok(cql_query) = query_maybe {
+                let query = match cql_query {
                     #[cfg(not(feature = "bbmri"))]
                     Language::Cql(cql_query) => {
                         if !CONFIG.enable_cql_lang {
@@ -381,6 +372,15 @@ async fn process_task(
                     generated_from_ast,
                 )
                 .await
+            } else {
+                let sql_query: db::SqlQuery = serde_json::from_slice(&data)?;
+                if let Some(pool) = db_pool {
+                    run_sql_key_query(task, pool, sql_query, query_result_cache).await
+                } else {
+                    Err(FocusError::CannotConnectToDatabase(
+                        "SQL task but no connection String in config".into(),
+                    ))
+                }
             }
         }
         #[cfg(feature = "query-sql")]
