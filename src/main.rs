@@ -713,13 +713,16 @@ async fn run_intermediate_rep_query(
 
     let mut intermediate_rep_result = intermediate_rep::post_ast(ast).await?;
 
-    if let Some(provider_icon) = CONFIG.provider_icon.clone() {
-        intermediate_rep_result = intermediate_rep_result.replacen(
-            '{',
-            format!(r#"{{"provider_icon":"{}","#, provider_icon).as_str(),
-            1,
-        );
-    }
+    let provider_icon = CONFIG
+        .provider_icon
+        .clone()
+        .unwrap_or(include_str!("../resources/default_provider_icon").to_string());
+
+    intermediate_rep_result = intermediate_rep_result.replacen(
+        '{',
+        format!(r#"{{"provider_icon":"{}","#, provider_icon).as_str(),
+        1,
+    );
 
     if let Some(provider) = CONFIG.provider.clone() {
         intermediate_rep_result = intermediate_rep_result.replacen(
