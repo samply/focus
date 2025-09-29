@@ -500,6 +500,11 @@ async fn run_eucaim_sql_query(
             QueryResultCacheOutcome::DontCache => false,
         };
     let result = db::process_sql_task(&pool, &(sql_query)).await;
+    let provider_icon = CONFIG
+        .provider_icon
+        .clone()
+        .unwrap_or(include_str!("../resources/default_provider_icon").to_string());
+
     let mut response: EucaimResponse = EucaimResponse {
         collections: Vec::new(),
         total: TotalCount {
@@ -507,7 +512,7 @@ async fn run_eucaim_sql_query(
             subjects_count: 0,
         },
         provider: CONFIG.provider.clone().unwrap_or_default(),
-        provider_icon: CONFIG.provider_icon.clone().unwrap_or_default(),
+        provider_icon: provider_icon,
     };
     let mut studies_count: i32 = 0;
     let mut subjects_count: i32 = 0;
@@ -724,13 +729,13 @@ async fn run_intermediate_rep_query(
         1,
     );
 
-    if let Some(provider) = CONFIG.provider.clone() {
-        intermediate_rep_result = intermediate_rep_result.replacen(
-            '{',
-            format!(r#"{{"provider":"{}","#, provider).as_str(),
-            1,
-        );
-    }
+    let provider = CONFIG.provider.clone().unwrap_or_default();
+
+    intermediate_rep_result = intermediate_rep_result.replacen(
+        '{',
+        format!(r#"{{"provider":"{}","#, provider).as_str(),
+        1,
+    );
 
     let result = beam_result(task.to_owned(), intermediate_rep_result).unwrap_or_else(|e| {
         err.body = beam_lib::RawString(e.to_string());
@@ -750,21 +755,24 @@ async fn run_eucaim_api_query(task: &BeamTask, ast: ast::Ast) -> Result<BeamResu
 
     let mut eucaim_api_query_result = eucaim_api::send_eucaim_api_query(ast).await?;
 
-    if let Some(provider_icon) = CONFIG.provider_icon.clone() {
-        eucaim_api_query_result = eucaim_api_query_result.replacen(
-            '{',
-            format!(r#"{{"provider_icon":"{}","#, provider_icon).as_str(),
-            1,
-        );
-    }
+    let provider_icon = CONFIG
+        .provider_icon
+        .clone()
+        .unwrap_or(include_str!("../resources/default_provider_icon").to_string());
 
-    if let Some(provider) = CONFIG.provider.clone() {
-        eucaim_api_query_result = eucaim_api_query_result.replacen(
-            '{',
-            format!(r#"{{"provider":"{}","#, provider).as_str(),
-            1,
-        );
-    }
+    eucaim_api_query_result = eucaim_api_query_result.replacen(
+        '{',
+        format!(r#"{{"provider_icon":"{}","#, provider_icon).as_str(),
+        1,
+    );
+
+    let provider = CONFIG.provider.clone().unwrap_or_default();
+
+    eucaim_api_query_result = eucaim_api_query_result.replacen(
+        '{',
+        format!(r#"{{"provider":"{}","#, provider).as_str(),
+        1,
+    );
 
     let result = beam_result(task.to_owned(), eucaim_api_query_result).unwrap_or_else(|e| {
         err.body = beam_lib::RawString(e.to_string());
