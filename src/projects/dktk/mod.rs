@@ -5,7 +5,7 @@ use indexmap::IndexSet;
 
 use super::CriterionRole;
 
-pub(crate) static CODE_LISTS: LazyLock<HashMap<&'static str, &'static str>> = LazyLock::new(|| {
+pub static CODE_LISTS: LazyLock<HashMap<&'static str, &'static str>> = LazyLock::new(|| {
     HashMap::from([
         ("icd10", "http://fhir.de/CodeSystem/bfarm/icd-10-gm"),
         ("loinc", "http://loinc.org"),
@@ -92,7 +92,7 @@ pub(crate) static CODE_LISTS: LazyLock<HashMap<&'static str, &'static str>> = La
     ])
 });
 
-pub(crate) static OBSERVATION_LOINC_CODES: LazyLock<HashMap<&'static str, &'static str>> = LazyLock::new(|| {
+pub static OBSERVATION_LOINC_CODES: LazyLock<HashMap<&'static str, &'static str>> = LazyLock::new(|| {
     HashMap::from([
         ("grading", "59542-1"),
         ("morphology", "59847-4"),
@@ -109,7 +109,7 @@ pub(crate) static OBSERVATION_LOINC_CODES: LazyLock<HashMap<&'static str, &'stat
     ])
 });
 
-pub(crate) static CRITERION_CODE_LISTS: LazyLock<HashMap<&'static str, Vec<&'static str>>> = LazyLock::new(|| {
+pub static CRITERION_CODE_LISTS: LazyLock<HashMap<&'static str, Vec<&'static str>>> = LazyLock::new(|| {
     HashMap::from([
         ("diagnosis", vec!["icd10"]),
         ("bodySite", vec!["bodySite"]),
@@ -159,7 +159,7 @@ pub(crate) static CRITERION_CODE_LISTS: LazyLock<HashMap<&'static str, Vec<&'sta
     ])
 });
 
-pub(crate) static CQL_SNIPPETS: LazyLock<HashMap<(&'static str, CriterionRole), &'static str>> = LazyLock::new(|| {
+pub static CQL_SNIPPETS: LazyLock<HashMap<(&'static str, CriterionRole), &'static str>> = LazyLock::new(|| {
     // TODO: Should we revert to first expression now that https://github.com/samply/blaze/issues/808 is solved?
     // let observation = "exists from [Observation: Code '{{K}}' from {{A1}}] O\nwhere O.value.coding contains Code '{{C}}' from {{A2}}";
     let observation = "exists from [Observation: Code '{{K}}' from {{A1}}] O\nwhere O.value.coding.code contains '{{C}}'";
@@ -358,18 +358,10 @@ pub(crate) static CQL_SNIPPETS: LazyLock<HashMap<(&'static str, CriterionRole), 
     ])
 });
 
-pub(crate) static MANDATORY_CODE_LISTS: LazyLock<IndexSet<&'static str>> = LazyLock::new(|| {
+pub static MANDATORY_CODE_LISTS: LazyLock<IndexSet<&'static str>> = LazyLock::new(|| {
     IndexSet::from(["loinc"])
 });
 
-pub(crate) static CQL_TEMPLATE: LazyLock<&'static str> = LazyLock::new(|| {
-    include_str!("template.cql")
-});
-
-pub(crate) static BODY: LazyLock<&'static str> = LazyLock::new(|| {
-    include_str!("body.json")
-});
-
-pub(crate) static SAMPLE_TYPE_WORKAROUNDS: LazyLock<HashMap<&'static str, Vec<&'static str>>> = LazyLock::new(|| {
+pub static SAMPLE_TYPE_WORKAROUNDS: LazyLock<HashMap<&'static str, Vec<&'static str>>> = LazyLock::new(|| {
     HashMap::new() // No workarounds for dktk
 });

@@ -4,7 +4,7 @@ use indexmap::IndexSet;
 
 use super::CriterionRole;
 
-pub(crate) static CODE_LISTS: LazyLock<HashMap<&'static str, &'static str>> = LazyLock::new(|| {
+pub static CODE_LISTS: LazyLock<HashMap<&'static str, &'static str>> = LazyLock::new(|| {
     HashMap::from([
         ("icd10", "http://hl7.org/fhir/sid/icd-10"),
         ("icd10gm", "http://fhir.de/CodeSystem/dimdi/icd-10-gm"),
@@ -29,7 +29,7 @@ pub(crate) static CODE_LISTS: LazyLock<HashMap<&'static str, &'static str>> = La
     ])
 });
 
-pub(crate) static OBSERVATION_LOINC_CODES: LazyLock<HashMap<&'static str, &'static str>> = LazyLock::new(|| {
+pub static OBSERVATION_LOINC_CODES: LazyLock<HashMap<&'static str, &'static str>> = LazyLock::new(|| {
     HashMap::from([
         ("body_weight", "29463-7"),
         ("bmi", "39156-5"),
@@ -37,7 +37,7 @@ pub(crate) static OBSERVATION_LOINC_CODES: LazyLock<HashMap<&'static str, &'stat
     ])
 });
 
-pub(crate) static CRITERION_CODE_LISTS: LazyLock<HashMap<&'static str, Vec<&'static str>>> = LazyLock::new(|| {
+pub static CRITERION_CODE_LISTS: LazyLock<HashMap<&'static str, Vec<&'static str>>> = LazyLock::new(|| {
     HashMap::from([
         ("diagnosis", vec!["icd10", "icd10gm", "icd10gmnew"]),
         ("body_weight", vec!["loinc"]),
@@ -49,7 +49,7 @@ pub(crate) static CRITERION_CODE_LISTS: LazyLock<HashMap<&'static str, Vec<&'sta
     ])
 });
 
-pub(crate) static CQL_SNIPPETS: LazyLock<HashMap<(&'static str, CriterionRole), &'static str>> = LazyLock::new(|| {
+pub static CQL_SNIPPETS: LazyLock<HashMap<(&'static str, CriterionRole), &'static str>> = LazyLock::new(|| {
     HashMap::from([
         (("gender", CriterionRole::Query), "Patient.gender = '{{C}}'"),
         (
@@ -111,19 +111,11 @@ pub(crate) static CQL_SNIPPETS: LazyLock<HashMap<(&'static str, CriterionRole), 
     ])
 });
 
-pub(crate) static MANDATORY_CODE_LISTS: LazyLock<IndexSet<&'static str>> = LazyLock::new(|| {
+pub static MANDATORY_CODE_LISTS: LazyLock<IndexSet<&'static str>> = LazyLock::new(|| {
     IndexSet::from(["icd10", "SampleMaterialType"])
 });
 
-pub(crate) static CQL_TEMPLATE: LazyLock<&'static str> = LazyLock::new(|| {
-    include_str!("template.cql")
-});
-
-pub(crate) static BODY: LazyLock<&'static str> = LazyLock::new(|| {
-    include_str!("body.json")
-});
-
-pub(crate) static SAMPLE_TYPE_WORKAROUNDS: LazyLock<HashMap<&'static str, Vec<&'static str>>> = LazyLock::new(|| {
+pub static SAMPLE_TYPE_WORKAROUNDS: LazyLock<HashMap<&'static str, Vec<&'static str>>> = LazyLock::new(|| {
     HashMap::from([
         (
             "blood-plasma",
