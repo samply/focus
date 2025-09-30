@@ -1,3 +1,13 @@
+# Samply.Focus v0.17.0 2025-09-30
+
+## Breaking changes
+
+* Remove the `enable_cql_lang` option in favor of `cql_projects_enabled` which allows one to enable cql on a per project basis
+
+## Minor changes
+
+* Use a default EUCAIM provider logo if none in config
+
 # Samply.Focus v0.16.0 2025-09-26
 
 * Add DKTK CQL generation: https://github.com/samply/focus/pull/266
