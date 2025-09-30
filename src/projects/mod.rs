@@ -3,8 +3,6 @@ use std::{collections::HashMap, hash::Hash};
 use indexmap::IndexSet;
 use once_cell::sync::Lazy;
 
-mod shared;
-
 #[cfg(feature = "bbmri")]
 pub(crate) mod bbmri;
 

@@ -1,5 +1,3 @@
-use crate::projects::shared::Shared;
-
 use std::collections::HashMap;
 
 use indexmap::IndexSet;
@@ -12,11 +10,36 @@ pub(crate) struct Bbmri;
 // TODO: Include entries from shared
 impl Project for Bbmri {
     fn append_code_lists(&self, map: &mut HashMap<&'static str, &'static str>) {
-        Shared::append_code_lists(&Shared, map)
+        map.extend([
+            ("icd10", "http://hl7.org/fhir/sid/icd-10"),
+            ("icd10gm", "http://fhir.de/CodeSystem/dimdi/icd-10-gm"),
+            ("icd10gmnew", "http://fhir.de/CodeSystem/bfarm/icd-10-gm"),
+            ("loinc", "http://loinc.org"),
+            (
+                "SampleMaterialType",
+                "https://fhir.bbmri.de/CodeSystem/SampleMaterialType",
+            ),
+            (
+                "StorageTemperature",
+                "https://fhir.bbmri.de/CodeSystem/StorageTemperature",
+            ),
+            (
+                "FastingStatus",
+                "http://terminology.hl7.org/CodeSystem/v2-0916",
+            ),
+            (
+                "SmokingStatus",
+                "http://hl7.org/fhir/uv/ips/ValueSet/current-smoking-status-uv-ips",
+            ),
+        ]);
     }
 
     fn append_observation_loinc_codes(&self, map: &mut HashMap<&'static str, &'static str>) {
-        Shared::append_observation_loinc_codes(&Shared, map)
+        map.extend([
+            ("body_weight", "29463-7"),
+            ("bmi", "39156-5"),
+            ("smoking_status", "72166-2"),
+        ]);
     }
 
     fn append_criterion_code_lists(&self, map: &mut HashMap<&str, Vec<&str>>) {
@@ -34,7 +57,6 @@ impl Project for Bbmri {
     }
 
     fn append_cql_snippets(&self, map: &mut HashMap<(&str, CriterionRole), &str>) {
-        Shared::append_cql_snippets(&Shared, map);
         for (key, value) in
         [
             (("gender", CriterionRole::Query), "Patient.gender = '{{C}}'"),
@@ -104,7 +126,6 @@ impl Project for Bbmri {
     }
 
     fn append_mandatory_code_lists(&self, set: &mut IndexSet<&str>) {
-        Shared::append_mandatory_code_lists(&Shared, set);
         for value in ["icd10", "SampleMaterialType"] {
             set.insert(value);
         }
