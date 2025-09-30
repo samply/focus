@@ -442,7 +442,6 @@ mod test {
     }
 
     #[test]
-    #[cfg(feature = "bbmri")]
     fn test_bbmri_quote() {
         pretty_assertions::assert_eq!(
             generate_cql(serde_json::from_str(QUOTE).unwrap(), Project::Bbmri).unwrap(),
@@ -451,7 +450,6 @@ mod test {
     }
 
     #[test]
-    #[cfg(feature = "bbmri")]
     fn test_bbmri() {
         pretty_assertions::assert_eq!(
             generate_cql(
@@ -529,7 +527,6 @@ mod test {
     const SAMPLE_KIND_FFPE: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"key":"sample_kind","operand":"OR","children":[{"key":"Gewebe FFPE","operand":"AND","children":[{"operand":"OR","children":[{"key":"sample_kind","type":"EQUALS","system":"","value":"tumor-tissue-ffpe"},{"key":"histology","type":"EQUALS","system":"","value":"tumor-tissue-ffpe"},{"key":"sample_kind","type":"EQUALS","system":"","value":"tissue-ffpe"},{"key":"sample_kind","type":"EQUALS","system":"","value":"normal-tissue-ffpe"},{"key":"sample_kind","type":"EQUALS","system":"","value":"other-tissue-ffpe"}]}]}]}]}]},"id":"bd5112af-e712-4091-9c94-892c4e667a29"}"#;
 
     #[test]
-    #[cfg(feature = "dktk")]
     fn test_dktk() {
         pretty_assertions::assert_eq!(
             generate_cql(serde_json::from_str(DIAGNOSIS_C30).unwrap(), Project::Dktk).unwrap(),
