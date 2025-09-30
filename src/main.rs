@@ -328,9 +328,10 @@ async fn process_task(
                 }
                 Language::Ast(ast_query) => {
                     generated_from_ast = true;
-                    serde_json::from_str(&cql::generate_body(parse_blaze_query_payload_ast(
-                        &ast_query.payload,
-                    )?, metadata.project.parse()?)?)?
+                    serde_json::from_str(&cql::generate_body(
+                        parse_blaze_query_payload_ast(&ast_query.payload)?,
+                        metadata.project.parse()?,
+                    )?)?
                 }
             };
             run_cql_query(
@@ -364,9 +365,10 @@ async fn process_task(
                     }
                     Language::Ast(ast_query) => {
                         generated_from_ast = true;
-                        serde_json::from_str(&cql::generate_body(parse_blaze_query_payload_ast(
-                            &ast_query.payload,
-                        )?, metadata.project.parse()?)?)?
+                        serde_json::from_str(&cql::generate_body(
+                            parse_blaze_query_payload_ast(&ast_query.payload)?,
+                            metadata.project.parse()?,
+                        )?)?
                     }
                 };
                 run_cql_query(

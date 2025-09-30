@@ -92,79 +92,82 @@ pub static CODE_LISTS: LazyLock<HashMap<&'static str, &'static str>> = LazyLock:
     ])
 });
 
-pub static OBSERVATION_LOINC_CODES: LazyLock<HashMap<&'static str, &'static str>> = LazyLock::new(|| {
-    HashMap::from([
-        ("grading", "59542-1"),
-        ("morphology", "59847-4"),
-        ("responseOverTime", "21976-6"),
-        ("localRegionalRecurrence", "LA4583-6"),
-        ("lymphNodeRecurrence", "LA4370-8"),
-        ("distantMetastases", "LA4226-2"),
-        ("vitalStatus", "75186-7"),
-        ("observationMolecularMarkerName", "48018-6"),
-        ("observationMolecularMarkerAminoacidchange", "48005-3"),
-        ("observationMolecularMarkerDNAchange", "81290-9"),
-        ("observationMolecularMarkerSeqRefNCBI", "81248-7"),
-        ("observationMolecularMarkerEnsemblID", "81249-5"),
-    ])
-});
+pub static OBSERVATION_LOINC_CODES: LazyLock<HashMap<&'static str, &'static str>> =
+    LazyLock::new(|| {
+        HashMap::from([
+            ("grading", "59542-1"),
+            ("morphology", "59847-4"),
+            ("responseOverTime", "21976-6"),
+            ("localRegionalRecurrence", "LA4583-6"),
+            ("lymphNodeRecurrence", "LA4370-8"),
+            ("distantMetastases", "LA4226-2"),
+            ("vitalStatus", "75186-7"),
+            ("observationMolecularMarkerName", "48018-6"),
+            ("observationMolecularMarkerAminoacidchange", "48005-3"),
+            ("observationMolecularMarkerDNAchange", "81290-9"),
+            ("observationMolecularMarkerSeqRefNCBI", "81248-7"),
+            ("observationMolecularMarkerEnsemblID", "81249-5"),
+        ])
+    });
 
-pub static CRITERION_CODE_LISTS: LazyLock<HashMap<&'static str, Vec<&'static str>>> = LazyLock::new(|| {
-    HashMap::from([
-        ("diagnosis", vec!["icd10"]),
-        ("bodySite", vec!["bodySite"]),
-        ("conditionLocalization", vec!["lokalisation_icd_o_3"]),
-        ("grading", vec!["loinc", "gradingcs"]),
-        ("metastases_present", vec!["loinc", "jnucs"]),
-        ("localization_metastases", vec!["loinc", "fmlokalisationcs"]),
-        ("procedure", vec!["Therapieart"]),
-        ("medicationStatement", vec!["Therapieart"]),
-        ("morphology", vec!["loinc", "morph"]),
-        ("sample_kind", vec!["specimentype"]),
-        (
-            "observationMolecularMarkerName",
-            vec!["loinc", "molecularMarker"],
-        ),
-        ("observationMolecularMarkerAminoacidchange", vec!["loinc"]),
-        ("observationMolecularMarkerDNAchange", vec!["loinc"]),
-        ("observationMolecularMarkerSeqRefNCBI", vec!["loinc"]),
-        ("observationMolecularMarkerEnsemblID", vec!["loinc"]),
-        (
-            "local_assessment_residual_tumor",
-            vec!["Therapieart", "lokalebeurteilungresidualstatuscs"],
-        ),
-        (
-            "responseOverTime",
-            vec!["loinc", "gesamtbeurteilungtumorstatuscs"],
-        ),
-        (
-            "localRegionalRecurrence",
-            vec!["loinc", "verlauflokalertumorstatuscs"],
-        ),
-        (
-            "lymphNodeRecurrence",
-            vec!["loinc", "verlauftumorstatuslymphknotencs"],
-        ),
-        (
-            "distantMetastases",
-            vec!["loinc", "verlauftumorstatusfernmetastasencs"],
-        ),
-        ("vitalStatus", vec!["loinc", "vitalstatuscs"]),
-        ("TNM-T", vec!["loinc", "TNMTCS"]),
-        ("TNM-N", vec!["loinc", "TNMNCS"]),
-        ("TNM-M", vec!["loinc", "TNMMCS"]),
-        ("TNM-m-Symbol", vec!["loinc", "TNMmSymbolCS"]),
-        ("TNM-y-Symbol", vec!["loinc", "TNMySymbolCS"]),
-        ("TNM-r-Symbol", vec!["loinc", "TNMrSymbolCS"]),
-    ])
-});
+pub static CRITERION_CODE_LISTS: LazyLock<HashMap<&'static str, Vec<&'static str>>> =
+    LazyLock::new(|| {
+        HashMap::from([
+            ("diagnosis", vec!["icd10"]),
+            ("bodySite", vec!["bodySite"]),
+            ("conditionLocalization", vec!["lokalisation_icd_o_3"]),
+            ("grading", vec!["loinc", "gradingcs"]),
+            ("metastases_present", vec!["loinc", "jnucs"]),
+            ("localization_metastases", vec!["loinc", "fmlokalisationcs"]),
+            ("procedure", vec!["Therapieart"]),
+            ("medicationStatement", vec!["Therapieart"]),
+            ("morphology", vec!["loinc", "morph"]),
+            ("sample_kind", vec!["specimentype"]),
+            (
+                "observationMolecularMarkerName",
+                vec!["loinc", "molecularMarker"],
+            ),
+            ("observationMolecularMarkerAminoacidchange", vec!["loinc"]),
+            ("observationMolecularMarkerDNAchange", vec!["loinc"]),
+            ("observationMolecularMarkerSeqRefNCBI", vec!["loinc"]),
+            ("observationMolecularMarkerEnsemblID", vec!["loinc"]),
+            (
+                "local_assessment_residual_tumor",
+                vec!["Therapieart", "lokalebeurteilungresidualstatuscs"],
+            ),
+            (
+                "responseOverTime",
+                vec!["loinc", "gesamtbeurteilungtumorstatuscs"],
+            ),
+            (
+                "localRegionalRecurrence",
+                vec!["loinc", "verlauflokalertumorstatuscs"],
+            ),
+            (
+                "lymphNodeRecurrence",
+                vec!["loinc", "verlauftumorstatuslymphknotencs"],
+            ),
+            (
+                "distantMetastases",
+                vec!["loinc", "verlauftumorstatusfernmetastasencs"],
+            ),
+            ("vitalStatus", vec!["loinc", "vitalstatuscs"]),
+            ("TNM-T", vec!["loinc", "TNMTCS"]),
+            ("TNM-N", vec!["loinc", "TNMNCS"]),
+            ("TNM-M", vec!["loinc", "TNMMCS"]),
+            ("TNM-m-Symbol", vec!["loinc", "TNMmSymbolCS"]),
+            ("TNM-y-Symbol", vec!["loinc", "TNMySymbolCS"]),
+            ("TNM-r-Symbol", vec!["loinc", "TNMrSymbolCS"]),
+        ])
+    });
 
-pub static CQL_SNIPPETS: LazyLock<HashMap<(&'static str, CriterionRole), &'static str>> = LazyLock::new(|| {
-    // TODO: Should we revert to first expression now that https://github.com/samply/blaze/issues/808 is solved?
-    // let observation = "exists from [Observation: Code '{{K}}' from {{A1}}] O\nwhere O.value.coding contains Code '{{C}}' from {{A2}}";
-    let observation = "exists from [Observation: Code '{{K}}' from {{A1}}] O\nwhere O.value.coding.code contains '{{C}}'";
+pub static CQL_SNIPPETS: LazyLock<HashMap<(&'static str, CriterionRole), &'static str>> =
+    LazyLock::new(|| {
+        // TODO: Should we revert to first expression now that https://github.com/samply/blaze/issues/808 is solved?
+        // let observation = "exists from [Observation: Code '{{K}}' from {{A1}}] O\nwhere O.value.coding contains Code '{{C}}' from {{A2}}";
+        let observation = "exists from [Observation: Code '{{K}}' from {{A1}}] O\nwhere O.value.coding.code contains '{{C}}'";
 
-    HashMap::from([
+        HashMap::from([
         (
             ("gender", CriterionRole::Query),
             "Patient.gender = '{{C}}'",
@@ -356,12 +359,12 @@ pub static CQL_SNIPPETS: LazyLock<HashMap<(&'static str, CriterionRole), &'stati
             "exists from [Observation: Code '59847-4' from loinc] O\n",
         ),
     ])
-});
+    });
 
-pub static MANDATORY_CODE_LISTS: LazyLock<IndexSet<&'static str>> = LazyLock::new(|| {
-    IndexSet::from(["loinc"])
-});
+pub static MANDATORY_CODE_LISTS: LazyLock<IndexSet<&'static str>> =
+    LazyLock::new(|| IndexSet::from(["loinc"]));
 
-pub static SAMPLE_TYPE_WORKAROUNDS: LazyLock<HashMap<&'static str, Vec<&'static str>>> = LazyLock::new(|| {
-    HashMap::new() // No workarounds for dktk
-});
+pub static SAMPLE_TYPE_WORKAROUNDS: LazyLock<HashMap<&'static str, Vec<&'static str>>> =
+    LazyLock::new(|| {
+        HashMap::new() // No workarounds for dktk
+    });
