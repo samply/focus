@@ -512,7 +512,7 @@ async fn run_eucaim_sql_query(
             subjects_count: 0,
         },
         provider: CONFIG.provider.clone().unwrap_or_default(),
-        provider_icon: provider_icon,
+        provider_icon: provider_icon.to_owned(),
     };
     let mut studies_count: i32 = 0;
     let mut subjects_count: i32 = 0;
@@ -757,8 +757,8 @@ async fn run_eucaim_api_query(task: &BeamTask, ast: ast::Ast) -> Result<BeamResu
 
     let provider_icon = CONFIG
         .provider_icon
-        .clone()
-        .unwrap_or(include_str!("../resources/default_provider_icon").to_string());
+        .as_deref()
+        .unwrap_or(include_str!("../resources/default_provider_icon"));
 
     eucaim_api_query_result = eucaim_api_query_result.replacen(
         '{',
