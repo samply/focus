@@ -318,10 +318,15 @@ async fn process_task(
             let query: CqlQuery = match serde_json::from_slice::<Language>(&data)? {
                 #[cfg(not(feature = "bbmri"))]
                 Language::Cql(cql_query) => {
-                    if !CONFIG.enable_cql_lang {
+                    if CONFIG
+                        .cql_projects_enabled
+                        .as_ref()
+                        .is_some_and(|projects| projects.contains(&metadata.project))
+                    {
+                        cql_query
+                    } else {
                         return Err(FocusError::CqlLangNotEnabled);
                     }
-                    cql_query
                 }
                 Language::Ast(ast_query) => {
                     generated_from_ast = true;
@@ -350,10 +355,15 @@ async fn process_task(
                 let query = match cql_query {
                     #[cfg(not(feature = "bbmri"))]
                     Language::Cql(cql_query) => {
-                        if !CONFIG.enable_cql_lang {
+                        if CONFIG
+                            .cql_projects_enabled
+                            .as_ref()
+                            .is_some_and(|projects| projects.contains(&metadata.project))
+                        {
+                            cql_query
+                        } else {
                             return Err(FocusError::CqlLangNotEnabled);
                         }
-                        cql_query
                     }
                     Language::Ast(ast_query) => {
                         generated_from_ast = true;
