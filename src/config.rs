@@ -136,7 +136,7 @@ struct CliArgs {
     delta_histo: f64,
 
     /// Privacy budget parameter for obfuscating the counts in the stratifiers
-    #[clap(long, env, value_parser, default_value = "0.1")]
+    #[clap(long, env, value_parser, default_value = "0.28")]
     epsilon: f64,
 
     /// The granularity of the rounding of the obfuscated values
