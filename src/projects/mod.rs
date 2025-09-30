@@ -9,28 +9,7 @@ pub(crate) mod bbmri;
 #[cfg(feature = "dktk")]
 pub(crate) mod dktk;
 
-pub(crate) trait Project: PartialEq + Eq + PartialOrd + Ord + Clone + Copy + Hash {
-    fn append_code_lists(&self, _map: &mut HashMap<&'static str, &'static str>);
-    fn append_observation_loinc_codes(&self, _map: &mut HashMap<&'static str, &'static str>);
-    fn append_criterion_code_lists(&self, _map: &mut HashMap<&str, Vec<&str>>);
-    fn append_cql_snippets(&self, _map: &mut HashMap<(&str, CriterionRole), &str>);
-    fn append_mandatory_code_lists(&self, set: &mut IndexSet<&str>);
-    fn append_cql_template(&self, _template: &mut String);
-    fn name(&self) -> &'static ProjectName;
-    fn append_body(&self, _body: &mut String);
-    fn append_sample_type_workarounds(&self, _map: &mut HashMap<&str, Vec<&str>>);
-}
-
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Copy)]
-pub enum ProjectName {
-    #[cfg(feature = "bbmri")]
-    Bbmri,
-    #[cfg(feature = "dktk")]
-    Dktk,
-    NotSpecified,
-}
-
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
 pub enum CriterionRole {
     Query,
     Filter,
@@ -41,10 +20,10 @@ pub static CODE_LISTS: Lazy<HashMap<&str, &str>> = Lazy::new(|| {
     let mut map: HashMap<&'static str, &'static str> = HashMap::new();
 
     #[cfg(feature = "bbmri")]
-    bbmri::Bbmri.append_code_lists(&mut map);
+    map.extend(bbmri::CODE_LISTS.iter().map(|(k, v)| (*k, *v)));
 
     #[cfg(feature = "dktk")]
-    dktk::Dktk.append_code_lists(&mut map);
+    map.extend(dktk::CODE_LISTS.iter().map(|(k, v)| (*k, *v)));
 
     map
 });
@@ -53,10 +32,10 @@ pub static OBSERVATION_LOINC_CODE: Lazy<HashMap<&str, &str>> = Lazy::new(|| {
     let mut map: HashMap<&'static str, &'static str> = HashMap::new();
 
     #[cfg(feature = "bbmri")]
-    bbmri::Bbmri.append_observation_loinc_codes(&mut map);
+    map.extend(bbmri::OBSERVATION_LOINC_CODES.iter().map(|(k, v)| (*k, *v)));
 
     #[cfg(feature = "dktk")]
-    dktk::Dktk.append_observation_loinc_codes(&mut map);
+    map.extend(dktk::OBSERVATION_LOINC_CODES.iter().map(|(k, v)| (*k, *v)));
 
     map
 });
@@ -66,10 +45,10 @@ pub static SAMPLE_TYPE_WORKAROUNDS: Lazy<HashMap<&str, Vec<&str>>> = Lazy::new(|
     let mut map: HashMap<&'static str, Vec<&'static str>> = HashMap::new();
 
     #[cfg(feature = "bbmri")]
-    bbmri::Bbmri.append_sample_type_workarounds(&mut map);
+    map.extend(bbmri::SAMPLE_TYPE_WORKAROUNDS.iter().map(|(k, v)| (*k, v.clone())));
 
     #[cfg(feature = "dktk")]
-    dktk::Dktk.append_sample_type_workarounds(&mut map);
+    map.extend(dktk::SAMPLE_TYPE_WORKAROUNDS.iter().map(|(k, v)| (*k, v.clone())));
 
     map
 });
@@ -79,10 +58,10 @@ pub static CRITERION_CODE_LISTS: Lazy<HashMap<&str, Vec<&str>>> = Lazy::new(|| {
     let mut map = HashMap::new();
 
     #[cfg(feature = "bbmri")]
-    bbmri::Bbmri.append_criterion_code_lists(&mut map);
+    map.extend(bbmri::CRITERION_CODE_LISTS.iter().map(|(k, v)| (*k, v.clone())));
 
     #[cfg(feature = "dktk")]
-    dktk::Dktk.append_criterion_code_lists(&mut map);
+    map.extend(dktk::CRITERION_CODE_LISTS.iter().map(|(k, v)| (*k, v.clone())));
 
     map
 });
@@ -92,46 +71,59 @@ pub static CQL_SNIPPETS: Lazy<HashMap<(&str, CriterionRole), &str>> = Lazy::new(
     let mut map = HashMap::new();
 
     #[cfg(feature = "bbmri")]
-    bbmri::Bbmri.append_cql_snippets(&mut map);
+    map.extend(bbmri::CQL_SNIPPETS.iter().map(|(k, v)| (*k, *v)));
 
     #[cfg(feature = "dktk")]
-    dktk::Dktk.append_cql_snippets(&mut map);
+    map.extend(dktk::CQL_SNIPPETS.iter().map(|(k, v)| (*k, *v)));
 
     map
 });
-
 pub static MANDATORY_CODE_SYSTEMS: Lazy<IndexSet<&str>> = Lazy::new(|| {
     let mut set = IndexSet::new();
 
     #[cfg(feature = "bbmri")]
-    bbmri::Bbmri.append_mandatory_code_lists(&mut set);
+    set.extend(bbmri::MANDATORY_CODE_LISTS.iter().copied());
 
     #[cfg(feature = "dktk")]
-    dktk::Dktk.append_mandatory_code_lists(&mut set);
+    set.extend(dktk::MANDATORY_CODE_LISTS.iter().copied());
 
     set
 });
 
 pub static CQL_TEMPLATE: Lazy<&'static str> = Lazy::new(|| {
-    let mut template = String::new();
-
-    #[cfg(feature = "bbmri")]
-    bbmri::Bbmri.append_cql_template(&mut template);
-
-    #[cfg(feature = "dktk")]
-    dktk::Dktk.append_cql_template(&mut template);
-
-    template.leak()
+    #[cfg(all(feature = "bbmri", not(feature = "dktk")))]
+    return *bbmri::CQL_TEMPLATE;
+    
+    #[cfg(all(feature = "dktk", not(feature = "bbmri")))]
+    return *dktk::CQL_TEMPLATE;
+    
+    #[cfg(all(feature = "bbmri", feature = "dktk"))]
+    {
+        let mut template = String::new();
+        template.push_str(*bbmri::CQL_TEMPLATE);
+        template.push_str(*dktk::CQL_TEMPLATE);
+        template.leak()
+    }
+    
+    #[cfg(not(any(feature = "bbmri", feature = "dktk")))]
+    ""
 });
 
 pub static BODY: Lazy<&'static str> = Lazy::new(|| {
-    let mut body = String::new();
-
-    #[cfg(feature = "bbmri")]
-    bbmri::Bbmri.append_body(&mut body);
-
-    #[cfg(feature = "dktk")]
-    dktk::Dktk.append_body(&mut body);
-
-    body.leak()
+    #[cfg(all(feature = "bbmri", not(feature = "dktk")))]
+    return *bbmri::BODY;
+    
+    #[cfg(all(feature = "dktk", not(feature = "bbmri")))]
+    return *dktk::BODY;
+    
+    #[cfg(all(feature = "bbmri", feature = "dktk"))]
+    {
+        let mut body = String::new();
+        body.push_str(*bbmri::BODY);
+        body.push_str(*dktk::BODY);
+        body.leak()
+    }
+    
+    #[cfg(not(any(feature = "bbmri", feature = "dktk")))]
+    ""
 });
