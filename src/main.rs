@@ -502,8 +502,8 @@ async fn run_eucaim_sql_query(
     let result = db::process_sql_task(&pool, &(sql_query)).await;
     let provider_icon = CONFIG
         .provider_icon
-        .clone()
-        .unwrap_or(include_str!("../resources/default_provider_icon").to_string());
+        .as_deref()
+        .unwrap_or(include_str!("../resources/default_provider_icon"));
 
     let mut response: EucaimResponse = EucaimResponse {
         collections: Vec::new(),
