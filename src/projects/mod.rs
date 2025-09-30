@@ -132,7 +132,7 @@ pub static MANDATORY_CODE_SYSTEMS: Lazy<IndexSet<&str>> = Lazy::new(|| {
     dktk::Dktk.append_mandatory_code_lists(&mut set);
 
     #[cfg(feature = "cce")]
-    cce::Cce.append_mandatory_code_lists(&mut map);
+    cce::Cce.append_mandatory_code_lists(&mut set);
 
     set
 });
@@ -147,7 +147,7 @@ pub static CQL_TEMPLATE: Lazy<&'static str> = Lazy::new(|| {
     dktk::Dktk.append_cql_template(&mut template);
 
     #[cfg(feature = "cce")]
-    cce::Cce.append_cql_template(&mut map);
+    cce::Cce.append_cql_template(&mut template);
 
     template.leak()
 });
@@ -162,7 +162,7 @@ pub static BODY: Lazy<&'static str> = Lazy::new(|| {
     dktk::Dktk.append_body(&mut body);
 
     #[cfg(feature = "cce")]
-    cce::Cce.append_body(&mut map);
+    cce::Cce.append_body(&mut body);
 
     body.leak()
 });
