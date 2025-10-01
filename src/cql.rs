@@ -12,7 +12,6 @@ use uuid::Uuid;
 pub fn generate_body(ast: ast::Ast, project: Project) -> Result<String, FocusError> {
     Ok(project
         .get_body()
-        .to_string()
         .replace(
             "{{LIBRARY_UUID}}",
             format!("urn:uuid:{}", Uuid::new_v4()).as_str(),
