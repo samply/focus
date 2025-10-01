@@ -32,8 +32,6 @@ export VAULT_TOKEN=$(echo "ABCDEFGHIJ" | md5sum | head -c 20; echo;)
 export P1="http://localhost:8081" # for scripts
 export P2="http://localhost:8082" # for scripts
 
-export ARCH=$(docker version --format "{{.Server.Arch}}")
-
 function check_prereqs() {
      set +e
      if [[ "$(curl --version)" != *" libcurl/"* ]]; then
@@ -51,49 +49,17 @@ function check_prereqs() {
      set -e
 }
 
-function build() {
-    BUILD_DOCKER=0
-    BACK=$(pwd)
-    cd $SD/..
-    FOCUS=./target/debug/focus
-    if [ ! -x ./artifacts/binaries-$ARCH ]; then
-        echo "Binaries missing -- building ..."
-        BUILD="$(cargo build $@ --message-format=json)"
-        echo "Will rebuild docker image since binaries had not been there."
-        mkdir -p artifacts/binaries-$ARCH
-        rsync "$FOCUS" artifacts/binaries-$ARCH/
-        BUILD_DOCKER=1
-    elif [ -z "$(docker images -q samply/focus:$TAG)" ]; then
-        echo "Will rebuild docker image since it is missing."
-        BUILD_DOCKER=1
-    elif [ -x ./target ]; then
-        echo "Checking for changed Rust source code ..."
-        BUILD="$(cargo build $@ --message-format=json)"
-        if echo $BUILD | jq 'select(.fresh==false)' | grep -q 'fresh'; then
-            echo "Will rebuild docker image due to changes in rust binaries."
-            rsync "$FOCUS" artifacts/binaries-$ARCH/
-            BUILD_DOCKER=1
-        fi
-    fi
-    if [ $BUILD_DOCKER -eq 1 ]; then
-        build_docker
-    else
-        echo "Not rebuilding docker image since nothing has changed."
-    fi
-    cd $BACK
-}
-
 function build_docker() {
     BACK2=$(pwd)
     cd $SD
-    docker compose build --build-arg TARGETARCH=$ARCH --build-arg COMPONENT=focus
+    docker compose build
     cd $BACK2
 }
 
 function start {
     echo "$VAULT_TOKEN" > pki/pki.secret
     pki/pki setup
-    build $@
+    build_docker
     docker compose up --no-build --no-recreate -d
     docker compose logs focus -f
 }
@@ -104,16 +70,13 @@ export TAG=${TAG:-localbuild}
 
 case "$1" in
     build)
-        shift
-        build $@
+        build_docker
         ;;
     start)
-        shift
-        start $@
+        start
         ;;
     restart)
-        shift
-        build $@
+        build_docker
         docker compose up --no-deps --no-build focus
         ;;
     stop)

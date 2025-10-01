@@ -68,9 +68,7 @@ kurtbuilds_sqlx_serde = { version = "0.3.2", features = [
 
 
 [features]
-default = []
-bbmri = []
-dktk = ["query-sql"]
+default = ["query-sql"]
 query-sql = ["dep:sqlx", "dep:kurtbuilds_sqlx_serde"]
 
 [dev-dependencies]

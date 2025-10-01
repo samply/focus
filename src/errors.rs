@@ -76,6 +76,8 @@ pub enum FocusError {
     #[cfg(feature = "query-sql")]
     #[error("Error executing SQL query: {0}")]
     ErrorExecutingSqlQuery(sqlx::Error),
+    #[error("Unknown project: {0}")]
+    UnknownProject(String),
 }
 
 impl FocusError {
@@ -86,6 +88,7 @@ impl FocusError {
         match self {
             DecodeError(_) | ParsingError(_) | SerdeParsingError(_) => "Cannot parse query.",
             LaplaceError(_) => "Cannot obfuscate result.",
+            UnknownProject(_) => "Unknown project specified.",
             _ => "Failed to execute query.",
         }
     }

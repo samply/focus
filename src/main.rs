@@ -61,7 +61,6 @@ type BeamResult = TaskResult<beam_lib::RawString>;
 #[derive(Deserialize, Debug)]
 #[serde(tag = "lang", rename_all = "lowercase")]
 enum Language {
-    #[cfg(not(feature = "bbmri"))]
     Cql(CqlQuery),
     Ast(AstQuery),
 }
@@ -316,7 +315,6 @@ async fn process_task(
             let mut generated_from_ast: bool = false;
             let data = base64_decode(&task.body)?;
             let query: CqlQuery = match serde_json::from_slice::<Language>(&data)? {
-                #[cfg(not(feature = "bbmri"))]
                 Language::Cql(cql_query) => {
                     if CONFIG
                         .cql_projects_enabled
@@ -330,9 +328,10 @@ async fn process_task(
                 }
                 Language::Ast(ast_query) => {
                     generated_from_ast = true;
-                    serde_json::from_str(&cql::generate_body(parse_blaze_query_payload_ast(
-                        &ast_query.payload,
-                    )?)?)?
+                    serde_json::from_str(&cql::generate_body(
+                        parse_blaze_query_payload_ast(&ast_query.payload)?,
+                        metadata.project.parse()?,
+                    )?)?
                 }
             };
             run_cql_query(
@@ -353,7 +352,6 @@ async fn process_task(
             let query_maybe: Result<Language, serde_json::Error> = serde_json::from_slice(&data);
             if let Ok(cql_query) = query_maybe {
                 let query = match cql_query {
-                    #[cfg(not(feature = "bbmri"))]
                     Language::Cql(cql_query) => {
                         if CONFIG
                             .cql_projects_enabled
@@ -367,9 +365,10 @@ async fn process_task(
                     }
                     Language::Ast(ast_query) => {
                         generated_from_ast = true;
-                        serde_json::from_str(&cql::generate_body(parse_blaze_query_payload_ast(
-                            &ast_query.payload,
-                        )?)?)?
+                        serde_json::from_str(&cql::generate_body(
+                            parse_blaze_query_payload_ast(&ast_query.payload)?,
+                            metadata.project.parse()?,
+                        )?)?
                     }
                 };
                 run_cql_query(
