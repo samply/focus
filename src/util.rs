@@ -175,7 +175,7 @@ pub fn obfuscate_counts_mr(
                     rounding_step,
                 )?;
             }
-            "Histo" => {
+            "MolecularMarker" => {
                 obfuscate_population(
                     &mut g.population,
                     delta_histo,
