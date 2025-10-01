@@ -22,7 +22,7 @@ impl FromStr for Project {
     type Err = FocusError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_lowercase().as_str() {
+        match s {
             "bbmri" => Ok(Project::Bbmri),
             "dktk" => Ok(Project::Dktk),
             _ => Err(FocusError::UnknownProject(s.to_string())),
