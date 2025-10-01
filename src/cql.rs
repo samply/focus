@@ -1,6 +1,6 @@
 use crate::ast;
 use crate::errors::FocusError;
-use crate::projects::{self, CriterionRole, Project};
+use crate::projects::{CriterionRole, Project};
 
 use base64::{prelude::BASE64_STANDARD as BASE64, Engine as _};
 use chrono::offset::Utc;
@@ -10,7 +10,8 @@ use tracing::info;
 use uuid::Uuid;
 
 pub fn generate_body(ast: ast::Ast, project: Project) -> Result<String, FocusError> {
-    Ok(projects::get_body(&project)
+    Ok(project
+        .get_body()
         .to_string()
         .replace(
             "{{LIBRARY_UUID}}",
@@ -33,14 +34,14 @@ fn generate_cql(ast: ast::Ast, project: Project) -> Result<String, FocusError> {
 
     let mut lists: String = String::new(); // needed code lists, defined
 
-    let mut cql = projects::get_cql_template(&project).to_string();
+    let mut cql = project.get_cql_template().to_string();
 
     let operator_str = match ast.ast.operand {
         ast::Operand::And => " and ",
         ast::Operand::Or => " or ",
     };
 
-    let mut mandatory_codes = projects::get_mandatory_code_lists(&project).clone();
+    let mut mandatory_codes = project.get_mandatory_code_lists().clone();
 
     for (index, grandchild) in ast.ast.children.iter().enumerate() {
         process(
@@ -61,9 +62,7 @@ fn generate_cql(ast: ast::Ast, project: Project) -> Result<String, FocusError> {
         lists += format!(
             "codesystem {}: '{}'\n",
             code_system,
-            projects::get_code_lists(&project)
-                .get(code_system)
-                .unwrap_or(&(""))
+            project.get_code_lists().get(code_system).unwrap_or(&(""))
         )
         .as_str();
     }
@@ -108,7 +107,8 @@ pub fn process(
         ast::Child::Condition(condition) => {
             let condition_key_trans = condition.key.as_str();
 
-            let condition_snippet = projects::get_cql_snippets(&project)
+            let condition_snippet = project
+                .get_cql_snippets()
                 .get(&(condition_key_trans, CriterionRole::Query));
 
             let Some(snippet) = condition_snippet else {
@@ -119,11 +119,13 @@ pub fn process(
             let mut condition_string = (*snippet).to_string();
             let mut filter_string: String = String::new();
 
-            let filter_snippet = projects::get_cql_snippets(&project)
+            let filter_snippet = project
+                .get_cql_snippets()
                 .get(&(condition_key_trans, CriterionRole::Filter));
 
-            let code_lists_option =
-                projects::get_criterion_code_lists(&project).get(&(condition_key_trans));
+            let code_lists_option = project
+                .get_criterion_code_lists()
+                .get(&(condition_key_trans));
             if let Some(code_lists_vec) = code_lists_option {
                 for (index, code_list) in code_lists_vec.iter().enumerate() {
                     code_systems.insert(code_list);
@@ -134,8 +136,9 @@ pub fn process(
 
             if condition_string.contains("{{K}}") {
                 //observation loinc code, those only apply to query criteria, we don't filter specimens by observations
-                let observation_code_option =
-                    projects::get_observation_loinc_codes(&project).get(&condition_key_trans);
+                let observation_code_option = project
+                    .get_observation_loinc_codes()
+                    .get(&condition_key_trans);
 
                 if let Some(observation_code) = observation_code_option {
                     condition_string = condition_string.replace("{{K}}", &escape(observation_code));
@@ -242,8 +245,7 @@ pub fn process(
                             let mut string_array_with_workarounds = string_array.clone();
                             for value in string_array {
                                 if let Some(additional_values) =
-                                    projects::get_sample_type_workarounds(&project)
-                                        .get(value.as_str())
+                                    project.get_sample_type_workarounds().get(value.as_str())
                                 {
                                     for additional_value in additional_values {
                                         string_array_with_workarounds
@@ -293,7 +295,7 @@ pub fn process(
                         let operator_str = " or ";
                         let mut string_array_with_workarounds = vec![string.clone()];
                         if let Some(additional_values) =
-                            projects::get_sample_type_workarounds(&project).get(string.as_str())
+                            project.get_sample_type_workarounds().get(string.as_str())
                         {
                             for additional_value in additional_values {
                                 string_array_with_workarounds.push((*additional_value).into());
