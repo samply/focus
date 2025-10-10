@@ -14,7 +14,6 @@ jobs:
       #architectures: '[ "amd64", "arm64" ]'
       #profile: debug
       test-via-script: false
-      features: '[ "bbmri", "dktk", "query-sql", "" ]'
       cargo-fmt-check: true
     secrets:
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
