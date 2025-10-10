@@ -1,139 +1,91 @@
-use std::{collections::HashMap, hash::Hash};
+use std::{collections::HashMap, hash::Hash, str::FromStr};
 
 use indexmap::IndexSet;
-use once_cell::sync::Lazy;
 
-mod shared;
+use crate::errors::FocusError;
 
-#[cfg(feature = "bbmri")]
-pub(crate) mod bbmri;
-
-#[cfg(feature = "dktk")]
-pub(crate) mod dktk;
-
-pub(crate) trait Project: PartialEq + Eq + PartialOrd + Ord + Clone + Copy + Hash {
-    fn append_code_lists(&self, _map: &mut HashMap<&'static str, &'static str>);
-    fn append_observation_loinc_codes(&self, _map: &mut HashMap<&'static str, &'static str>);
-    fn append_criterion_code_lists(&self, _map: &mut HashMap<&str, Vec<&str>>);
-    fn append_cql_snippets(&self, _map: &mut HashMap<(&str, CriterionRole), &str>);
-    fn append_mandatory_code_lists(&self, set: &mut IndexSet<&str>);
-    fn append_cql_template(&self, _template: &mut String);
-    fn name(&self) -> &'static ProjectName;
-    fn append_body(&self, _body: &mut String);
-    fn append_sample_type_workarounds(&self, _map: &mut HashMap<&str, Vec<&str>>);
-}
+mod bbmri;
+mod dktk;
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Copy)]
-pub enum ProjectName {
-    #[cfg(feature = "bbmri")]
-    Bbmri,
-    #[cfg(feature = "dktk")]
-    Dktk,
-    NotSpecified,
-}
-
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
 pub enum CriterionRole {
     Query,
     Filter,
 }
 
-// code lists with their names
-pub static CODE_LISTS: Lazy<HashMap<&str, &str>> = Lazy::new(|| {
-    let mut map: HashMap<&'static str, &'static str> = HashMap::new();
+pub enum Project {
+    Bbmri,
+    Dktk,
+}
 
-    #[cfg(feature = "bbmri")]
-    bbmri::Bbmri.append_code_lists(&mut map);
+impl FromStr for Project {
+    type Err = FocusError;
 
-    #[cfg(feature = "dktk")]
-    dktk::Dktk.append_code_lists(&mut map);
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "bbmri" => Ok(Project::Bbmri),
+            "dktk" => Ok(Project::Dktk),
+            _ => Err(FocusError::UnknownProject(s.to_string())),
+        }
+    }
+}
 
-    map
-});
+impl Project {
+    pub fn get_code_lists(&self) -> &'static HashMap<&'static str, &'static str> {
+        match self {
+            Project::Bbmri => &bbmri::CODE_LISTS,
+            Project::Dktk => &dktk::CODE_LISTS,
+        }
+    }
 
-pub static OBSERVATION_LOINC_CODE: Lazy<HashMap<&str, &str>> = Lazy::new(|| {
-    let mut map: HashMap<&'static str, &'static str> = HashMap::new();
+    pub fn get_observation_loinc_codes(&self) -> &'static HashMap<&'static str, &'static str> {
+        match self {
+            Project::Bbmri => &bbmri::OBSERVATION_LOINC_CODES,
+            Project::Dktk => &dktk::OBSERVATION_LOINC_CODES,
+        }
+    }
 
-    #[cfg(feature = "bbmri")]
-    bbmri::Bbmri.append_observation_loinc_codes(&mut map);
+    pub fn get_sample_type_workarounds(&self) -> &'static HashMap<&'static str, Vec<&'static str>> {
+        match self {
+            Project::Bbmri => &bbmri::SAMPLE_TYPE_WORKAROUNDS,
+            Project::Dktk => &dktk::SAMPLE_TYPE_WORKAROUNDS,
+        }
+    }
 
-    #[cfg(feature = "dktk")]
-    dktk::Dktk.append_observation_loinc_codes(&mut map);
+    pub fn get_criterion_code_lists(&self) -> &'static HashMap<&'static str, Vec<&'static str>> {
+        match self {
+            Project::Bbmri => &bbmri::CRITERION_CODE_LISTS,
+            Project::Dktk => &dktk::CRITERION_CODE_LISTS,
+        }
+    }
 
-    map
-});
+    pub fn get_cql_snippets(
+        &self,
+    ) -> &'static HashMap<(&'static str, CriterionRole), &'static str> {
+        match self {
+            Project::Bbmri => &bbmri::CQL_SNIPPETS,
+            Project::Dktk => &dktk::CQL_SNIPPETS,
+        }
+    }
 
-//workarounds to search for subtypes and older codes of types
-pub static SAMPLE_TYPE_WORKAROUNDS: Lazy<HashMap<&str, Vec<&str>>> = Lazy::new(|| {
-    let mut map: HashMap<&'static str, Vec<&'static str>> = HashMap::new();
+    pub fn get_mandatory_code_lists(&self) -> &'static IndexSet<&'static str> {
+        match self {
+            Project::Bbmri => &bbmri::MANDATORY_CODE_LISTS,
+            Project::Dktk => &dktk::MANDATORY_CODE_LISTS,
+        }
+    }
 
-    #[cfg(feature = "bbmri")]
-    bbmri::Bbmri.append_sample_type_workarounds(&mut map);
+    pub fn get_cql_template(&self) -> &'static str {
+        match self {
+            Project::Bbmri => include_str!("bbmri/template.cql"),
+            Project::Dktk => include_str!("dktk/template.cql"),
+        }
+    }
 
-    #[cfg(feature = "dktk")]
-    dktk::Dktk.append_sample_type_workarounds(&mut map);
-
-    map
-});
-
-// code lists needed depending on the criteria selected
-pub static CRITERION_CODE_LISTS: Lazy<HashMap<&str, Vec<&str>>> = Lazy::new(|| {
-    let mut map = HashMap::new();
-
-    #[cfg(feature = "bbmri")]
-    bbmri::Bbmri.append_criterion_code_lists(&mut map);
-
-    #[cfg(feature = "dktk")]
-    dktk::Dktk.append_criterion_code_lists(&mut map);
-
-    map
-});
-
-// CQL snippets depending on the criteria
-pub static CQL_SNIPPETS: Lazy<HashMap<(&str, CriterionRole), &str>> = Lazy::new(|| {
-    let mut map = HashMap::new();
-
-    #[cfg(feature = "bbmri")]
-    bbmri::Bbmri.append_cql_snippets(&mut map);
-
-    #[cfg(feature = "dktk")]
-    dktk::Dktk.append_cql_snippets(&mut map);
-
-    map
-});
-
-pub static MANDATORY_CODE_SYSTEMS: Lazy<IndexSet<&str>> = Lazy::new(|| {
-    let mut set = IndexSet::new();
-
-    #[cfg(feature = "bbmri")]
-    bbmri::Bbmri.append_mandatory_code_lists(&mut set);
-
-    #[cfg(feature = "dktk")]
-    dktk::Dktk.append_mandatory_code_lists(&mut set);
-
-    set
-});
-
-pub static CQL_TEMPLATE: Lazy<&'static str> = Lazy::new(|| {
-    let mut template = String::new();
-
-    #[cfg(feature = "bbmri")]
-    bbmri::Bbmri.append_cql_template(&mut template);
-
-    #[cfg(feature = "dktk")]
-    dktk::Dktk.append_cql_template(&mut template);
-
-    template.leak()
-});
-
-pub static BODY: Lazy<&'static str> = Lazy::new(|| {
-    let mut body = String::new();
-
-    #[cfg(feature = "bbmri")]
-    bbmri::Bbmri.append_body(&mut body);
-
-    #[cfg(feature = "dktk")]
-    dktk::Dktk.append_body(&mut body);
-
-    body.leak()
-});
+    pub fn get_body(&self) -> &'static str {
+        match self {
+            Project::Bbmri => include_str!("bbmri/body.json"),
+            Project::Dktk => include_str!("dktk/body.json"),
+        }
+    }
+}
