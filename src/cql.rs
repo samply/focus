@@ -514,6 +514,46 @@ mod test {
             generate_cql(serde_json::from_str(CURRENT).unwrap(), Project::Bbmri).unwrap(),
             include_str!("../resources/test/result_current.cql").to_string()
         );
+
+        pretty_assertions::assert_eq!(
+            generate_cql(serde_json::from_value(serde_json::json!({"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"key":"sample_kind","operand":"OR","children":[{"key":"sample_kind","type":"EQUALS","system":"","value":"blood-plasma"}]}]}]},"id":"49b162bd-edb6-494f-96b1-fea59bc1188c"})).unwrap(), Project::Bbmri).unwrap(),
+            include_str!("../resources/test/result_bbmri_sample_kind_blood_plasma.cql").to_string()
+        );
+
+        pretty_assertions::assert_eq!(
+            generate_cql(serde_json::from_value(serde_json::json!({"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"key":"sample_kind","operand":"OR","children":[{"key":"sample_kind","type":"EQUALS","system":"","value":"blood-serum"}]}]}]},"id":"49b162bd-edb6-494f-96b1-fea59bc1188c"})).unwrap(), Project::Bbmri).unwrap(),
+            include_str!("../resources/test/result_bbmri_sample_kind_blood_serum.cql").to_string()
+        );
+
+        pretty_assertions::assert_eq!(
+            generate_cql(serde_json::from_value(serde_json::json!({"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"key":"sample_kind","operand":"OR","children":[{"key":"sample_kind","type":"EQUALS","system":"","value":"derivative-other"}]}]}]},"id":"49b162bd-edb6-494f-96b1-fea59bc1188c"})).unwrap(), Project::Bbmri).unwrap(),
+            include_str!("../resources/test/result_bbmri_sample_kind_derivative_other.cql").to_string()
+        );
+
+        pretty_assertions::assert_eq!(
+            generate_cql(serde_json::from_value(serde_json::json!({"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"key":"sample_kind","operand":"OR","children":[{"key":"sample_kind","type":"EQUALS","system":"","value":"dna"}]}]}]},"id":"49b162bd-edb6-494f-96b1-fea59bc1188c"})).unwrap(), Project::Bbmri).unwrap(),
+            include_str!("../resources/test/result_bbmri_sample_kind_dna.cql").to_string()
+        );
+
+        pretty_assertions::assert_eq!(
+            generate_cql(serde_json::from_value(serde_json::json!({"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"key":"sample_kind","operand":"OR","children":[{"key":"sample_kind","type":"EQUALS","system":"","value":"liquid-other"}]}]}]},"id":"49b162bd-edb6-494f-96b1-fea59bc1188c"})).unwrap(), Project::Bbmri).unwrap(),
+            include_str!("../resources/test/result_bbmri_sample_kind_liquid_other.cql").to_string()
+        );
+
+        pretty_assertions::assert_eq!(
+            generate_cql(serde_json::from_value(serde_json::json!({"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"key":"sample_kind","operand":"OR","children":[{"key":"sample_kind","type":"EQUALS","system":"","value":"tissue-ffpe"}]}]}]},"id":"49b162bd-edb6-494f-96b1-fea59bc1188c"})).unwrap(), Project::Bbmri).unwrap(),
+            include_str!("../resources/test/result_bbmri_sample_kind_tissue_ffpe.cql").to_string()
+        );
+
+        pretty_assertions::assert_eq!(
+            generate_cql(serde_json::from_value(serde_json::json!({"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"key":"sample_kind","operand":"OR","children":[{"key":"sample_kind","type":"EQUALS","system":"","value":"tissue-frozen"}]}]}]},"id":"49b162bd-edb6-494f-96b1-fea59bc1188c"})).unwrap(), Project::Bbmri).unwrap(),
+            include_str!("../resources/test/result_bbmri_sample_kind_tissue_frozen.cql").to_string()
+        );
+
+        pretty_assertions::assert_eq!(
+            generate_cql(serde_json::from_value(serde_json::json!({"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"key":"sample_kind","operand":"OR","children":[{"key":"sample_kind","type":"EQUALS","system":"","value":"tissue-other"}]}]}]},"id":"49b162bd-edb6-494f-96b1-fea59bc1188c"})).unwrap(), Project::Bbmri).unwrap(),
+            include_str!("../resources/test/result_bbmri_sample_kind_tissue_other.cql").to_string()
+        );
     }
 
     const DIAGNOSIS_C30: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"key":"diagnosis","operand":"OR","children":[{"operand":"OR","key":"diagnosis","children":[{"key":"diagnosis","type":"EQUALS","system":"http://fhir.de/CodeSystem/dimdi/icd-10-gm","value":"C30"},{"key":"diagnosis","type":"EQUALS","system":"http://fhir.de/CodeSystem/dimdi/icd-10-gm","value":"C30.1"},{"key":"diagnosis","type":"EQUALS","system":"http://fhir.de/CodeSystem/dimdi/icd-10-gm","value":"C30.0"}]}]}]}]},"id":"54bd1d51-aa35-4153-b49e-56753774fa2d"}"#;
