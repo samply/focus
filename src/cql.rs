@@ -89,6 +89,7 @@ fn generate_cql(ast: ast::Ast, project: Project) -> Result<String, FocusError> {
         let formatted_filter_criteria = format!("where ({})", filter_criteria);
         cql = cql.replace("{{filter_criteria}}", formatted_filter_criteria.as_str());
     }
+    
     Ok(cql)
 }
 

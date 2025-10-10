@@ -196,59 +196,175 @@ pub static CQL_SNIPPETS: LazyLock<HashMap<(&'static str, CriterionRole), &'stati
             (("gender", CriterionRole::Query), "Patient.gender = '{{C}}'"),
             (
                 ("diagnosis", CriterionRole::Query),
-                "((exists[Condition: Code '{{C}}' from {{A1}}]) or (exists[Condition: Code '{{C}}' from {{A2}}]) or (exists[Condition: Code '{{C}}' from {{A3}}])) or (exists from [Specimen] S where (S.extension.where(url='https://fhir.bbmri.de/StructureDefinition/SampleDiagnosis').value.coding.code contains '{{C}}'))",
-            ),
-            (("diagnosis_old", CriterionRole::Query), " exists [Condition: Code '{{C}}' from {{A1}}]"),
-            (
-                ("date_of_diagnosis", CriterionRole::Query),
-                "exists from [Condition] C\nwhere FHIRHelpers.ToDateTime(C.onset) between {{D1}} and {{D2}}",
+                "exists [Condition: Code '{{C}}' from {{A1}}]",
             ),
             (
-                ("diagnosis_age_donor", CriterionRole::Query),
-                "exists from [Condition] C\nwhere AgeInYearsAt(FHIRHelpers.ToDateTime(C.onset)) between Ceiling({{D1}}) and Ceiling({{D2}})",
+                ("bodySite", CriterionRole::Query),
+                "exists from [Condition] C\nwhere C.bodySite.coding contains Code '{{C}}' from {{A1}}",
             ),
-            (("donor_age", CriterionRole::Query), " AgeInYears() between Ceiling({{D1}}) and Ceiling({{D2}})"),
+            // TODO: Should we revert to first expression now that https://github.com/samply/blaze/issues/808 is solved?
+            // ("conditionLocalization", "exists from [Condition] C\nwhere C.bodySite.coding contains Code '{{C}}' from {{A1}}"),
             (
-                ("observationRange", CriterionRole::Query),
-                "exists from [Observation: Code '{{K}}' from {{A1}}] O\nwhere O.value between {{D1}} and {{D2}}",
-            ),
-            (
-                ("body_weight", CriterionRole::Query),
-                "exists from [Observation: Code '{{K}}' from {{A1}}] O\nwhere ((O.value as Quantity) < {{D1}} 'kg' and (O.value as Quantity) > {{D2}} 'kg')",
+                ("conditionLocalization", CriterionRole::Query),
+                "exists from [Condition] C\nwhere C.bodySite.coding.code contains '{{C}}'",
             ),
             (
-                ("bmi", CriterionRole::Query),
-                "exists from [Observation: Code '{{K}}' from {{A1}}] O\nwhere ((O.value as Quantity) < {{D1}} 'kg/m2' and (O.value as Quantity) > {{D2}} 'kg/m2')",
+                ("year_of_diagnosis", CriterionRole::Query),
+                "exists from [Condition] C\nwhere year from C.onset between {{D1}} and {{D2}}",
+            ),
+            (
+                ("conditionLowerThanDate", CriterionRole::Query),
+                "exists from [Condition] C\nwhere year from C.onset <= {{D2}}",
+            ),
+            (
+                ("conditionGreaterThanDate", CriterionRole::Query),
+                "exists from [Condition] C\nwhere year from C.onset >= {{D1}}",
+            ),
+            (
+                ("age_at_diagnosis", CriterionRole::Query),
+                "exists [Condition] C\nwhere AgeInYearsAt(FHIRHelpers.ToDateTime(C.onset)) between {{D1}} and {{D2}}",
+            ),
+            (
+                ("conditionLowerThanAge", CriterionRole::Query),
+                "exists [Condition] C\nwhere AgeInYearsAt(FHIRHelpers.ToDateTime(C.onset)) <= {{D2}}",
+            ),
+            (
+                ("conditionGreaterThanAge", CriterionRole::Query),
+                "exists [Condition] C\nwhere AgeInYearsAt(FHIRHelpers.ToDateTime(C.onset)) >= {{D1}}",
+            ),
+            (
+                ("year_of_primary_diagnosis", CriterionRole::Query),
+                "year from PrimaryDiagnosis.onset between {{D1}} and {{D2}}",
+            ),
+            (
+                ("primaryConditionLowerThanDate", CriterionRole::Query),
+                "year from PrimaryDiagnosis.onset <= {{D2}}",
+            ),
+            (
+                ("primaryConditionGreaterThanDate", CriterionRole::Query),
+                "year from PrimaryDiagnosis.onset >= {{D1}}",
+            ),
+            (
+                ("age_at_primary_diagnosis", CriterionRole::Query),
+                "AgeInYearsAt(FHIRHelpers.ToDateTime(PrimaryDiagnosis.onset)) between {{D1}} and {{D2}}",
+            ),
+            (
+                ("primaryConditionLowerThanAge", CriterionRole::Query),
+                "AgeInYearsAt(FHIRHelpers.ToDateTime(PrimaryDiagnosis.onset)) <= {{D2}}",
+            ),
+            (
+                ("primaryConditionGreaterThanAge", CriterionRole::Query),
+                "AgeInYearsAt(FHIRHelpers.ToDateTime(PrimaryDiagnosis.onset)) >= {{D1}}",
+            ),
+            (
+                ("grading", CriterionRole::Query),
+                observation,
+            ),
+            (
+                ("morphology", CriterionRole::Query),
+                observation,
+            ),
+            (
+                ("responseOverTime", CriterionRole::Query),
+                observation,
+            ),
+            (
+                ("localRegionalRecurrence", CriterionRole::Query),
+                observation,
+            ),
+            (
+                ("lymphNodeRecurrence", CriterionRole::Query),
+                observation,
+            ),
+            (
+                ("distantMetastases", CriterionRole::Query),
+                observation,
+            ),
+            (
+                (VITAL_STATUS_CS, CriterionRole::Query),
+                observation,
+            ),
+            (
+                ("metastases_present", CriterionRole::Query),
+                "exists from [Observation: Code '21907-1' from {{A1}}] O\nwhere O.value.coding.code contains '{{C}}'",
+            ),
+            (
+                ("localization_metastases", CriterionRole::Query),
+                "exists from [Observation: Code '21907-1' from {{A1}}] O\nwhere O.bodySite.coding.code contains '{{C}}'",
+            ),
+            (
+                ("observationMolecularMarkerName", CriterionRole::Query),
+                "exists from [Observation: Code '69548-6' from {{A1}}] O\nwhere O.component.where(code.coding contains Code '{{K}}' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}",
+            ),
+            (
+                ("observationMolecularMarkerAminoacidchange", CriterionRole::Query),
+                "exists from [Observation: Code '69548-6' from {{A1}}] O\nwhere O.component.where(code.coding contains Code '{{K}}' from {{A1}}).value = '{{C}}'",
+            ),
+            (
+                ("observationMolecularMarkerDNAchange", CriterionRole::Query),
+                "exists from [Observation: Code '69548-6' from {{A1}}] O\nwhere O.component.where(code.coding contains Code '{{K}}' from {{A1}}).value = '{{C}}'",
+            ),
+            (
+                ("observationMolecularMarkerSeqRefNCBI", CriterionRole::Query),
+                "exists from [Observation: Code '69548-6' from {{A1}}] O\nwhere O.component.where(code.coding contains Code '{{K}}' from {{A1}}).value = '{{C}}'",
+            ),
+            (
+                ("observationMolecularMarkerEnsemblID", CriterionRole::Query),
+                "exists from [Observation: Code '69548-6' from {{A1}}] O\nwhere O.component.where(code.coding contains Code '{{K}}' from {{A1}}).value = '{{C}}'",
+            ),
+            (
+                ("procedure", CriterionRole::Query),
+                "exists [Procedure: category in Code '{{C}}' from {{A1}}]",
+            ),
+            (
+                ("medicationStatement", CriterionRole::Query),
+                "exists [MedicationStatement: category in Code '{{C}}' from {{A1}}]",
+            ),
+            (
+                ("local_assessment_residual_tumor", CriterionRole::Query),
+                "exists from [Procedure: category in Code 'OP' from {{A1}}] P\nwhere P.outcome.coding.code contains '{{C}}'",
             ),
             (("sample_kind", CriterionRole::Query), " exists [Specimen: Code '{{C}}' from {{A1}}]"),
             (("sample_kind", CriterionRole::Filter), " (S.type.coding.code contains '{{C}}')"),
             (
-                ("storage_temperature", CriterionRole::Filter),
-                "(S.extension.where(url='https://fhir.bbmri.de/StructureDefinition/StorageTemperature').value.coding.code contains '{{C}}')",
+                ("retrieveSpecimenByType", CriterionRole::Query),
+                "(S.type.coding.code contains '{{C}}')",
             ),
             (
-                ("sampling_date", CriterionRole::Filter),
-                "(FHIRHelpers.ToDateTime(S.collection.collected) between {{D1}} and {{D2}}) ",
+                ("TNM-T", CriterionRole::Query),
+                "(exists from [Observation: Code '21908-9' from {{A1}}] O where O.component.where(code.coding contains Code '21905-5' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}) or\n(exists from [Observation: Code '21902-2' from {{A1}}] O where O.component.where(code.coding contains Code '21905-5' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}) or\n(exists from [Observation: Code '21908-9' from {{A1}}] O where O.component.where(code.coding contains Code '21899-0' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}) or\n(exists from [Observation: Code '21902-2' from {{A1}}] O where O.component.where(code.coding contains Code '21899-0' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}})",
             ),
             (
-                ("fasting_status", CriterionRole::Filter),
-                "(S.collection.fastingStatus.coding.code contains '{{C}}') ",
+                ("TNM-N", CriterionRole::Query),
+                "(exists from [Observation: Code '21908-9' from {{A1}}] O where O.component.where(code.coding contains Code '21906-3' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}) or\n(exists from [Observation: Code '21902-2' from {{A1}}] O where O.component.where(code.coding contains Code '21906-3' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}) or\n(exists from [Observation: Code '21908-9' from {{A1}}] O where O.component.where(code.coding contains Code '21900-6' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}) or\n(exists from [Observation: Code '21902-2' from {{A1}}] O where O.component.where(code.coding contains Code '21900-6' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}})",
             ),
             (
-                ("sampling_date", CriterionRole::Query),
-                "exists from [Specimen] S\nwhere FHIRHelpers.ToDateTime(S.collection.collected) between {{D1}} and {{D2}} ",
+                ("TNM-M", CriterionRole::Query),
+                "(exists from [Observation: Code '21908-9' from {{A1}}] O where O.component.where(code.coding contains Code '21907-1' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}) or\n(exists from [Observation: Code '21902-2' from {{A1}}] O where O.component.where(code.coding contains Code '21907-1' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}) or\n(exists from [Observation: Code '21908-9' from {{A1}}] O where O.component.where(code.coding contains Code '21901-4' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}) or\n(exists from [Observation: Code '21902-2' from {{A1}}] O where O.component.where(code.coding contains Code '21901-4' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}})",
             ),
             (
-                ("fasting_status", CriterionRole::Query),
-                "exists from [Specimen] S\nwhere S.collection.fastingStatus.coding.code contains '{{C}}' ",
+                ("TNM-m-Symbol", CriterionRole::Query),
+                "(exists from [Observation: Code '21908-9' from {{A1}}] O where O.component.where(code.coding contains Code '42030-7' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}) or\n(exists from [Observation: Code '21902-2' from {{A1}}] O where O.component.where(code.coding contains Code '42030-7' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}})",
             ),
             (
-                ("storage_temperature", CriterionRole::Query),
-                "exists from [Specimen] S where (S.extension.where(url='https://fhir.bbmri.de/StructureDefinition/StorageTemperature').value.coding contains Code '{{C}}' from {{A1}}) ",
+                ("TNM-y-Symbol", CriterionRole::Query),
+                "(exists from [Observation: Code '21908-9' from {{A1}}] O where O.component.where(code.coding contains Code '59479-6' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}) or\n(exists from [Observation: Code '21902-2' from {{A1}}] O where O.component.where(code.coding contains Code '59479-6' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}})",
             ),
             (
-                ("smoking_status", CriterionRole::Query),
-                "exists from [Observation: Code '{{K}}' from {{A1}}] O\nwhere O.value.coding.code contains '{{C}}' ",
+                ("TNM-r-Symbol", CriterionRole::Query),
+                "(exists from [Observation: Code '21908-9' from {{A1}}] O where O.component.where(code.coding contains Code '21983-2' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}) or\n(exists from [Observation: Code '21902-2' from {{A1}}] O where O.component.where(code.coding contains Code '21983-2' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}})",
+            ),
+            (
+                ("Organization", CriterionRole::Query),
+                "Patient.managingOrganization.reference = \"Organization Ref\"('Klinisches Krebsregister/ITM')",
+            ),
+            (
+                ("department", CriterionRole::Query),
+                "exists from [Encounter] I\nwhere I.identifier.value = '{{C}}' ",
+            ),
+            (
+                ("uiccstadium", CriterionRole::Query),
+                "(exists ([Observation: Code '21908-9' from loinc] O where O.value.coding.code contains '{{C}}')) or (exists ([Observation: Code '21902-2' from loinc] O where O.value.coding.code contains '{{C}}'))",
             ),
         ])
     });
