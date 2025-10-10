@@ -2,7 +2,9 @@ library Retrieve
 using FHIR version '4.0.0'
 include FHIRHelpers version '4.0.0'
 
-{{lists}}
+codesystem loinc: 'http://loinc.org'
+codesystem vitalStatusCS: 'https://www.cancercoreeurope.eu/fhir/core/CodeSystem/VitalStatusCS'
+
 
 context Patient
 
@@ -14,15 +16,8 @@ First(
 from [Condition] C
 where C.extension.where(url='http://hl7.org/fhir/StructureDefinition/condition-related').empty())
 
-define FirstDiagnosis:
-First(
-from [Condition] C
-sort by date from onset asc)
-
 define AgeClass:
-if (PrimaryDiagnosis.onset is null)
-then ToString((AgeInYearsAt(FHIRHelpers.ToDateTime(FirstDiagnosis.onset)) div 10) * 10)
-else ToString((AgeInYearsAt(FHIRHelpers.ToDateTime(PrimaryDiagnosis.onset)) div 10) * 10)
+if (PrimaryDiagnosis.onset is null) then 'unknown' else ToString((AgeInYearsAt(FHIRHelpers.ToDateTime(PrimaryDiagnosis.onset)) div 10) * 10)
 
 define PatientDeceased:
 First (from [Observation: Code '75186-7' from loinc] O return O.value.coding.where(system = 'https://www.cancercoreeurope.eu/fhir/core/CodeSystem/VitalStatusCS').code.first())
@@ -36,11 +31,11 @@ if InInitialPopulation then [Condition] else {} as List<Condition>
 define function DiagnosisCode(condition FHIR.Condition):
 condition.code.coding.where(system = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm').code.first()
 
-define Specimen:
-if InInitialPopulation then [Specimen] else {} as List<Specimen>
-
 define function SampleType(specimen FHIR.Specimen):
 specimen.type.coding.where(system = 'https://www.cancercoreeurope.eu/fhir/core/CodeSystem/SampleMaterialType').code.first()
+
+define Specimen:
+if InInitialPopulation then [Specimen] S  else {} as List<Specimen>
 
 define Procedure:
 if InInitialPopulation then [Procedure] else {} as List <Procedure>
@@ -52,4 +47,5 @@ define MedicationStatement:
 if InInitialPopulation then [MedicationStatement] else {} as List <MedicationStatement>
 
 define InInitialPopulation:
-{{retrieval_criteria}}
+((((((exists from [Observation: Code '75186-7' from loinc] O
+where O.value.coding.code contains 'alive'))))))

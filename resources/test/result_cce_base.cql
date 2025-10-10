@@ -2,7 +2,10 @@ library Retrieve
 using FHIR version '4.0.0'
 include FHIRHelpers version '4.0.0'
 
-{{lists}}
+codesystem loinc: 'http://loinc.org'
+codesystem specimenType: 'https://www.cancercoreeurope.eu/fhir/core/CodeSystem/SampleMaterialType'
+codesystem vitalStatusCS: 'https://www.cancercoreeurope.eu/fhir/core/CodeSystem/VitalStatusCS'
+codesystem therapyTypeCS: 'https://www.cancercoreeurope.eu/fhir/core/CodeSystem/SYSTTherapyTypeCS'
 
 context Patient
 
@@ -52,4 +55,4 @@ define MedicationStatement:
 if InInitialPopulation then [MedicationStatement] else {} as List <MedicationStatement>
 
 define InInitialPopulation:
-{{retrieval_criteria}}
+true
