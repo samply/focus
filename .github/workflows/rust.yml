@@ -11,7 +11,10 @@ jobs:
     with:
       image-prefix: "samply/"
       components: '[ "focus" ]'
-      architectures: '[ "amd64" ]'
+      #architectures: '[ "amd64", "arm64" ]'
+      #profile: debug
+      test-via-script: false
+      features: '[ "bbmri", "dktk", "query-sql", "" ]'
       cargo-fmt-check: true
     secrets:
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}

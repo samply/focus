@@ -55,7 +55,7 @@ AUTH_HEADER = "[Auth Type] XXXX" #Authorization header for accessing the store; 
 EXPORTER_API_KEY = "XXXX" # Value of header x-api-key for accessing the Exporter application
 ```
 
-In order to use Postgres querying this optional variable needs to be set:
+In order to use Postgres querying, a Docker image built with the feature "dktk" needs to be used and this optional variable set:
 ```bash
 POSTGRES_CONNECTION_STRING = "postgresql://postgres:Test.123@localhost:5432/postgres" # Postgres connection string
 ```

@@ -1,10 +1,18 @@
-FROM rust:1 AS builder
-WORKDIR /usr/src/app
-COPY . .
-RUN --mount=type=cache,target=/usr/src/app/target \
-    --mount=type=cache,target=/usr/local/cargo/registry \
-    cargo install --path .
+# This Dockerfile is infused with magic to speedup the build.
+# In particular, it requires built binaries to be present (see COPY directive).
+#
+# tl;dr: To make this build work, run
+#   ./dev/focusdev build
+# and find your freshly built images tagged with the `localbuild` tag.
+
+FROM alpine AS chmodder
+ARG TARGETARCH
+ARG COMPONENT
+ARG FEATURE
+COPY /artifacts/binaries-$TARGETARCH$FEATURE/$COMPONENT /app/$COMPONENT
+RUN chmod +x /app/*
 
 FROM gcr.io/distroless/cc-debian12
-COPY --from=builder /usr/local/cargo/bin/focus /usr/local/bin/
-CMD ["focus"]
+ARG COMPONENT
+COPY --from=chmodder /app/$COMPONENT /usr/local/bin/focus
+ENTRYPOINT [ "/usr/local/bin/focus" ]
