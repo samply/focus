@@ -142,6 +142,7 @@ pub fn process(
 
                 if let Some(observation_code) = observation_code_option {
                     condition_string = condition_string.replace("{{K}}", &escape(observation_code));
+                    condition_string = condition_string.replace("{{K}}", &escape(observation_code));
                 } else {
                     return Err(FocusError::AstUnknownOption(
                         condition_key_trans.to_string(),
@@ -264,9 +265,13 @@ pub fn process(
                                     + ")";
                                 condition_humongous_string =
                                     condition_humongous_string.replace("{{C}}", &escape(string));
+                                condition_humongous_string =
+                                    condition_humongous_string.replace("{{C}}", &escape(string));
 
                                 filter_humongous_string =
                                     filter_humongous_string + "(" + filter_string.as_str() + ")";
+                                filter_humongous_string =
+                                    filter_humongous_string.replace("{{C}}", &escape(string));
                                 filter_humongous_string =
                                     filter_humongous_string.replace("{{C}}", &escape(string));
 
@@ -309,9 +314,13 @@ pub fn process(
                                 condition_humongous_string + "(" + condition_string.as_str() + ")";
                             condition_humongous_string =
                                 condition_humongous_string.replace("{{C}}", &escape(string));
+                            condition_humongous_string =
+                                condition_humongous_string.replace("{{C}}", &escape(string));
 
                             filter_humongous_string =
                                 filter_humongous_string + "(" + filter_string.as_str() + ")";
+                            filter_humongous_string =
+                                filter_humongous_string.replace("{{C}}", &escape(string));
                             filter_humongous_string =
                                 filter_humongous_string.replace("{{C}}", &escape(string));
 
@@ -519,6 +528,7 @@ mod test {
     const DIAGNOSIS_C30: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"key":"diagnosis","operand":"OR","children":[{"operand":"OR","key":"diagnosis","children":[{"key":"diagnosis","type":"EQUALS","system":"http://fhir.de/CodeSystem/dimdi/icd-10-gm","value":"C30"},{"key":"diagnosis","type":"EQUALS","system":"http://fhir.de/CodeSystem/dimdi/icd-10-gm","value":"C30.1"},{"key":"diagnosis","type":"EQUALS","system":"http://fhir.de/CodeSystem/dimdi/icd-10-gm","value":"C30.0"}]}]}]}]},"id":"54bd1d51-aa35-4153-b49e-56753774fa2d"}"#;
 
     const YEAR_OF_DIAGNOSIS_2000_TO_2010: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"key":"year_of_diagnosis","operand":"OR","children":[{"key":"year_of_diagnosis","type":"BETWEEN","system":"","value":{"min":2000,"max":2010}}]}]}]},"id":"c9024169-dfcf-4915-ac06-1edd090054f4"}"#;
+
 
     const BODY_SITE_LEFT: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"key":"bodySite","operand":"OR","children":[{"key":"bodySite","type":"EQUALS","system":"http://dktk.dkfz.de/fhir/onco/core/CodeSystem/SeitenlokalisationCS","value":"L"}]}]}]},"id":"c3481b0c-4807-4d54-b7c9-498426f165c2"}"#;
 
