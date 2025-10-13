@@ -3,9 +3,11 @@ using FHIR version '4.0.0'
 include FHIRHelpers version '4.0.0'
 
 codesystem loinc: 'http://loinc.org'
+codesystem icd10: 'http://fhir.de/CodeSystem/bfarm/icd-10-gm'
 codesystem specimenType: 'https://www.cancercoreeurope.eu/fhir/core/CodeSystem/SampleMaterialType'
-codesystem vitalStatusCS: 'https://www.cancercoreeurope.eu/fhir/core/CodeSystem/VitalStatusCS'
 codesystem therapyTypeCS: 'https://www.cancercoreeurope.eu/fhir/core/CodeSystem/SYSTTherapyTypeCS'
+codesystem vitalStatusCS: 'https://www.cancercoreeurope.eu/fhir/core/CodeSystem/VitalStatusCS'
+
 
 context Patient
 

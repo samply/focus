@@ -89,7 +89,7 @@ fn generate_cql(ast: ast::Ast, project: Project) -> Result<String, FocusError> {
         let formatted_filter_criteria = format!("where ({})", filter_criteria);
         cql = cql.replace("{{filter_criteria}}", formatted_filter_criteria.as_str());
     }
-    
+
     Ok(cql)
 }
 
@@ -520,7 +520,6 @@ mod test {
 
     const YEAR_OF_DIAGNOSIS_2000_TO_2010: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"key":"year_of_diagnosis","operand":"OR","children":[{"key":"year_of_diagnosis","type":"BETWEEN","system":"","value":{"min":2000,"max":2010}}]}]}]},"id":"c9024169-dfcf-4915-ac06-1edd090054f4"}"#;
 
-
     const BODY_SITE_LEFT: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"key":"bodySite","operand":"OR","children":[{"key":"bodySite","type":"EQUALS","system":"http://dktk.dkfz.de/fhir/onco/core/CodeSystem/SeitenlokalisationCS","value":"L"}]}]}]},"id":"c3481b0c-4807-4d54-b7c9-498426f165c2"}"#;
 
     const GRADING_LOW_GRADE: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"key":"grading","operand":"OR","children":[{"key":"grading","type":"EQUALS","system":"http://dktk.dkfz.de/fhir/onco/core/CodeSystem/GradingCS","value":"L"}]}]}]},"id":"34fbeac2-6685-4e48-b531-372d8aa8589f"}"#;
@@ -586,16 +585,23 @@ mod test {
 
     #[test]
     fn test_cce_empty() {
-        let generated_cql = generate_cql(serde_json::from_str(EMPTY).unwrap(), Project::Cce).unwrap();
+        let generated_cql =
+            generate_cql(serde_json::from_str(EMPTY).unwrap(), Project::Cce).unwrap();
         pretty_assertions::assert_eq!(generated_cql.contains(CCE_VITAL_STATUS_URL), true);
         pretty_assertions::assert_eq!(generated_cql.contains(CCE_SAMPLE_MATERIAL_TYPE_URL), true);
         pretty_assertions::assert_eq!(generated_cql.contains(CCE_SYST_THERAPY_TYPE_URL), true);
+
+        pretty_assertions::assert_eq!(
+            generated_cql,
+            include_str!("../resources/test/result_cce_base.cql").to_string()
+        );
     }
 
     #[test]
     fn test_cce_male() {
         let expected = r#"Patient.gender = 'male'"#;
-        let generated_cql = generate_cql(serde_json::from_str(CCE_MALE).unwrap(), Project::Cce).unwrap();
+        let generated_cql =
+            generate_cql(serde_json::from_str(CCE_MALE).unwrap(), Project::Cce).unwrap();
         pretty_assertions::assert_eq!(generated_cql.contains(expected), true);
     }
 

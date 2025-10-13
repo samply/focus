@@ -193,7 +193,7 @@ pub static CRITERION_CODE_LISTS: LazyLock<HashMap<&'static str, Vec<&'static str
 pub static CQL_SNIPPETS: LazyLock<HashMap<(&'static str, CriterionRole), &'static str>> =
     LazyLock::new(|| {
         let observation = "exists from [Observation: Code '{{K}}' from {{A1}}] O\nwhere O.value.coding.code contains '{{C}}'";
-        
+
         HashMap::from([
             (("gender", CriterionRole::Query), "Patient.gender = '{{C}}'"),
             (
