@@ -65,7 +65,7 @@ define function SampleType(specimen FHIR.Specimen):
        else 'Unknown'
    end
 define Specimen:
-    if InInitialPopulation then [Specimen] S where (((((( (S.type.coding.code contains 'tissue-ffpe')) or ( (S.type.coding.code contains 'tumor-tissue-ffpe')) or ( (S.type.coding.code contains 'normal-tissue-ffpe')) or ( (S.type.coding.code contains 'other-tissue-ffpe')) or ( (S.type.coding.code contains 'tissue-formalin'))))))) else {} as List<Specimen>
+    if InInitialPopulation then [Specimen] S where (((((((( (S.type.coding.code contains 'tissue-ffpe')))) or ((( (S.type.coding.code contains 'tumor-tissue-ffpe')))) or ((( (S.type.coding.code contains 'normal-tissue-ffpe')))) or ((( (S.type.coding.code contains 'other-tissue-ffpe')))) or ((( (S.type.coding.code contains 'tissue-formalin'))))))))) else {} as List<Specimen>
 
 define Diagnosis:
 if InInitialPopulation then [Condition] else {} as List<Condition>
@@ -82,4 +82,4 @@ Coalesce(
   )
 
 define InInitialPopulation:
-(((((( exists [Specimen: Code 'tissue-ffpe' from SampleMaterialType]) or ( exists [Specimen: Code 'tumor-tissue-ffpe' from SampleMaterialType]) or ( exists [Specimen: Code 'normal-tissue-ffpe' from SampleMaterialType]) or ( exists [Specimen: Code 'other-tissue-ffpe' from SampleMaterialType]) or ( exists [Specimen: Code 'tissue-formalin' from SampleMaterialType]))))))
+(((((((( exists [Specimen: Code 'tissue-ffpe' from SampleMaterialType]))) or ((( exists [Specimen: Code 'tumor-tissue-ffpe' from SampleMaterialType]))) or ((( exists [Specimen: Code 'normal-tissue-ffpe' from SampleMaterialType]))) or ((( exists [Specimen: Code 'other-tissue-ffpe' from SampleMaterialType]))) or ((( exists [Specimen: Code 'tissue-formalin' from SampleMaterialType]))))))))

@@ -65,7 +65,7 @@ define function SampleType(specimen FHIR.Specimen):
        else 'Unknown'
    end
 define Specimen:
-    if InInitialPopulation then [Specimen] S where (((((( (S.type.coding.code contains 'tissue-frozen')) or ( (S.type.coding.code contains 'tumor-tissue-frozen')) or ( (S.type.coding.code contains 'normal-tissue-frozen')) or ( (S.type.coding.code contains 'other-tissue-frozen'))))))) else {} as List<Specimen>
+    if InInitialPopulation then [Specimen] S where (((((((( (S.type.coding.code contains 'tissue-frozen')))) or ((( (S.type.coding.code contains 'tumor-tissue-frozen')))) or ((( (S.type.coding.code contains 'normal-tissue-frozen')))) or ((( (S.type.coding.code contains 'other-tissue-frozen'))))))))) else {} as List<Specimen>
 
 define Diagnosis:
 if InInitialPopulation then [Condition] else {} as List<Condition>
@@ -82,4 +82,4 @@ Coalesce(
   )
 
 define InInitialPopulation:
-(((((( exists [Specimen: Code 'tissue-frozen' from SampleMaterialType]) or ( exists [Specimen: Code 'tumor-tissue-frozen' from SampleMaterialType]) or ( exists [Specimen: Code 'normal-tissue-frozen' from SampleMaterialType]) or ( exists [Specimen: Code 'other-tissue-frozen' from SampleMaterialType]))))))
+(((((((( exists [Specimen: Code 'tissue-frozen' from SampleMaterialType]))) or ((( exists [Specimen: Code 'tumor-tissue-frozen' from SampleMaterialType]))) or ((( exists [Specimen: Code 'normal-tissue-frozen' from SampleMaterialType]))) or ((( exists [Specimen: Code 'other-tissue-frozen' from SampleMaterialType]))))))))

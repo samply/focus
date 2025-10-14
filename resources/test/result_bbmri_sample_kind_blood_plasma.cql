@@ -65,7 +65,7 @@ define function SampleType(specimen FHIR.Specimen):
        else 'Unknown'
    end
 define Specimen:
-    if InInitialPopulation then [Specimen] S where (((((( (S.type.coding.code contains 'blood-plasma')) or ( (S.type.coding.code contains 'plasma-edta')) or ( (S.type.coding.code contains 'plasma-citrat')) or ( (S.type.coding.code contains 'plasma-heparin')) or ( (S.type.coding.code contains 'plasma-cell-free')) or ( (S.type.coding.code contains 'plasma-other')) or ( (S.type.coding.code contains 'plasma'))))))) else {} as List<Specimen>
+    if InInitialPopulation then [Specimen] S where (((((((( (S.type.coding.code contains 'blood-plasma')))) or ((( (S.type.coding.code contains 'plasma-edta')))) or ((( (S.type.coding.code contains 'plasma-citrat')))) or ((( (S.type.coding.code contains 'plasma-heparin')))) or ((( (S.type.coding.code contains 'plasma-cell-free')))) or ((( (S.type.coding.code contains 'plasma-other')))) or ((( (S.type.coding.code contains 'plasma'))))))))) else {} as List<Specimen>
 
 define Diagnosis:
 if InInitialPopulation then [Condition] else {} as List<Condition>
@@ -82,4 +82,4 @@ Coalesce(
   )
 
 define InInitialPopulation:
-(((((( exists [Specimen: Code 'blood-plasma' from SampleMaterialType]) or ( exists [Specimen: Code 'plasma-edta' from SampleMaterialType]) or ( exists [Specimen: Code 'plasma-citrat' from SampleMaterialType]) or ( exists [Specimen: Code 'plasma-heparin' from SampleMaterialType]) or ( exists [Specimen: Code 'plasma-cell-free' from SampleMaterialType]) or ( exists [Specimen: Code 'plasma-other' from SampleMaterialType]) or ( exists [Specimen: Code 'plasma' from SampleMaterialType]))))))
+(((((((( exists [Specimen: Code 'blood-plasma' from SampleMaterialType]))) or ((( exists [Specimen: Code 'plasma-edta' from SampleMaterialType]))) or ((( exists [Specimen: Code 'plasma-citrat' from SampleMaterialType]))) or ((( exists [Specimen: Code 'plasma-heparin' from SampleMaterialType]))) or ((( exists [Specimen: Code 'plasma-cell-free' from SampleMaterialType]))) or ((( exists [Specimen: Code 'plasma-other' from SampleMaterialType]))) or ((( exists [Specimen: Code 'plasma' from SampleMaterialType]))))))))

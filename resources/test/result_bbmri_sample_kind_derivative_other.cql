@@ -65,7 +65,7 @@ define function SampleType(specimen FHIR.Specimen):
        else 'Unknown'
    end
 define Specimen:
-    if InInitialPopulation then [Specimen] S where (((((( (S.type.coding.code contains 'derivative-other')) or ( (S.type.coding.code contains 'derivative'))))))) else {} as List<Specimen>
+    if InInitialPopulation then [Specimen] S where (((((((( (S.type.coding.code contains 'derivative-other')))) or ((( (S.type.coding.code contains 'derivative'))))))))) else {} as List<Specimen>
 
 define Diagnosis:
 if InInitialPopulation then [Condition] else {} as List<Condition>
@@ -82,4 +82,4 @@ Coalesce(
   )
 
 define InInitialPopulation:
-(((((( exists [Specimen: Code 'derivative-other' from SampleMaterialType]) or ( exists [Specimen: Code 'derivative' from SampleMaterialType]))))))
+(((((((( exists [Specimen: Code 'derivative-other' from SampleMaterialType]))) or ((( exists [Specimen: Code 'derivative' from SampleMaterialType]))))))))

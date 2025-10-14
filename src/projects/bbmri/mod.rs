@@ -120,38 +120,38 @@ pub static MANDATORY_CODE_LISTS: LazyLock<IndexSet<&'static str>> =
 pub static SAMPLE_TYPE_WORKAROUNDS: LazyLock<HashMap<&'static str, Vec<&'static str>>> =
     LazyLock::new(|| {
         HashMap::from([
-            (
-                "blood-plasma",
-                vec![
-                    "plasma-edta",
-                    "plasma-citrat",
-                    "plasma-heparin",
-                    "plasma-cell-free",
-                    "plasma-other",
-                    "plasma",
-                ],
-            ),
-            ("blood-serum", vec!["serum"]),
-            (
-                "tissue-ffpe",
-                vec![
-                    "tumor-tissue-ffpe",
-                    "normal-tissue-ffpe",
-                    "other-tissue-ffpe",
-                    "tissue-formalin",
-                ],
-            ),
-            (
-                "tissue-frozen",
-                vec![
-                    "tumor-tissue-frozen",
-                    "normal-tissue-frozen",
-                    "other-tissue-frozen",
-                ],
-            ),
-            ("dna", vec!["cf-dna", "g-dna"]),
-            ("tissue-other", vec!["tissue-paxgene-or-else", "tissue"]),
-            ("derivative-other", vec!["derivative"]),
-            ("liquid-other", vec!["liquid"]),
+            // (
+            //     "blood-plasma",
+            //     vec![
+            //         "plasma-edta",
+            //         "plasma-citrat",
+            //         "plasma-heparin",
+            //         "plasma-cell-free",
+            //         "plasma-other",
+            //         "plasma",
+            //     ],
+            // ),
+            // ("blood-serum", vec!["serum"]),
+            // (
+            //     "tissue-ffpe",
+            //     vec![
+            //         "tumor-tissue-ffpe",
+            //         "normal-tissue-ffpe",
+            //         "other-tissue-ffpe",
+            //         "tissue-formalin",
+            //     ],
+            // ),
+            // (
+            //     "tissue-frozen",
+            //     vec![
+            //         "tumor-tissue-frozen",
+            //         "normal-tissue-frozen",
+            //         "other-tissue-frozen",
+            //     ],
+            // ),
+            // ("dna", vec!["cf-dna", "g-dna"]),
+            // ("tissue-other", vec!["tissue-paxgene-or-else", "tissue"]),
+            // ("derivative-other", vec!["derivative"]),
+            // ("liquid-other", vec!["liquid"]),
         ])
     });

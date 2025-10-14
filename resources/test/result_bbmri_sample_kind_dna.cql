@@ -65,7 +65,7 @@ define function SampleType(specimen FHIR.Specimen):
        else 'Unknown'
    end
 define Specimen:
-    if InInitialPopulation then [Specimen] S where (((((( (S.type.coding.code contains 'dna')) or ( (S.type.coding.code contains 'cf-dna')) or ( (S.type.coding.code contains 'g-dna'))))))) else {} as List<Specimen>
+    if InInitialPopulation then [Specimen] S where (((((((( (S.type.coding.code contains 'dna')))) or ((( (S.type.coding.code contains 'cf-dna')))) or ((( (S.type.coding.code contains 'g-dna'))))))))) else {} as List<Specimen>
 
 define Diagnosis:
 if InInitialPopulation then [Condition] else {} as List<Condition>
@@ -82,4 +82,4 @@ Coalesce(
   )
 
 define InInitialPopulation:
-(((((( exists [Specimen: Code 'dna' from SampleMaterialType]) or ( exists [Specimen: Code 'cf-dna' from SampleMaterialType]) or ( exists [Specimen: Code 'g-dna' from SampleMaterialType]))))))
+(((((((( exists [Specimen: Code 'dna' from SampleMaterialType]))) or ((( exists [Specimen: Code 'cf-dna' from SampleMaterialType]))) or ((( exists [Specimen: Code 'g-dna' from SampleMaterialType]))))))))
