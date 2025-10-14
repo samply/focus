@@ -50,14 +50,6 @@ impl Project {
         }
     }
 
-    pub fn get_sample_type_workarounds(&self) -> &'static HashMap<&'static str, Vec<&'static str>> {
-        match self {
-            Project::Bbmri => &bbmri::SAMPLE_TYPE_WORKAROUNDS,
-            Project::Dktk => &dktk::SAMPLE_TYPE_WORKAROUNDS,
-            Project::Cce => &cce::SAMPLE_TYPE_WORKAROUNDS,
-        }
-    }
-
     pub fn get_criterion_code_lists(&self) -> &'static HashMap<&'static str, Vec<&'static str>> {
         match self {
             Project::Bbmri => &bbmri::CRITERION_CODE_LISTS,

@@ -4,9 +4,10 @@ use crate::projects::{CriterionRole, Project};
 
 use base64::{prelude::BASE64_STANDARD as BASE64, Engine as _};
 use chrono::offset::Utc;
-use chrono::{DateTime, NaiveDate, NaiveTime};
+use chrono::{format, DateTime, NaiveDate, NaiveTime};
 use indexmap::set::IndexSet;
 use tracing::info;
+use tracing_subscriber::filter;
 use uuid::Uuid;
 
 pub fn generate_body(ast: ast::Ast, project: Project) -> Result<String, FocusError> {
@@ -242,22 +243,10 @@ pub fn process(
 
                     match condition.value {
                         ast::ConditionValue::StringArray(string_array) => {
-                            let mut string_array_with_workarounds = string_array.clone();
-                            for value in string_array {
-                                if let Some(additional_values) =
-                                    project.get_sample_type_workarounds().get(value.as_str())
-                                {
-                                    for additional_value in additional_values {
-                                        string_array_with_workarounds
-                                            .push((*additional_value).into());
-                                    }
-                                }
-                            }
                             let mut condition_humongous_string = "(".to_string();
                             let mut filter_humongous_string = "(".to_string();
 
-                            for (index, string) in string_array_with_workarounds.iter().enumerate()
-                            {
+                            for (index, string) in string_array.iter().enumerate() {
                                 condition_humongous_string = condition_humongous_string
                                     + "("
                                     + condition_string.as_str()
@@ -271,7 +260,7 @@ pub fn process(
                                     filter_humongous_string.replace("{{C}}", &escape(string));
 
                                 // Only concatenate operator if it's not the last element
-                                if index < string_array_with_workarounds.len() - 1 {
+                                if index < string_array.len() - 1 {
                                     condition_humongous_string += operator_str;
                                     filter_humongous_string += operator_str;
                                 }
@@ -292,39 +281,14 @@ pub fn process(
                 } // this becomes or of all
                 ast::ConditionType::Equals => match condition.value {
                     ast::ConditionValue::String(string) => {
-                        let operator_str = " or ";
-                        let mut string_array_with_workarounds = vec![string.clone()];
-                        if let Some(additional_values) =
-                            project.get_sample_type_workarounds().get(string.as_str())
-                        {
-                            for additional_value in additional_values {
-                                string_array_with_workarounds.push((*additional_value).into());
-                            }
-                        }
-                        let mut condition_humongous_string = "(".to_string();
-                        let mut filter_humongous_string = "(".to_string();
-
-                        for (index, string) in string_array_with_workarounds.iter().enumerate() {
-                            condition_humongous_string =
-                                condition_humongous_string + "(" + condition_string.as_str() + ")";
-                            condition_humongous_string =
-                                condition_humongous_string.replace("{{C}}", &escape(string));
-
-                            filter_humongous_string =
-                                filter_humongous_string + "(" + filter_string.as_str() + ")";
-                            filter_humongous_string =
-                                filter_humongous_string.replace("{{C}}", &escape(string));
-
-                            // Only concatenate operator if it's not the last element
-                            if index < string_array_with_workarounds.len() - 1 {
-                                condition_humongous_string += operator_str;
-                                filter_humongous_string += operator_str;
-                            }
-                        }
-                        condition_string = condition_humongous_string + ")";
+                        condition_string = format!(
+                            "(({}))",
+                            condition_string.replace("{{C}}", &escape(&string))
+                        );
 
                         if !filter_string.is_empty() {
-                            filter_string = filter_humongous_string + ")";
+                            filter_string =
+                                format!("(({}))", filter_string.replace("{{C}}", &escape(&string)));
                         }
                     }
                     other => {
