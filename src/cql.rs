@@ -89,6 +89,7 @@ fn generate_cql(ast: ast::Ast, project: Project) -> Result<String, FocusError> {
         let formatted_filter_criteria = format!("where ({})", filter_criteria);
         cql = cql.replace("{{filter_criteria}}", formatted_filter_criteria.as_str());
     }
+
     Ok(cql)
 }
 
@@ -571,4 +572,46 @@ mod test {
             include_str!("../resources/test/result_sample_kind_ffpe.cql").to_string()
         );
     }
+
+    const CCE_MALE: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"key":"gender","operand":"OR","children":[{"key":"gender","type":"EQUALS","system":"","value":"male"}]}]}]},"id":"8bb53643-fe28-4556-a808-528a4274bea5"}"#;
+    const CCE_ALIVE: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"key":"vitalStatusCS","operand":"OR","children":[{"key":"vitalStatusCS","type":"EQUALS","system":"https://www.cancercoreeurope.eu/fhir/core/CodeSystem/VitalStatusCS","value":"alive"}]}]}]},"id":"ba71c2d5-feb1-4649-800e-aaaac2e4bcb0"}"#;
+
+    const CCE_VITAL_STATUS_URL: &str =
+        "https://www.cancercoreeurope.eu/fhir/core/CodeSystem/VitalStatusCS";
+    const CCE_SAMPLE_MATERIAL_TYPE_URL: &str =
+        "https://www.cancercoreeurope.eu/fhir/core/CodeSystem/SampleMaterialType";
+    const CCE_SYST_THERAPY_TYPE_URL: &str =
+        "https://www.cancercoreeurope.eu/fhir/core/CodeSystem/SYSTTherapyTypeCS";
+
+    #[test]
+    fn test_cce_empty() {
+        let generated_cql =
+            generate_cql(serde_json::from_str(EMPTY).unwrap(), Project::Cce).unwrap();
+        pretty_assertions::assert_eq!(generated_cql.contains(CCE_VITAL_STATUS_URL), true);
+        pretty_assertions::assert_eq!(generated_cql.contains(CCE_SAMPLE_MATERIAL_TYPE_URL), true);
+        pretty_assertions::assert_eq!(generated_cql.contains(CCE_SYST_THERAPY_TYPE_URL), true);
+
+        pretty_assertions::assert_eq!(
+            generated_cql,
+            include_str!("../resources/test/result_cce_base.cql").to_string()
+        );
+    }
+
+    #[test]
+    fn test_cce_male() {
+        let expected = r#"Patient.gender = 'male'"#;
+        let generated_cql =
+            generate_cql(serde_json::from_str(CCE_MALE).unwrap(), Project::Cce).unwrap();
+        pretty_assertions::assert_eq!(generated_cql.contains(expected), true);
+    }
+
+    // #[test]
+    // fn test_cce_alive() {
+    //     let expected = r#"Patient.gender = 'male'"#;
+    //     let generated_cql = generate_cql(serde_json::from_str(CCE_ALIVE).unwrap(), Project::Cce);
+    //     println!("generated cql query: {:?}", generated_cql);
+
+    //     // pretty_assertions::assert_eq!(generated_cql.contains(expected), true);
+    //     pretty_assertions::assert_eq!(false, true);
+    // }
 }
