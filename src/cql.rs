@@ -4,9 +4,10 @@ use crate::projects::{CriterionRole, Project};
 
 use base64::{prelude::BASE64_STANDARD as BASE64, Engine as _};
 use chrono::offset::Utc;
-use chrono::{DateTime, NaiveDate, NaiveTime};
+use chrono::{format, DateTime, NaiveDate, NaiveTime};
 use indexmap::set::IndexSet;
 use tracing::info;
+use tracing_subscriber::filter;
 use uuid::Uuid;
 
 pub fn generate_body(ast: ast::Ast, project: Project) -> Result<String, FocusError> {
@@ -242,22 +243,10 @@ pub fn process(
 
                     match condition.value {
                         ast::ConditionValue::StringArray(string_array) => {
-                            let mut string_array_with_workarounds = string_array.clone();
-                            for value in string_array {
-                                if let Some(additional_values) =
-                                    project.get_sample_type_workarounds().get(value.as_str())
-                                {
-                                    for additional_value in additional_values {
-                                        string_array_with_workarounds
-                                            .push((*additional_value).into());
-                                    }
-                                }
-                            }
                             let mut condition_humongous_string = "(".to_string();
                             let mut filter_humongous_string = "(".to_string();
 
-                            for (index, string) in string_array_with_workarounds.iter().enumerate()
-                            {
+                            for (index, string) in string_array.iter().enumerate() {
                                 condition_humongous_string = condition_humongous_string
                                     + "("
                                     + condition_string.as_str()
@@ -271,7 +260,7 @@ pub fn process(
                                     filter_humongous_string.replace("{{C}}", &escape(string));
 
                                 // Only concatenate operator if it's not the last element
-                                if index < string_array_with_workarounds.len() - 1 {
+                                if index < string_array.len() - 1 {
                                     condition_humongous_string += operator_str;
                                     filter_humongous_string += operator_str;
                                 }
@@ -292,39 +281,14 @@ pub fn process(
                 } // this becomes or of all
                 ast::ConditionType::Equals => match condition.value {
                     ast::ConditionValue::String(string) => {
-                        let operator_str = " or ";
-                        let mut string_array_with_workarounds = vec![string.clone()];
-                        if let Some(additional_values) =
-                            project.get_sample_type_workarounds().get(string.as_str())
-                        {
-                            for additional_value in additional_values {
-                                string_array_with_workarounds.push((*additional_value).into());
-                            }
-                        }
-                        let mut condition_humongous_string = "(".to_string();
-                        let mut filter_humongous_string = "(".to_string();
-
-                        for (index, string) in string_array_with_workarounds.iter().enumerate() {
-                            condition_humongous_string =
-                                condition_humongous_string + "(" + condition_string.as_str() + ")";
-                            condition_humongous_string =
-                                condition_humongous_string.replace("{{C}}", &escape(string));
-
-                            filter_humongous_string =
-                                filter_humongous_string + "(" + filter_string.as_str() + ")";
-                            filter_humongous_string =
-                                filter_humongous_string.replace("{{C}}", &escape(string));
-
-                            // Only concatenate operator if it's not the last element
-                            if index < string_array_with_workarounds.len() - 1 {
-                                condition_humongous_string += operator_str;
-                                filter_humongous_string += operator_str;
-                            }
-                        }
-                        condition_string = condition_humongous_string + ")";
+                        condition_string = format!(
+                            "(({}))",
+                            condition_string.replace("{{C}}", &escape(&string))
+                        );
 
                         if !filter_string.is_empty() {
-                            filter_string = filter_humongous_string + ")";
+                            filter_string =
+                                format!("(({}))", filter_string.replace("{{C}}", &escape(&string)));
                         }
                     }
                     other => {
@@ -423,11 +387,11 @@ mod test {
 
     const C61_AND_MALE: &str = r#"{"ast": {"operand":"OR","children":[{"operand":"AND","children":[{"operand":"OR","children":[{"key":"diagnosis","type":"EQUALS","system":"http://fhir.de/CodeSystem/dimdi/icd-10-gm","value":"C61"}]},{"operand":"OR","children":[{"key":"gender","type":"EQUALS","system":"","value":"male"}]}]}]}, "id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
 
-    const ALL_GBN: &str = r#"{"ast":{"children":[{"key":"gender","system":"","type":"IN","value":["male","other"]},{"children":[{"key":"diagnosis","system":"http://fhir.de/CodeSystem/dimdi/icd-10-gm","type":"EQUALS","value":"C25"},{"key":"diagnosis","system":"http://fhir.de/CodeSystem/dimdi/icd-10-gm","type":"EQUALS","value":"C56"}],"de":"Diagnose ICD-10","en":"Diagnosis ICD-10","key":"diagnosis","operand":"OR"},{"key":"diagnosis_age_donor","system":"","type":"BETWEEN","value":{"max":100,"min":10}},{"key":"date_of_diagnosis","system":"","type":"BETWEEN","value":{"max":"2023-10-29T23:00:00.000Z","min":"2023-09-30T22:00:00.000Z"}},{"key":"bmi","system":"","type":"BETWEEN","value":{"max":100,"min":10}},{"key":"body_weight","system":"","type":"BETWEEN","value":{"max":1100,"min":10}},{"key":"fasting_status","system":"","type":"IN","value":["Sober","Other fasting status"]},{"key":"smoking_status","system":"","type":"IN","value":["Smoker","Never smoked"]},{"key":"donor_age","system":"","type":"BETWEEN","value":{"max":10000,"min":100}},{"key":"sample_kind","system":"","type":"IN","value":["blood-serum","blood-plasma","buffy-coat"]},{"key":"sampling_date","system":"","type":"BETWEEN","value":{"max":"2023-10-29T23:00:00.000Z","min":"2023-10-03T22:00:00.000Z"}},{"key":"storage_temperature","system":"","type":"IN","value":["temperature-18to-35","temperature-60to-85"]}],"de":"haupt","en":"main","key":"main","operand":"AND"},"id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
+    const ALL_GBN: &str = r#"{"ast":{"children":[{"key":"gender","system":"","type":"IN","value":["male","other"]},{"children":[{"key":"diagnosis","system":"http://fhir.de/CodeSystem/dimdi/icd-10-gm","type":"EQUALS","value":"C25"},{"key":"diagnosis","system":"http://fhir.de/CodeSystem/dimdi/icd-10-gm","type":"EQUALS","value":"C56"}],"de":"Diagnose ICD-10","en":"Diagnosis ICD-10","key":"diagnosis","operand":"OR"},{"key":"diagnosis_age_donor","system":"","type":"BETWEEN","value":{"max":100,"min":10}},{"key":"date_of_diagnosis","system":"","type":"BETWEEN","value":{"max":"2023-10-29T23:00:00.000Z","min":"2023-09-30T22:00:00.000Z"}},{"key":"bmi","system":"","type":"BETWEEN","value":{"max":100,"min":10}},{"key":"body_weight","system":"","type":"BETWEEN","value":{"max":1100,"min":10}},{"key":"fasting_status","system":"","type":"IN","value":["Sober","Other fasting status"]},{"key":"smoking_status","system":"","type":"IN","value":["Smoker","Never smoked"]},{"key":"donor_age","system":"","type":"BETWEEN","value":{"max":10000,"min":100}},{"key":"sample_kind","operand":"OR","children":[{"key":"Serum","operand":"AND","children":[{"operand":"OR","children":[{"key":"sample_kind","type":"EQUALS","system":"","value":"blood-serum"},{"key":"sample_kind","type":"EQUALS","system":"","value":"serum"}]}]},{"key":"Plasma","operand":"AND","children":[{"operand":"OR","children":[{"key":"sample_kind","type":"EQUALS","system":"","value":"blood-plasma"},{"key":"sample_kind","type":"EQUALS","system":"","value":"plasma-edta"},{"key":"sample_kind","type":"EQUALS","system":"","value":"plasma-citrat"},{"key":"sample_kind","type":"EQUALS","system":"","value":"plasma-heparin"},{"key":"sample_kind","type":"EQUALS","system":"","value":"plasma-cell-free"},{"key":"sample_kind","type":"EQUALS","system":"","value":"plasma-other"},{"key":"sample_kind","type":"EQUALS","system":"","value":"plasma"}]}]},{"key":"sample_kind","type":"EQUALS","system":"","value":"buffy-coat"}]},{"key":"sampling_date","system":"","type":"BETWEEN","value":{"max":"2023-10-29T23:00:00.000Z","min":"2023-10-03T22:00:00.000Z"}},{"key":"storage_temperature","system":"","type":"IN","value":["temperature-18to-35","temperature-60to-85"]}],"de":"haupt","en":"main","key":"main","operand":"AND"},"id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
 
-    const SOME_GBN: &str = r#"{"ast":{"children":[{"key":"gender","system":"","type":"IN","value":["other","male"]},{"key":"diagnosis","system":"http://fhir.de/CodeSystem/dimdi/icd-10-gm","type":"EQUALS","value":"C24"},{"key":"diagnosis_age_donor","system":"","type":"BETWEEN","value":{"max":11,"min":1}},{"key":"date_of_diagnosis","system":"","type":"BETWEEN","value":{"max":"2023-10-30T23:00:00.000Z","min":"2023-10-29T23:00:00.000Z"}},{"key":"bmi","system":"","type":"BETWEEN","value":{"max":111,"min":1}},{"key":"body_weight","system":"","type":"BETWEEN","value":{"max":1111,"min":110}},{"key":"fasting_status","system":"","type":"IN","value":["Sober","Not sober"]},{"key":"smoking_status","system":"","type":"IN","value":["Smoker","Never smoked"]},{"key":"donor_age","system":"","type":"BETWEEN","value":{"max":123,"min":1}},{"key":"sample_kind","system":"","type":"IN","value":["blood-serum","tissue-other"]},{"key":"sampling_date","system":"","type":"BETWEEN","value":{"max":"2023-10-30T23:00:00.000Z","min":"2023-10-29T23:00:00.000Z"}},{"key":"storage_temperature","system":"","type":"IN","value":["temperature2to10","temperatureGN"]}],"de":"haupt","en":"main","key":"main","operand":"AND"},"id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
+    const SOME_GBN: &str = r#"{"ast":{"children":[{"key":"gender","system":"","type":"IN","value":["other","male"]},{"key":"diagnosis","system":"http://fhir.de/CodeSystem/dimdi/icd-10-gm","type":"EQUALS","value":"C24"},{"key":"diagnosis_age_donor","system":"","type":"BETWEEN","value":{"max":11,"min":1}},{"key":"date_of_diagnosis","system":"","type":"BETWEEN","value":{"max":"2023-10-30T23:00:00.000Z","min":"2023-10-29T23:00:00.000Z"}},{"key":"bmi","system":"","type":"BETWEEN","value":{"max":111,"min":1}},{"key":"body_weight","system":"","type":"BETWEEN","value":{"max":1111,"min":110}},{"key":"fasting_status","system":"","type":"IN","value":["Sober","Not sober"]},{"key":"smoking_status","system":"","type":"IN","value":["Smoker","Never smoked"]},{"key":"donor_age","system":"","type":"BETWEEN","value":{"max":123,"min":1}},{"key":"sample_kind","operand":"OR","children":[{"key":"Serum","operand":"AND","children":[{"operand":"OR","children":[{"key":"sample_kind","type":"EQUALS","system":"","value":"blood-serum"},{"key":"sample_kind","type":"EQUALS","system":"","value":"serum"}]}]},{"key":"Other tissue storage","operand":"AND","children":[{"operand":"OR","children":[{"key":"sample_kind","type":"EQUALS","system":"","value":"tissue-other"},{"key":"sample_kind","type":"EQUALS","system":"","value":"tissue-paxgene-or-else"},{"key":"sample_kind","type":"EQUALS","system":"","value":"tissue"}]}]}]},{"key":"sampling_date","system":"","type":"BETWEEN","value":{"max":"2023-10-30T23:00:00.000Z","min":"2023-10-29T23:00:00.000Z"}},{"key":"storage_temperature","system":"","type":"IN","value":["temperature2to10","temperatureGN"]}],"de":"haupt","en":"main","key":"main","operand":"AND"},"id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
 
-    const LENS2: &str = r#"{"ast":{"children":[{"children":[{"children":[{"key":"gender","system":"","type":"EQUALS","value":"male"},{"key":"gender","system":"","type":"EQUALS","value":"female"}],"operand":"OR"},{"children":[{"key":"diagnosis","system":"","type":"EQUALS","value":"C41"},{"key":"diagnosis","system":"","type":"EQUALS","value":"C50"}],"operand":"OR"},{"children":[{"key":"sample_kind","system":"","type":"EQUALS","value":"tissue-frozen"},{"key":"sample_kind","system":"","type":"EQUALS","value":"blood-serum"}],"operand":"OR"}],"operand":"AND"},{"children":[{"children":[{"key":"gender","system":"","type":"EQUALS","value":"male"}],"operand":"OR"},{"children":[{"key":"diagnosis","system":"","type":"EQUALS","value":"C41"},{"key":"diagnosis","system":"","type":"EQUALS","value":"C50"}],"operand":"OR"},{"children":[{"key":"sample_kind","system":"","type":"EQUALS","value":"liquid-other"},{"key":"sample_kind","system":"","type":"EQUALS","value":"rna"},{"key":"sample_kind","system":"","type":"EQUALS","value":"urine"}],"operand":"OR"},{"children":[{"key":"storage_temperature","system":"","type":"EQUALS","value":"temperatureRoom"},{"key":"storage_temperature","system":"","type":"EQUALS","value":"four_degrees"}],"operand":"OR"}],"operand":"AND"}],"operand":"OR"},"id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
+    const LENS2: &str = r#"{"ast":{"children":[{"children":[{"children":[{"key":"gender","system":"","type":"EQUALS","value":"male"},{"key":"gender","system":"","type":"EQUALS","value":"female"}],"operand":"OR"},{"children":[{"key":"diagnosis","system":"","type":"EQUALS","value":"C41"},{"key":"diagnosis","system":"","type":"EQUALS","value":"C50"}],"operand":"OR"},{"key":"sample_kind","operand":"OR","children":[{"key":"Tissue snap frozen","operand":"AND","children":[{"operand":"OR","children":[{"key":"sample_kind","type":"EQUALS","system":"","value":"tissue-frozen"},{"key":"sample_kind","type":"EQUALS","system":"","value":"tumor-tissue-frozen"},{"key":"sample_kind","type":"EQUALS","system":"","value":"normal-tissue-frozen"},{"key":"sample_kind","type":"EQUALS","system":"","value":"other-tissue-frozen"}]}]},{"key":"Serum","operand":"AND","children":[{"operand":"OR","children":[{"key":"sample_kind","type":"EQUALS","system":"","value":"blood-serum"},{"key":"sample_kind","type":"EQUALS","system":"","value":"serum"}]}]}]}],"operand":"AND"},{"children":[{"children":[{"key":"gender","system":"","type":"EQUALS","value":"male"}],"operand":"OR"},{"children":[{"key":"diagnosis","system":"","type":"EQUALS","value":"C41"},{"key":"diagnosis","system":"","type":"EQUALS","value":"C50"}],"operand":"OR"},{"key":"sample_kind","operand":"OR","children":[{"key":"Other liquid biosample","operand":"AND","children":[{"operand":"OR","children":[{"key":"sample_kind","type":"EQUALS","system":"","value":"liquid-other"},{"key":"sample_kind","type":"EQUALS","system":"","value":"liquid"}]}]},{"key":"sample_kind","type":"EQUALS","system":"","value":"rna"},{"key":"sample_kind","type":"EQUALS","system":"","value":"urine"}]},{"children":[{"key":"storage_temperature","system":"","type":"EQUALS","value":"temperatureRoom"},{"key":"storage_temperature","system":"","type":"EQUALS","value":"four_degrees"}],"operand":"OR"}],"operand":"AND"}],"operand":"OR"},"id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
 
     const EMPTY: &str =
         r#"{"ast":{"children":[],"operand":"OR"}, "id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
@@ -513,6 +477,46 @@ mod test {
         pretty_assertions::assert_eq!(
             generate_cql(serde_json::from_str(CURRENT).unwrap(), Project::Bbmri).unwrap(),
             include_str!("../resources/test/result_current.cql").to_string()
+        );
+
+        pretty_assertions::assert_eq!(
+            generate_cql(serde_json::from_value(serde_json::json!({"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"key":"sample_kind","operand":"OR","children":[{"key":"Plasma","operand":"AND","children":[{"operand":"OR","children":[{"key":"sample_kind","type":"EQUALS","system":"","value":"blood-plasma"},{"key":"sample_kind","type":"EQUALS","system":"","value":"plasma-edta"},{"key":"sample_kind","type":"EQUALS","system":"","value":"plasma-citrat"},{"key":"sample_kind","type":"EQUALS","system":"","value":"plasma-heparin"},{"key":"sample_kind","type":"EQUALS","system":"","value":"plasma-cell-free"},{"key":"sample_kind","type":"EQUALS","system":"","value":"plasma-other"},{"key":"sample_kind","type":"EQUALS","system":"","value":"plasma"}]}]}]}]}]},"id":"5608b9e6-e0bc-46d0-ae20-5f7ddb5e0d67"})).unwrap(), Project::Bbmri).unwrap(),
+            include_str!("../resources/test/result_bbmri_sample_kind_blood_plasma.cql").to_string()
+        );
+
+        pretty_assertions::assert_eq!(
+            generate_cql(serde_json::from_value(serde_json::json!({"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"key":"sample_kind","operand":"OR","children":[{"key":"Serum","operand":"AND","children":[{"operand":"OR","children":[{"key":"sample_kind","type":"EQUALS","system":"","value":"blood-serum"},{"key":"sample_kind","type":"EQUALS","system":"","value":"serum"}]}]}]}]}]},"id":"66e50eb2-09b7-434c-b6d3-24fd90d9a391"})).unwrap(), Project::Bbmri).unwrap(),
+            include_str!("../resources/test/result_bbmri_sample_kind_blood_serum.cql").to_string()
+        );
+
+        pretty_assertions::assert_eq!(
+            generate_cql(serde_json::from_value(serde_json::json!({"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"key":"sample_kind","operand":"OR","children":[{"key":"Other derivative","operand":"AND","children":[{"operand":"OR","children":[{"key":"sample_kind","type":"EQUALS","system":"","value":"derivative-other"},{"key":"sample_kind","type":"EQUALS","system":"","value":"derivative"}]}]}]}]}]},"id":"09639684-af5b-49b7-8a30-237a990c2d17"})).unwrap(), Project::Bbmri).unwrap(),
+            include_str!("../resources/test/result_bbmri_sample_kind_derivative_other.cql").to_string()
+        );
+
+        pretty_assertions::assert_eq!(
+            generate_cql(serde_json::from_value(serde_json::json!({"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"key":"sample_kind","operand":"OR","children":[{"key":"DNA","operand":"AND","children":[{"operand":"OR","children":[{"key":"sample_kind","type":"EQUALS","system":"","value":"dna"},{"key":"sample_kind","type":"EQUALS","system":"","value":"cf-dna"},{"key":"sample_kind","type":"EQUALS","system":"","value":"g-dna"}]}]}]}]}]},"id":"e00a85f3-fa39-4798-a25f-f8b43f34bb94"})).unwrap(), Project::Bbmri).unwrap(),
+            include_str!("../resources/test/result_bbmri_sample_kind_dna.cql").to_string()
+        );
+
+        pretty_assertions::assert_eq!(
+            generate_cql(serde_json::from_value(serde_json::json!({"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"key":"sample_kind","operand":"OR","children":[{"key":"Other liquid biosample","operand":"AND","children":[{"operand":"OR","children":[{"key":"sample_kind","type":"EQUALS","system":"","value":"liquid-other"},{"key":"sample_kind","type":"EQUALS","system":"","value":"liquid"}]}]}]}]}]},"id":"cc8cdf7e-9fa1-42d0-98ab-a3a0ff254e4c"})).unwrap(), Project::Bbmri).unwrap(),
+            include_str!("../resources/test/result_bbmri_sample_kind_liquid_other.cql").to_string()
+        );
+
+        pretty_assertions::assert_eq!(
+            generate_cql(serde_json::from_value(serde_json::json!({"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"key":"sample_kind","operand":"OR","children":[{"key":"Tissue (FFPE)","operand":"AND","children":[{"operand":"OR","children":[{"key":"sample_kind","type":"EQUALS","system":"","value":"tissue-ffpe"},{"key":"sample_kind","type":"EQUALS","system":"","value":"tumor-tissue-ffpe"},{"key":"sample_kind","type":"EQUALS","system":"","value":"normal-tissue-ffpe"},{"key":"sample_kind","type":"EQUALS","system":"","value":"other-tissue-ffpe"},{"key":"sample_kind","type":"EQUALS","system":"","value":"tissue-formalin"}]}]}]}]}]},"id":"2e6711a9-2f88-4424-9a1a-6d703a080bbc"})).unwrap(), Project::Bbmri).unwrap(),
+            include_str!("../resources/test/result_bbmri_sample_kind_tissue_ffpe.cql").to_string()
+        );
+
+        pretty_assertions::assert_eq!(
+            generate_cql(serde_json::from_value(serde_json::json!({"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"key":"sample_kind","operand":"OR","children":[{"key":"Tissue snap frozen","operand":"AND","children":[{"operand":"OR","children":[{"key":"sample_kind","type":"EQUALS","system":"","value":"tissue-frozen"},{"key":"sample_kind","type":"EQUALS","system":"","value":"tumor-tissue-frozen"},{"key":"sample_kind","type":"EQUALS","system":"","value":"normal-tissue-frozen"},{"key":"sample_kind","type":"EQUALS","system":"","value":"other-tissue-frozen"}]}]}]}]}]},"id":"59a7414e-28c5-4c23-bcd4-58bd0f574a7d"})).unwrap(), Project::Bbmri).unwrap(),
+            include_str!("../resources/test/result_bbmri_sample_kind_tissue_frozen.cql").to_string()
+        );
+
+        pretty_assertions::assert_eq!(
+            generate_cql(serde_json::from_value(serde_json::json!({"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"key":"sample_kind","operand":"OR","children":[{"key":"Other tissue storage","operand":"AND","children":[{"operand":"OR","children":[{"key":"sample_kind","type":"EQUALS","system":"","value":"tissue-other"},{"key":"sample_kind","type":"EQUALS","system":"","value":"tissue-paxgene-or-else"},{"key":"sample_kind","type":"EQUALS","system":"","value":"tissue"}]}]}]}]}]},"id":"296fb0de-1ffd-4917-b4f1-086a4a429702"})).unwrap(), Project::Bbmri).unwrap(),
+            include_str!("../resources/test/result_bbmri_sample_kind_tissue_other.cql").to_string()
         );
     }
 
