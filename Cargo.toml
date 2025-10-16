@@ -1,6 +1,6 @@
 [package]
 name = "focus"
-version = "0.17.0"
+version = "0.18.0"
 edition = "2021"
 license = "Apache-2.0"
 
@@ -66,11 +66,8 @@ kurtbuilds_sqlx_serde = { version = "0.3.2", features = [
   "uuid",
 ], optional = true }
 
-
 [features]
-default = []
-bbmri = []
-dktk = ["query-sql"]
+default = ["query-sql"]
 query-sql = ["dep:sqlx", "dep:kurtbuilds_sqlx_serde"]
 
 [dev-dependencies]

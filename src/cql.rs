@@ -1,9 +1,6 @@
 use crate::ast;
 use crate::errors::FocusError;
-use crate::projects::{
-    CriterionRole, BODY, CODE_LISTS, CQL_SNIPPETS, CQL_TEMPLATE, CRITERION_CODE_LISTS,
-    MANDATORY_CODE_SYSTEMS, OBSERVATION_LOINC_CODE, SAMPLE_TYPE_WORKAROUNDS,
-};
+use crate::projects::{CriterionRole, Project};
 
 use base64::{prelude::BASE64_STANDARD as BASE64, Engine as _};
 use chrono::offset::Utc;
@@ -12,9 +9,9 @@ use indexmap::set::IndexSet;
 use tracing::info;
 use uuid::Uuid;
 
-pub fn generate_body(ast: ast::Ast) -> Result<String, FocusError> {
-    Ok(BODY
-        .to_string()
+pub fn generate_body(ast: ast::Ast, project: Project) -> Result<String, FocusError> {
+    Ok(project
+        .get_body()
         .replace(
             "{{LIBRARY_UUID}}",
             format!("urn:uuid:{}", Uuid::new_v4()).as_str(),
@@ -25,25 +22,25 @@ pub fn generate_body(ast: ast::Ast) -> Result<String, FocusError> {
         )
         .replace(
             "{{LIBRARY_ENCODED}}",
-            BASE64.encode(generate_cql(ast)?).as_str(),
+            BASE64.encode(generate_cql(ast, project)?).as_str(),
         ))
 }
 
-fn generate_cql(ast: ast::Ast) -> Result<String, FocusError> {
+fn generate_cql(ast: ast::Ast, project: Project) -> Result<String, FocusError> {
     let mut retrieval_criteria: String = String::new(); // main selection criteria (Patient)
 
     let mut filter_criteria: String = String::new(); // criteria for filtering specimens
 
     let mut lists: String = String::new(); // needed code lists, defined
 
-    let mut cql = CQL_TEMPLATE.clone().to_string();
+    let mut cql = project.get_cql_template().to_string();
 
     let operator_str = match ast.ast.operand {
         ast::Operand::And => " and ",
         ast::Operand::Or => " or ",
     };
 
-    let mut mandatory_codes = MANDATORY_CODE_SYSTEMS.clone();
+    let mut mandatory_codes = project.get_mandatory_code_lists().clone();
 
     for (index, grandchild) in ast.ast.children.iter().enumerate() {
         process(
@@ -51,6 +48,7 @@ fn generate_cql(ast: ast::Ast) -> Result<String, FocusError> {
             &mut retrieval_criteria,
             &mut filter_criteria,
             &mut mandatory_codes,
+            &project,
         )?;
 
         // Only concatenate operator if it's not the last element
@@ -63,7 +61,7 @@ fn generate_cql(ast: ast::Ast) -> Result<String, FocusError> {
         lists += format!(
             "codesystem {}: '{}'\n",
             code_system,
-            CODE_LISTS.get(code_system).unwrap_or(&(""))
+            project.get_code_lists().get(code_system).unwrap_or(&(""))
         )
         .as_str();
     }
@@ -91,6 +89,7 @@ fn generate_cql(ast: ast::Ast) -> Result<String, FocusError> {
         let formatted_filter_criteria = format!("where ({})", filter_criteria);
         cql = cql.replace("{{filter_criteria}}", formatted_filter_criteria.as_str());
     }
+
     Ok(cql)
 }
 
@@ -99,6 +98,7 @@ pub fn process(
     retrieval_criteria: &mut String,
     filter_criteria: &mut String,
     code_systems: &mut IndexSet<&str>,
+    project: &Project,
 ) -> Result<(), FocusError> {
     let mut retrieval_cond: String = "(".to_string();
     let mut filter_cond: String = String::new();
@@ -107,7 +107,9 @@ pub fn process(
         ast::Child::Condition(condition) => {
             let condition_key_trans = condition.key.as_str();
 
-            let condition_snippet = CQL_SNIPPETS.get(&(condition_key_trans, CriterionRole::Query));
+            let condition_snippet = project
+                .get_cql_snippets()
+                .get(&(condition_key_trans, CriterionRole::Query));
 
             let Some(snippet) = condition_snippet else {
                 return Err(FocusError::AstUnknownCriterion(
@@ -117,9 +119,13 @@ pub fn process(
             let mut condition_string = (*snippet).to_string();
             let mut filter_string: String = String::new();
 
-            let filter_snippet = CQL_SNIPPETS.get(&(condition_key_trans, CriterionRole::Filter));
+            let filter_snippet = project
+                .get_cql_snippets()
+                .get(&(condition_key_trans, CriterionRole::Filter));
 
-            let code_lists_option = CRITERION_CODE_LISTS.get(&(condition_key_trans));
+            let code_lists_option = project
+                .get_criterion_code_lists()
+                .get(&(condition_key_trans));
             if let Some(code_lists_vec) = code_lists_option {
                 for (index, code_list) in code_lists_vec.iter().enumerate() {
                     code_systems.insert(code_list);
@@ -130,7 +136,9 @@ pub fn process(
 
             if condition_string.contains("{{K}}") {
                 //observation loinc code, those only apply to query criteria, we don't filter specimens by observations
-                let observation_code_option = OBSERVATION_LOINC_CODE.get(&condition_key_trans);
+                let observation_code_option = project
+                    .get_observation_loinc_codes()
+                    .get(&condition_key_trans);
 
                 if let Some(observation_code) = observation_code_option {
                     condition_string = condition_string.replace("{{K}}", &escape(observation_code));
@@ -237,7 +245,7 @@ pub fn process(
                             let mut string_array_with_workarounds = string_array.clone();
                             for value in string_array {
                                 if let Some(additional_values) =
-                                    SAMPLE_TYPE_WORKAROUNDS.get(value.as_str())
+                                    project.get_sample_type_workarounds().get(value.as_str())
                                 {
                                     for additional_value in additional_values {
                                         string_array_with_workarounds
@@ -287,7 +295,7 @@ pub fn process(
                         let operator_str = " or ";
                         let mut string_array_with_workarounds = vec![string.clone()];
                         if let Some(additional_values) =
-                            SAMPLE_TYPE_WORKAROUNDS.get(string.as_str())
+                            project.get_sample_type_workarounds().get(string.as_str())
                         {
                             for additional_value in additional_values {
                                 string_array_with_workarounds.push((*additional_value).into());
@@ -353,6 +361,7 @@ pub fn process(
                     &mut retrieval_cond,
                     &mut filter_cond,
                     code_systems,
+                    project,
                 )?;
 
                 // Only concatenate operator if it's not the last element
@@ -435,64 +444,74 @@ mod test {
     }
 
     #[test]
-    #[cfg(feature = "bbmri")]
     fn test_bbmri_quote() {
         pretty_assertions::assert_eq!(
-            generate_cql(serde_json::from_str(QUOTE).unwrap()).unwrap(),
+            generate_cql(serde_json::from_str(QUOTE).unwrap(), Project::Bbmri).unwrap(),
             include_str!("../resources/test/result_quote.cql").to_string()
         );
     }
 
     #[test]
-    #[cfg(feature = "bbmri")]
     fn test_bbmri() {
         pretty_assertions::assert_eq!(
-            generate_cql(serde_json::from_str(MALE_OR_FEMALE).unwrap()).unwrap(),
+            generate_cql(
+                serde_json::from_str(MALE_OR_FEMALE).unwrap(),
+                Project::Bbmri
+            )
+            .unwrap(),
             include_str!("../resources/test/result_male_or_female.cql").to_string()
         );
 
         pretty_assertions::assert_eq!(
-            generate_cql(serde_json::from_str(AGE_AT_DIAGNOSIS_30_TO_70).unwrap()).unwrap(),
+            generate_cql(
+                serde_json::from_str(AGE_AT_DIAGNOSIS_30_TO_70).unwrap(),
+                Project::Bbmri
+            )
+            .unwrap(),
             include_str!("../resources/test/result_age_at_diagnosis_30_to_70.cql").to_string()
         );
 
         pretty_assertions::assert_eq!(
-            generate_cql(serde_json::from_str(AGE_AT_DIAGNOSIS_LOWER_THAN_70).unwrap()).unwrap(),
+            generate_cql(
+                serde_json::from_str(AGE_AT_DIAGNOSIS_LOWER_THAN_70).unwrap(),
+                Project::Bbmri
+            )
+            .unwrap(),
             include_str!("../resources/test/result_age_at_diagnosis_lower_than_70.cql").to_string()
         );
 
         pretty_assertions::assert_eq!(
-            generate_cql(serde_json::from_str(C61_AND_MALE).unwrap()).unwrap(),
+            generate_cql(serde_json::from_str(C61_AND_MALE).unwrap(), Project::Bbmri).unwrap(),
             include_str!("../resources/test/result_c61_and_male.cql").to_string()
         );
 
         pretty_assertions::assert_eq!(
-            generate_cql(serde_json::from_str(ALL_GBN).unwrap()).unwrap(),
+            generate_cql(serde_json::from_str(ALL_GBN).unwrap(), Project::Bbmri).unwrap(),
             include_str!("../resources/test/result_all_gbn.cql").to_string()
         );
 
         pretty_assertions::assert_eq!(
-            generate_cql(serde_json::from_str(SOME_GBN).unwrap()).unwrap(),
+            generate_cql(serde_json::from_str(SOME_GBN).unwrap(), Project::Bbmri).unwrap(),
             include_str!("../resources/test/result_some_gbn.cql").to_string()
         );
 
         pretty_assertions::assert_eq!(
-            generate_cql(serde_json::from_str(LENS2).unwrap()).unwrap(),
+            generate_cql(serde_json::from_str(LENS2).unwrap(), Project::Bbmri).unwrap(),
             include_str!("../resources/test/result_lens2.cql").to_string()
         );
 
         pretty_assertions::assert_eq!(
-            generate_cql(serde_json::from_str(EMPTY).unwrap()).unwrap(),
+            generate_cql(serde_json::from_str(EMPTY).unwrap(), Project::Bbmri).unwrap(),
             include_str!("../resources/test/result_empty.cql").to_string()
         );
 
         pretty_assertions::assert_eq!(
-            generate_cql(serde_json::from_str(VAFAN).unwrap()).unwrap(),
+            generate_cql(serde_json::from_str(VAFAN).unwrap(), Project::Bbmri).unwrap(),
             include_str!("../resources/test/result_empty.cql").to_string()
         );
 
         pretty_assertions::assert_eq!(
-            generate_cql(serde_json::from_str(CURRENT).unwrap()).unwrap(),
+            generate_cql(serde_json::from_str(CURRENT).unwrap(), Project::Bbmri).unwrap(),
             include_str!("../resources/test/result_current.cql").to_string()
         );
     }
@@ -510,36 +529,89 @@ mod test {
     const SAMPLE_KIND_FFPE: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"key":"sample_kind","operand":"OR","children":[{"key":"Gewebe FFPE","operand":"AND","children":[{"operand":"OR","children":[{"key":"sample_kind","type":"EQUALS","system":"","value":"tumor-tissue-ffpe"},{"key":"histology","type":"EQUALS","system":"","value":"tumor-tissue-ffpe"},{"key":"sample_kind","type":"EQUALS","system":"","value":"tissue-ffpe"},{"key":"sample_kind","type":"EQUALS","system":"","value":"normal-tissue-ffpe"},{"key":"sample_kind","type":"EQUALS","system":"","value":"other-tissue-ffpe"}]}]}]}]}]},"id":"bd5112af-e712-4091-9c94-892c4e667a29"}"#;
 
     #[test]
-    #[cfg(feature = "dktk")]
     fn test_dktk() {
         pretty_assertions::assert_eq!(
-            generate_cql(serde_json::from_str(DIAGNOSIS_C30).unwrap()).unwrap(),
+            generate_cql(serde_json::from_str(DIAGNOSIS_C30).unwrap(), Project::Dktk).unwrap(),
             include_str!("../resources/test/result_diagnosis_c30.cql").to_string()
         );
 
         pretty_assertions::assert_eq!(
-            generate_cql(serde_json::from_str(YEAR_OF_DIAGNOSIS_2000_TO_2010).unwrap()).unwrap(),
+            generate_cql(
+                serde_json::from_str(YEAR_OF_DIAGNOSIS_2000_TO_2010).unwrap(),
+                Project::Dktk
+            )
+            .unwrap(),
             include_str!("../resources/test/result_year_of_diagnosis_2000_to_2010.cql").to_string()
         );
 
         pretty_assertions::assert_eq!(
-            generate_cql(serde_json::from_str(BODY_SITE_LEFT).unwrap()).unwrap(),
+            generate_cql(serde_json::from_str(BODY_SITE_LEFT).unwrap(), Project::Dktk).unwrap(),
             include_str!("../resources/test/result_body_site_left.cql").to_string()
         );
 
         pretty_assertions::assert_eq!(
-            generate_cql(serde_json::from_str(GRADING_LOW_GRADE).unwrap()).unwrap(),
+            generate_cql(
+                serde_json::from_str(GRADING_LOW_GRADE).unwrap(),
+                Project::Dktk
+            )
+            .unwrap(),
             include_str!("../resources/test/result_grading_low_grade.cql").to_string()
         );
 
         pretty_assertions::assert_eq!(
-            generate_cql(serde_json::from_str(TNM_T_2).unwrap()).unwrap(),
+            generate_cql(serde_json::from_str(TNM_T_2).unwrap(), Project::Dktk).unwrap(),
             include_str!("../resources/test/result_tnm_t_2.cql").to_string()
         );
 
         pretty_assertions::assert_eq!(
-            generate_cql(serde_json::from_str(SAMPLE_KIND_FFPE).unwrap()).unwrap(),
+            generate_cql(
+                serde_json::from_str(SAMPLE_KIND_FFPE).unwrap(),
+                Project::Dktk
+            )
+            .unwrap(),
             include_str!("../resources/test/result_sample_kind_ffpe.cql").to_string()
         );
     }
+
+    const CCE_MALE: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"key":"gender","operand":"OR","children":[{"key":"gender","type":"EQUALS","system":"","value":"male"}]}]}]},"id":"8bb53643-fe28-4556-a808-528a4274bea5"}"#;
+    const CCE_ALIVE: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"key":"vitalStatusCS","operand":"OR","children":[{"key":"vitalStatusCS","type":"EQUALS","system":"https://www.cancercoreeurope.eu/fhir/core/CodeSystem/VitalStatusCS","value":"alive"}]}]}]},"id":"ba71c2d5-feb1-4649-800e-aaaac2e4bcb0"}"#;
+
+    const CCE_VITAL_STATUS_URL: &str =
+        "https://www.cancercoreeurope.eu/fhir/core/CodeSystem/VitalStatusCS";
+    const CCE_SAMPLE_MATERIAL_TYPE_URL: &str =
+        "https://www.cancercoreeurope.eu/fhir/core/CodeSystem/SampleMaterialType";
+    const CCE_SYST_THERAPY_TYPE_URL: &str =
+        "https://www.cancercoreeurope.eu/fhir/core/CodeSystem/SYSTTherapyTypeCS";
+
+    #[test]
+    fn test_cce_empty() {
+        let generated_cql =
+            generate_cql(serde_json::from_str(EMPTY).unwrap(), Project::Cce).unwrap();
+        pretty_assertions::assert_eq!(generated_cql.contains(CCE_VITAL_STATUS_URL), true);
+        pretty_assertions::assert_eq!(generated_cql.contains(CCE_SAMPLE_MATERIAL_TYPE_URL), true);
+        pretty_assertions::assert_eq!(generated_cql.contains(CCE_SYST_THERAPY_TYPE_URL), true);
+
+        pretty_assertions::assert_eq!(
+            generated_cql,
+            include_str!("../resources/test/result_cce_base.cql").to_string()
+        );
+    }
+
+    #[test]
+    fn test_cce_male() {
+        let expected = r#"Patient.gender = 'male'"#;
+        let generated_cql =
+            generate_cql(serde_json::from_str(CCE_MALE).unwrap(), Project::Cce).unwrap();
+        pretty_assertions::assert_eq!(generated_cql.contains(expected), true);
+    }
+
+    // #[test]
+    // fn test_cce_alive() {
+    //     let expected = r#"Patient.gender = 'male'"#;
+    //     let generated_cql = generate_cql(serde_json::from_str(CCE_ALIVE).unwrap(), Project::Cce);
+    //     println!("generated cql query: {:?}", generated_cql);
+
+    //     // pretty_assertions::assert_eq!(generated_cql.contains(expected), true);
+    //     pretty_assertions::assert_eq!(false, true);
+    // }
 }
