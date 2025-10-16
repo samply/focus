@@ -1,3 +1,14 @@
+# Samply.Focus v0.18.0 2025-10-16
+
+## Breaking changes
+
+* Project specific image tags have been removed. Instead of  `samply/focus:main-bbmri` and `samply/focus:main-dktk` use `samply/focus:main`. Instead of `samply/focus:develop-bbmri` and `samply/focus:develop-dktk` use `samply/focus:develop`.
+* CQL generation requires that you send the `project` metadata field. To do so, pass the `PROJECT` environment variable to Spot.
+
+## Major changes
+
+* First version of CCE CQL generation
+
 # Samply.Focus v0.17.0 2025-09-30
 
 ## Breaking changes
