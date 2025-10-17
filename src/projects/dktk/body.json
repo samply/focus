@@ -275,7 +275,7 @@
               "text": "MolecularMarkers"
             },
             "criteria": {
-              "language": "ext/cql-identifier",
+              "language": "text/cql-identifier",
               "expression": "GeneticVariantCode"
             }
           }
