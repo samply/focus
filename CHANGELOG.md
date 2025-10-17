@@ -1,3 +1,9 @@
+# Samply.Focus v0.18.1 2025-10-17
+
+## Minor changes
+
+* Fixed mol marker measure for DKTK CQL generation
+
 # Samply.Focus v0.18.0 2025-10-16
 
 ## Breaking changes
