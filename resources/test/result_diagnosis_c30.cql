@@ -49,8 +49,8 @@ if InInitialPopulation then [MedicationStatement] else {} as List <MedicationSta
 define GeneticVariantCount:
 if InInitialPopulation then [Observation: Code '69548-6' from loinc] else {} as List <Observation>
 
-define GeneticVariantCode:
-First (from [Observation: Code '69548-6' from loinc] O return O.component.where(code.coding contains Code '48018-6' from loinc).value.coding.code.first())
+define function GeneticVariantCode(observation FHIR.Observation):
+observation.component.where(code.coding contains Code '48018-6' from loinc).value.coding.code.first()
 
 define InInitialPopulation:
 (((((((exists [Condition: Code 'C30' from icd10]))) or (((exists [Condition: Code 'C30.1' from icd10]))) or (((exists [Condition: Code 'C30.0' from icd10])))))))
