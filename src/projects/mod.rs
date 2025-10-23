@@ -7,6 +7,7 @@ use crate::errors::FocusError;
 mod bbmri;
 mod cce;
 mod dktk;
+mod itcc;
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Copy)]
 pub enum CriterionRole {
@@ -18,6 +19,7 @@ pub enum Project {
     Bbmri,
     Dktk,
     Cce,
+    Itcc,
 }
 
 impl FromStr for Project {
@@ -28,6 +30,7 @@ impl FromStr for Project {
             "bbmri" => Ok(Project::Bbmri),
             "dktk" => Ok(Project::Dktk),
             "cce" => Ok(Project::Cce),
+            "itcc" => Ok(Project::Itcc),
             _ => Err(FocusError::UnknownProject(s.to_string())),
         }
     }
@@ -39,6 +42,7 @@ impl Project {
             Project::Bbmri => &bbmri::CODE_LISTS,
             Project::Dktk => &dktk::CODE_LISTS,
             Project::Cce => &cce::CODE_LISTS,
+            Project::Itcc => &itcc::CODE_LISTS,
         }
     }
 
@@ -47,6 +51,7 @@ impl Project {
             Project::Bbmri => &bbmri::OBSERVATION_LOINC_CODES,
             Project::Dktk => &dktk::OBSERVATION_LOINC_CODES,
             Project::Cce => &cce::OBSERVATION_LOINC_CODES,
+            Project::Itcc => &itcc::OBSERVATION_LOINC_CODES,
         }
     }
 
@@ -55,6 +60,7 @@ impl Project {
             Project::Bbmri => &bbmri::SAMPLE_TYPE_WORKAROUNDS,
             Project::Dktk => &dktk::SAMPLE_TYPE_WORKAROUNDS,
             Project::Cce => &cce::SAMPLE_TYPE_WORKAROUNDS,
+            Project::Itcc => &itcc::SAMPLE_TYPE_WORKAROUNDS,
         }
     }
 
@@ -63,6 +69,7 @@ impl Project {
             Project::Bbmri => &bbmri::CRITERION_CODE_LISTS,
             Project::Dktk => &dktk::CRITERION_CODE_LISTS,
             Project::Cce => &cce::CRITERION_CODE_LISTS,
+            Project::Itcc => &itcc::CRITERION_CODE_LISTS,
         }
     }
 
@@ -73,6 +80,7 @@ impl Project {
             Project::Bbmri => &bbmri::CQL_SNIPPETS,
             Project::Dktk => &dktk::CQL_SNIPPETS,
             Project::Cce => &cce::CQL_SNIPPETS,
+            Project::Itcc => &itcc::CQL_SNIPPETS,
         }
     }
 
@@ -81,6 +89,7 @@ impl Project {
             Project::Bbmri => &bbmri::MANDATORY_CODE_LISTS,
             Project::Dktk => &dktk::MANDATORY_CODE_LISTS,
             Project::Cce => &cce::MANDATORY_CODE_LISTS,
+            Project::Itcc => &itcc::MANDATORY_CODE_LISTS,
         }
     }
 
@@ -89,6 +98,7 @@ impl Project {
             Project::Bbmri => include_str!("bbmri/template.cql"),
             Project::Dktk => include_str!("dktk/template.cql"),
             Project::Cce => include_str!("cce/template.cql"),
+            Project::Itcc => include_str!("itcc/template.cql"),
         }
     }
 
@@ -97,6 +107,7 @@ impl Project {
             Project::Bbmri => include_str!("bbmri/body.json"),
             Project::Dktk => include_str!("dktk/body.json"),
             Project::Cce => include_str!("cce/body.json"),
+            Project::Itcc => include_str!("itcc/body.json"),
         }
     }
 }

@@ -9,10 +9,16 @@ pub static CODE_LISTS: LazyLock<HashMap<&'static str, &'static str>> = LazyLock:
     HashMap::from([
         ("icd10", "http://fhir.de/CodeSystem/bfarm/icd-10-gm"),
         ("loinc", "http://loinc.org"),
+        ("snomed", "http://snomed.info/sct"),
         (
             "gradingcs",
             "http://dktk.dkfz.de/fhir/onco/core/CodeSystem/GradingCS",
         ),
+        ("gradingcsnngm", "urn:oid:2.16.840.1.113883.15.16"),
+        ("tnmtnngm", "urn:oid:2.16.840.1.113883.15.16"),
+        ("tnmnnngm", "urn:oid:2.16.840.1.113883.15.16"),
+        ("tnmmnngm", "urn:oid:2.16.840.1.113883.15.16"),
+        ("tnmrynngm", "urn:oid:2.16.840.1.113883.15.16"),
         ("ops", "http://fhir.de/CodeSystem/bfarm/ops"),
         ("morph", "urn:oid:2.16.840.1.113883.6.43.1"),
         ("lokalisation_icd_o_3", "urn:oid:2.16.840.1.113883.6.43.1"),
@@ -21,12 +27,20 @@ pub static CODE_LISTS: LazyLock<HashMap<&'static str, &'static str>> = LazyLock:
             "http://dktk.dkfz.de/fhir/onco/core/CodeSystem/SeitenlokalisationCS",
         ),
         (
-            "Therapieart",
-            "http://dktk.dkfz.de/fhir/onco/core/CodeSystem/SYSTTherapieartCS",
+            "bodySiteNNGM",
+            "http://terminology.hl7.org/CodeSystem/icd-o-3",
         ),
         (
-            "specimentype",
-            "https://fhir.bbmri.de/CodeSystem/SampleMaterialType",
+            "uicc8nNGM",
+            "http://uk-koeln.de/fhir/CodeSystem/nNGM/uiccStagingV8",
+        ),
+        (
+            "uicc7nNGM",
+            "http://uk-koeln.de/fhir/CodeSystem/nNGM/uiccStagingV7",
+        ),
+        (
+            "Therapieart",
+            "http://dktk.dkfz.de/fhir/onco/core/CodeSystem/SYSTTherapieartCS",
         ),
         (
             "uiccstadiumcs",
@@ -55,6 +69,18 @@ pub static CODE_LISTS: LazyLock<HashMap<&'static str, &'static str>> = LazyLock:
         (
             "vitalstatuscs",
             "http://dktk.dkfz.de/fhir/onco/core/CodeSystem/VitalstatusCS",
+        ),
+        (
+            "vitalstatuscsnngm",
+            "http://uk-koeln.de/fhir/nNGM/Vitalstatus",
+        ),
+        (
+            "raucherstatuscsnngm",
+            "http://uk-koeln.de/fhir/StructureDefinition/Observation/nNGM/raucherstatus",
+        ),
+        (
+            "ecogcsnngm",
+            "http://uk-koeln.de/fhir/StructureDefinition/Observation/nNGM/ecog",
         ),
         (
             "jnucs",
@@ -89,6 +115,18 @@ pub static CODE_LISTS: LazyLock<HashMap<&'static str, &'static str>> = LazyLock:
             "http://dktk.dkfz.de/fhir/onco/core/CodeSystem/TNMmSymbolCS",
         ),
         ("molecularMarker", "http://www.genenames.org"),
+        (
+            "vitalstatusitcc",
+            "http://fhir.itcc.org/CodeSystem/VitalStatus",
+        ),
+        (
+            "sampletypeitcc",
+            "http://fhir.itcc.org/CodeSystem/SampleType",
+        ),
+        (
+            "mutationtypeitcc",
+            "http://itcc.dkfz.de/fhir/itcc/CodeSystem/MutationTypeCS",
+        ),
     ])
 });
 
