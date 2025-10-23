@@ -21,7 +21,7 @@ pub enum Project {
     Dktk,
     Cce,
     Dhki,
-    Exporter
+    Exporter,
 }
 
 impl FromStr for Project {
@@ -33,7 +33,7 @@ impl FromStr for Project {
             "dktk" => Ok(Project::Dktk),
             "cce" => Ok(Project::Cce),
             "dhki" => Ok(Project::Dhki),
-            "exporter" =>Ok(Project::Exporter),
+            "exporter" => Ok(Project::Exporter),
             _ => Err(FocusError::UnknownProject(s.to_string())),
         }
     }
