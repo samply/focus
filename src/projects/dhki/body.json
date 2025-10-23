@@ -164,6 +164,15 @@
               "language": "text/cql",
               "expression": "SampleType"
             }
+          },
+          {
+            "code": {
+              "text": "sample_subtype"
+            },
+            "criteria": {
+              "language": "text/cql",
+              "expression": "SampleSubtype"
+            }
           }
         ]
       },
@@ -234,23 +243,32 @@
         "stratifier": [
           {
             "code": {
-              "text": "medicationStatements"
+              "text": "MedicationType"
             },
             "criteria": {
               "language": "text/cql",
               "expression": "ProcedureType"
+            }
+          },
+          {
+            "code": {
+              "text": "AppliedMedications"
+            },
+            "criteria": {
+              "language": "text/cql",
+              "expression": "AppliedMedications"
             }
           }
         ]
       },
       {
         "code": {
-          "text": "MolecularMarker"
+          "text": "Encounters"
         },
         "extension": [
           {
             "url": "http://hl7.org/fhir/us/cqfmeasures/StructureDefinition/cqfm-populationBasis",
-            "valueCode": "Observation"
+            "valueCode": "Encounter"
           }
         ],
         "population": [
@@ -265,18 +283,18 @@
             },
             "criteria": {
               "language": "text/cql-identifier",
-              "expression": "GeneticVariantCount"
+              "expression": "Encounter"
             }
           }
         ],
         "stratifier": [
           {
             "code": {
-              "text": "MolecularMarkers"
+              "text": "Departments"
             },
             "criteria": {
-              "language": "text/cql-identifier",
-              "expression": "GeneticVariantCode"
+              "language": "text/cql",
+              "expression": "Departments"
             }
           }
         ]

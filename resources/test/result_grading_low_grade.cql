@@ -46,6 +46,12 @@ procedure.category.coding.where(system = 'http://dktk.dkfz.de/fhir/onco/core/Cod
 define MedicationStatement:
 if InInitialPopulation then [MedicationStatement] else {} as List <MedicationStatement>
 
+define GeneticVariantCount:
+if InInitialPopulation then [Observation: Code '69548-6' from loinc] else {} as List <Observation>
+
+define function GeneticVariantCode(observation FHIR.Observation):
+observation.component.where(code.coding contains Code '48018-6' from loinc).value.coding.code.first()
+
 define InInitialPopulation:
 ((((((exists from [Observation: Code '59542-1' from loinc] O
 where O.value.coding.code contains 'L'))))))
