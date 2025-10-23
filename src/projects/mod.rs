@@ -8,6 +8,7 @@ mod bbmri;
 mod cce;
 mod dhki;
 mod dktk;
+mod exporter;
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Copy)]
 pub enum CriterionRole {
@@ -20,6 +21,7 @@ pub enum Project {
     Dktk,
     Cce,
     Dhki,
+    Exporter
 }
 
 impl FromStr for Project {
@@ -31,6 +33,7 @@ impl FromStr for Project {
             "dktk" => Ok(Project::Dktk),
             "cce" => Ok(Project::Cce),
             "dhki" => Ok(Project::Dhki),
+            "exporter" =>Ok(Project::Exporter),
             _ => Err(FocusError::UnknownProject(s.to_string())),
         }
     }
@@ -43,6 +46,7 @@ impl Project {
             Project::Dktk => &dktk::CODE_LISTS,
             Project::Cce => &cce::CODE_LISTS,
             Project::Dhki => &dhki::CODE_LISTS,
+            Project::Exporter => &exporter::CODE_LISTS,
         }
     }
 
@@ -52,6 +56,7 @@ impl Project {
             Project::Dktk => &dktk::OBSERVATION_LOINC_CODES,
             Project::Cce => &cce::OBSERVATION_LOINC_CODES,
             Project::Dhki => &dhki::OBSERVATION_LOINC_CODES,
+            Project::Exporter => &exporter::OBSERVATION_LOINC_CODES,
         }
     }
 
@@ -61,6 +66,7 @@ impl Project {
             Project::Dktk => &dktk::SAMPLE_TYPE_WORKAROUNDS,
             Project::Cce => &cce::SAMPLE_TYPE_WORKAROUNDS,
             Project::Dhki => &dhki::SAMPLE_TYPE_WORKAROUNDS,
+            Project::Exporter => &exporter::SAMPLE_TYPE_WORKAROUNDS,
         }
     }
 
@@ -70,6 +76,7 @@ impl Project {
             Project::Dktk => &dktk::CRITERION_CODE_LISTS,
             Project::Cce => &cce::CRITERION_CODE_LISTS,
             Project::Dhki => &dhki::CRITERION_CODE_LISTS,
+            Project::Exporter => &exporter::CRITERION_CODE_LISTS,
         }
     }
 
@@ -81,6 +88,7 @@ impl Project {
             Project::Dktk => &dktk::CQL_SNIPPETS,
             Project::Cce => &cce::CQL_SNIPPETS,
             Project::Dhki => &dhki::CQL_SNIPPETS,
+            Project::Exporter => &exporter::CQL_SNIPPETS,
         }
     }
 
@@ -90,6 +98,7 @@ impl Project {
             Project::Dktk => &dktk::MANDATORY_CODE_LISTS,
             Project::Cce => &cce::MANDATORY_CODE_LISTS,
             Project::Dhki => &dhki::MANDATORY_CODE_LISTS,
+            Project::Exporter => &exporter::MANDATORY_CODE_LISTS,
         }
     }
 
@@ -99,6 +108,7 @@ impl Project {
             Project::Dktk => include_str!("dktk/template.cql"),
             Project::Cce => include_str!("cce/template.cql"),
             Project::Dhki => include_str!("dhki/template.cql"),
+            Project::Exporter => include_str!("exporter/template.cql"),
         }
     }
 
@@ -108,6 +118,7 @@ impl Project {
             Project::Dktk => include_str!("dktk/body.json"),
             Project::Cce => include_str!("cce/body.json"),
             Project::Dhki => include_str!("dhki/body.json"),
+            Project::Exporter => include_str!("exporter/body.json"),
         }
     }
 }
