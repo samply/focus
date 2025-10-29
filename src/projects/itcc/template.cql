@@ -23,11 +23,14 @@ First (from [Observation: Code '75186-7' from loinc] O return O.value.coding.whe
 define Deceased:
 if (PatientDeceased is null) then 'unbekannt' else PatientDeceased
 
+define function DiagnosisAge(condition FHIR.Condition):
+condition.onset.value
+
 define Diagnosis:
 if InInitialPopulation then [Condition] else {} as List<Condition>
 
 define function DiagnosisCode(condition FHIR.Condition):
-condition.code.coding.where(system = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm').code.first()
+condition.code.coding.code.first()
 
 define function SampleType(specimen FHIR.Specimen):
 specimen.type.coding.where(system = 'https://fhir.bbmri.de/CodeSystem/SampleMaterialType').code.first()

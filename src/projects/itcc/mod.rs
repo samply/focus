@@ -114,10 +114,16 @@ pub static CODE_LISTS: LazyLock<HashMap<&'static str, &'static str>> = LazyLock:
             "TNMmSymbolCS",
             "http://dktk.dkfz.de/fhir/onco/core/CodeSystem/TNMmSymbolCS",
         ),
-        ("molecularMarker", "http://www.genenames.org"),
+        (   "molecularMarker", 
+            "http://www.genenames.org"
+        ),
         (
             "vitalstatusitcc",
             "http://fhir.itcc.org/CodeSystem/VitalStatus",
+        ),
+        (
+            "observationDiseaseExtent",
+            "http://fhir.itcc.org/CodeSystem/DiseaseExtent",
         ),
         (
             "sampletypeitcc",
@@ -161,10 +167,6 @@ pub static CRITERION_CODE_LISTS: LazyLock<HashMap<&'static str, Vec<&'static str
             ("medicationStatement", vec!["Therapieart"]),
             ("morphology", vec!["loinc", "morph"]),
             ("sample_kind", vec!["specimentype"]),
-            (
-                "observationMolecularMarkerName",
-                vec!["loinc", "molecularMarker"],
-            ),
             ("observationMolecularMarkerAminoacidchange", vec!["loinc"]),
             ("observationMolecularMarkerDNAchange", vec!["loinc"]),
             ("observationMolecularMarkerSeqRefNCBI", vec!["loinc"]),
@@ -189,7 +191,12 @@ pub static CRITERION_CODE_LISTS: LazyLock<HashMap<&'static str, Vec<&'static str
                 "distantMetastases",
                 vec!["loinc", "verlauftumorstatusfernmetastasencs"],
             ),
-            ("vitalStatus", vec!["loinc", "vitalstatuscs"]),
+            ("vitalStatus", vec!["loinc", "vitalstatusitcc"]),
+            ("vital_status", vec!["loinc", "vitalstatusitcc"]),
+            ("disease_is_extend", vec!["loinc", "observationDiseaseExtent"]),
+            ("type_sample_criteria", vec!["loinc", "sampletypeitcc"]),
+            ("observationMolecularMarkerName", vec!["loinc", "molecularMarker"],),
+            ("mutation_type", vec!["loinc", "mutationtypeitcc"],),
             ("TNM-T", vec!["loinc", "TNMTCS"]),
             ("TNM-N", vec!["loinc", "TNMNCS"]),
             ("TNM-M", vec!["loinc", "TNMMCS"]),
@@ -303,6 +310,22 @@ pub static CQL_SNIPPETS: LazyLock<HashMap<(&'static str, CriterionRole), &'stati
         (
             ("vitalStatus", CriterionRole::Query),
             observation,
+        ),
+        (
+            ("vital_status", CriterionRole::Query),
+             "exists from [Observation: Code '75186-7' from {{A1}}] O\nwhere (O.value as CodeableConcept).coding.code = '{{C}}'",
+        ),
+        (
+            ("disease_is_extend", CriterionRole::Query),
+             "exists from [Observation: Code '21908-9' from {{A1}}] O\nwhere (O.value as CodeableConcept).coding.code in {{C}}",
+        ),
+        (
+            ("type_sample_criteria", CriterionRole::Query),
+             "exists from [Specimen] S\nwhere S.type.coding.code = '{{C}}'",
+        ),
+        (
+            ("mutation_type", CriterionRole::Query),
+             "exists from [Observation: Code '69548-6' from {{A1}}] O\nwhere (O.value as CodeableConcept).coding.code in {{C}}",
         ),
         (
             ("metastases_present", CriterionRole::Query),

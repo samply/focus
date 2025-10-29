@@ -64,7 +64,7 @@
         "stratifier": [
           {
             "code": {
-              "text": "gender"
+              "text": "Gender"
             },
             "criteria": {
               "language": "text/cql",
@@ -126,7 +126,16 @@
               "language": "text/cql-identifier",
               "expression": "DiagnosisCode"
             }
-          }
+          },
+          {
+           "code": {
+             "text": "diagnosisAge"
+        },
+        "criteria": {
+          "language": "text/cql-identifier",
+          "expression": "DiagnosisAge"
+           }
+        }
         ]
       },
       {
