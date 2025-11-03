@@ -146,7 +146,7 @@ pub static OBSERVATION_LOINC_CODES: LazyLock<HashMap<&'static str, &'static str>
             ("lymphNodeRecurrence", "LA4370-8"),
             ("distantMetastases", "LA4226-2"),
             ("vitalStatus", "75186-7"),
-            ("observationMolecularMarkerName", "48018-6"),
+            ("molecular_marker", "48018-6"),
             ("observationMolecularMarkerAminoacidchange", "48005-3"),
             ("observationMolecularMarkerDNAchange", "81290-9"),
             ("observationMolecularMarkerSeqRefNCBI", "81248-7"),
@@ -195,7 +195,7 @@ pub static CRITERION_CODE_LISTS: LazyLock<HashMap<&'static str, Vec<&'static str
             ("vital_status", vec!["loinc", "vitalstatusitcc"]),
             ("disease_is_extend", vec!["loinc", "observationDiseaseExtent"]),
             ("type_sample_criteria", vec!["loinc", "sampletypeitcc"]),
-            ("observationMolecularMarkerName", vec!["loinc", "molecularMarker"],),
+            ("molecular_marker", vec!["loinc", "molecularMarker"],),
             ("mutation_type", vec!["loinc", "mutationtypeitcc"],),
             ("TNM-T", vec!["loinc", "TNMTCS"]),
             ("TNM-N", vec!["loinc", "TNMNCS"]),
@@ -336,7 +336,7 @@ pub static CQL_SNIPPETS: LazyLock<HashMap<(&'static str, CriterionRole), &'stati
             "exists from [Observation: Code '21907-1' from {{A1}}] O\nwhere O.bodySite.coding.code contains '{{C}}'",
         ),
         (
-            ("observationMolecularMarkerName", CriterionRole::Query),
+            ("molecular_marker", CriterionRole::Query),
             "exists from [Observation: Code '69548-6' from {{A1}}] O\nwhere O.component.where(code.coding contains Code '{{K}}' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}",
         ),
         (

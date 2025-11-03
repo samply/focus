@@ -7,7 +7,10 @@ include FHIRHelpers version '4.0.0'
 context Patient
 
 define Gender:
-if (Patient.gender is null) then 'unknown' else Patient.gender
+  if Patient.gender = 'Female' then 'female'
+  else if Patient.gender = 'Male' then 'male'
+  else if Patient.gender is null then 'unknown'
+  else Patient.gender
 
 define PrimaryDiagnosis:
 First(
@@ -18,10 +21,10 @@ define AgeClass:
 if (PrimaryDiagnosis.onset is null) then 'unknown' else ToString((AgeInYearsAt(FHIRHelpers.ToDateTime(PrimaryDiagnosis.onset)) div 10) * 10)
 
 define PatientDeceased:
-First (from [Observation: Code '75186-7' from loinc] O return O.value.coding.where(system = 'http://dktk.dkfz.de/fhir/onco/core/CodeSystem/VitalstatusCS').code.first())
+First (from [Observation: Code '75186-7' from loinc] O return O.value.coding.where(system = 'http://fhir.itcc.org/CodeSystem/VitalStatus').code.first())
 
 define Deceased:
-if (PatientDeceased is null) then 'unbekannt' else PatientDeceased
+if (PatientDeceased is null) then 'unknown' else PatientDeceased
 
 define function DiagnosisAge(condition FHIR.Condition):
 condition.onset.value
