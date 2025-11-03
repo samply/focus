@@ -1,3 +1,13 @@
+# Samply.Focus v0.19.0 2025-11-03
+
+## Major changes
+
+* Add DHKI CQL generation
+
+## Minor changes
+
+* Fix DKTK mol markers this time for real
+
 # Samply.Focus v0.18.1 2025-10-17
 
 ## Minor changes
