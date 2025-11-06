@@ -147,7 +147,7 @@ pub async fn post_exporter_query(
             );
             franken_body["query_format"] = json!(query_format_string.replace("AST", "CQL"));
 
-            *body = serde_json::to_string(&query).expect("Failed to serialize JSON");
+            *body = serde_json::to_string(&franken_body).expect("Failed to serialize JSON");
         } else {
             return Err(FocusError::DeserializationError(
                 "No query in the body".to_string(),
