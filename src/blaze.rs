@@ -10,6 +10,13 @@ use crate::errors::FocusError;
 use crate::util;
 use crate::util::get_json_field;
 
+#[derive(Deserialize, Debug)]
+#[serde(tag = "lang", rename_all = "lowercase")]
+pub enum Language {
+    Cql(CqlQuery),
+    Ast(AstQuery),
+}
+
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct CqlQuery {
     pub lib: Value,
