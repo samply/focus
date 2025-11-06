@@ -23,8 +23,6 @@ pub enum FocusError {
     DecodeError(base64::DecodeError),
     #[error("Configuration error: {0}")]
     ConfigurationError(String),
-    #[error("Cannot open file: {0}")]
-    FileOpeningError(String),
     #[error("Serde parsing error: {0}")]
     SerdeParsingError(#[from] serde_json::Error),
     #[error("Parsing error: {0}")]
