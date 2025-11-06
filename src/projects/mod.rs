@@ -21,7 +21,7 @@ pub enum Project {
     Dktk,
     Cce,
     Dhki,
-    Nngm
+    Nngm,
 }
 
 impl FromStr for Project {
