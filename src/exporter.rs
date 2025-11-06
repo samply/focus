@@ -1,20 +1,20 @@
+use base64::{prelude::BASE64_STANDARD as BASE64, Engine as _};
 use reqwest::{
     header::{self, HeaderMap, HeaderValue},
     StatusCode,
 };
-use base64::{prelude::BASE64_STANDARD as BASE64, Engine as _};
 use serde::Deserialize;
 use serde::Serialize;
-use serde_json::Value;
 use serde_json::json;
+use serde_json::Value;
 use std::str;
 use tracing::{debug, warn};
 
-use crate::blaze::{Language, CqlQuery, parse_blaze_query_payload_ast};
+use crate::blaze::{parse_blaze_query_payload_ast, CqlQuery, Language};
 use crate::config::CONFIG;
+use crate::cql;
 use crate::errors::FocusError;
 use crate::util;
-use crate::cql;
 
 #[derive(Clone, PartialEq, Debug, Copy, Serialize, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
@@ -42,7 +42,10 @@ const EXECUTE: Params = Params {
     done: "executed",
 };
 
-pub async fn post_exporter_query(body: &mut String, task_type: TaskType) -> Result<String, FocusError> {
+pub async fn post_exporter_query(
+    body: &mut String,
+    task_type: TaskType,
+) -> Result<String, FocusError> {
     let Some(exporter_url) = &CONFIG.exporter_url else {
         return Err(FocusError::MissingExporterEndpoint);
     };
@@ -123,37 +126,34 @@ pub async fn post_exporter_query(body: &mut String, task_type: TaskType) -> Resu
     };
 
     if query_format_string == ast || query_format_string == ast_data {
-
         debug!("{}", &query_format_string);
 
-        if let Ok(query) = util::get_json_field(&body, "query") { //this gives us base64 encoded query which contains lang and payload
+        if let Ok(query) = util::get_json_field(&body, "query") {
+            //this gives us base64 encoded query which contains lang and payload
             let data = util::base64_decode(&(query.to_string().as_str()))?;
             let query: CqlQuery = match serde_json::from_slice::<Language>(&data)? {
                 Language::Cql(_cql_query) => {
                     return Err(FocusError::CqlLangNotEnabled); // query_format is AST, can't have CQL in the query then
                 }
-                Language::Ast(ast_query) => {
-                    serde_json::from_str(&cql::generate_body(
-                        parse_blaze_query_payload_ast(&ast_query.payload)?,
-                        crate::projects::Project::Exporter,
-                    )?)?
-                }
+                Language::Ast(ast_query) => serde_json::from_str(&cql::generate_body(
+                    parse_blaze_query_payload_ast(&ast_query.payload)?,
+                    crate::projects::Project::Exporter,
+                )?)?,
             };
 
             let mut franken_body = json!(body);
-            franken_body["query"] = json!(BASE64.encode(serde_json::to_string(&query).expect("Failed to serialize JSON")));
+            franken_body["query"] = json!(
+                BASE64.encode(serde_json::to_string(&query).expect("Failed to serialize JSON"))
+            );
             franken_body["query_format"] = json!(query_format_string.replace("AST", "CQL"));
 
             *body = serde_json::to_string(&query).expect("Failed to serialize JSON");
-
-
         } else {
             return Err(FocusError::DeserializationError(format!(
                 r#"No query in the body"#
             )));
         };
     }
-
 
     let exporter_params = if task_type == TaskType::Execute {
         EXECUTE

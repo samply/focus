@@ -58,7 +58,6 @@ type QueryResult = String;
 type BeamTask = TaskRequest<String>;
 type BeamResult = TaskResult<beam_lib::RawString>;
 
-
 #[derive(Clone, PartialEq, Debug, Copy, Serialize, Deserialize, Eq, Hash, Default)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum Transform {
