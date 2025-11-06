@@ -117,20 +117,20 @@ pub async fn post_exporter_query(
     let ast = "AST".to_string();
     let ast_data = "AST_DATA".to_string();
 
-    if let Ok(query_format) = util::get_json_field(&body, "query_format") {
+    if let Ok(query_format) = util::get_json_field(body, "query_format") {
         query_format_string = query_format.to_string();
     } else {
-        return Err(FocusError::DeserializationError(format!(
-            r#"No query_format in the body"#
-        )));
+        return Err(FocusError::DeserializationError(
+            "No query_format in the body".to_string(),
+        ));
     };
 
     if query_format_string == ast || query_format_string == ast_data {
         debug!("{}", &query_format_string);
 
-        if let Ok(query) = util::get_json_field(&body, "query") {
+        if let Ok(query) = util::get_json_field(body, "query") {
             //this gives us base64 encoded query which contains lang and payload
-            let data = util::base64_decode(&(query.to_string().as_str()))?;
+            let data = util::base64_decode(query.to_string().as_str())?;
             let query: CqlQuery = match serde_json::from_slice::<Language>(&data)? {
                 Language::Cql(_cql_query) => {
                     return Err(FocusError::CqlLangNotEnabled); // query_format is AST, can't have CQL in the query then
@@ -149,9 +149,9 @@ pub async fn post_exporter_query(
 
             *body = serde_json::to_string(&query).expect("Failed to serialize JSON");
         } else {
-            return Err(FocusError::DeserializationError(format!(
-                r#"No query in the body"#
-            )));
+            return Err(FocusError::DeserializationError(
+                "No query in the body".to_string(),
+            ));
         };
     }
 

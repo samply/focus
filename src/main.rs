@@ -34,7 +34,7 @@ use futures_util::FutureExt;
 use laplace_rs::ObfCache;
 use tokio::sync::Mutex;
 
-use crate::blaze::{parse_blaze_query_payload_ast, AstQuery};
+use crate::blaze::parse_blaze_query_payload_ast;
 use crate::config::EndpointType;
 use crate::util::{base64_decode, is_cql_tampered_with, obfuscate_counts_mr};
 use crate::{config::CONFIG, errors::FocusError};
