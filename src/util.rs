@@ -6,9 +6,6 @@ use laplace_rs::{get_from_cache_or_privatize, Bin, ObfCache, ObfuscateBelow10Mod
 use rand::thread_rng;
 use serde_json::Value;
 use std::collections::HashMap;
-use std::fs::File;
-use std::io::{self, BufRead, BufReader};
-use std::path::Path;
 use tracing::warn;
 
 pub(crate) fn get_json_field(json_string: &str, field: &str) -> Result<Value, serde_json::Error> {
