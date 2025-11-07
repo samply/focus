@@ -137,7 +137,7 @@ pub async fn post_exporter_query(
                 }
                 Language::Ast(ast_query) => serde_json::from_str(&cql::generate_body(
                     parse_blaze_query_payload_ast(&ast_query.payload)?,
-                    crate::projects::Project::Exporter,
+                    crate::projects::Project::Dktk,
                 )?)?,
             };
 
