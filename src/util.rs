@@ -6,9 +6,6 @@ use laplace_rs::{get_from_cache_or_privatize, Bin, ObfCache, ObfuscateBelow10Mod
 use rand::thread_rng;
 use serde_json::Value;
 use std::collections::HashMap;
-use std::fs::File;
-use std::io::{self, BufRead, BufReader};
-use std::path::Path;
 use tracing::warn;
 
 pub(crate) fn get_json_field(json_string: &str, field: &str) -> Result<Value, serde_json::Error> {
@@ -176,6 +173,28 @@ pub fn obfuscate_counts_mr(
                 )?;
             }
             "MolecularMarker" => {
+                obfuscate_population(
+                    &mut g.population,
+                    delta_histo,
+                    epsilon,
+                    1,
+                    obf_cache,
+                    obfuscate_zero,
+                    obf_10.clone(),
+                    rounding_step,
+                )?;
+                obfuscate_stratifier(
+                    &mut g.stratifier,
+                    delta_histo,
+                    epsilon,
+                    2,
+                    obf_cache,
+                    obfuscate_zero,
+                    obf_10.clone(),
+                    rounding_step,
+                )?;
+            }
+            "Encounters" => {
                 obfuscate_population(
                     &mut g.population,
                     delta_histo,

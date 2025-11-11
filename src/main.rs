@@ -34,11 +34,11 @@ use futures_util::FutureExt;
 use laplace_rs::ObfCache;
 use tokio::sync::Mutex;
 
-use crate::blaze::{parse_blaze_query_payload_ast, AstQuery};
+use crate::blaze::parse_blaze_query_payload_ast;
 use crate::config::EndpointType;
 use crate::util::{base64_decode, is_cql_tampered_with, obfuscate_counts_mr};
 use crate::{config::CONFIG, errors::FocusError};
-use blaze::CqlQuery;
+use blaze::{CqlQuery, Language};
 
 use std::collections::{HashMap, HashSet};
 use std::ops::DerefMut;
@@ -57,13 +57,6 @@ type Obfuscated = bool;
 type QueryResult = String;
 type BeamTask = TaskRequest<String>;
 type BeamResult = TaskResult<beam_lib::RawString>;
-
-#[derive(Deserialize, Debug)]
-#[serde(tag = "lang", rename_all = "lowercase")]
-enum Language {
-    Cql(CqlQuery),
-    Ast(AstQuery),
-}
 
 #[derive(Clone, PartialEq, Debug, Copy, Serialize, Deserialize, Eq, Hash, Default)]
 #[serde(rename_all = "UPPERCASE")]
@@ -306,8 +299,8 @@ async fn process_task(
         let Some(task_type) = metadata.task_type else {
             return Err(FocusError::MissingExporterTaskType);
         };
-        let body = &task.body;
-        return run_exporter_query(task, body, task_type).await;
+        let mut body = task.body.clone();
+        return run_exporter_query(task, &mut body, task_type).await;
     }
 
     match CONFIG.endpoint_type {
@@ -793,7 +786,7 @@ async fn run_eucaim_api_query(task: &BeamTask, ast: ast::Ast) -> Result<BeamResu
 
 async fn run_exporter_query(
     task: &BeamTask,
-    body: &String,
+    body: &mut String,
     task_type: exporter::TaskType,
 ) -> Result<BeamResult, FocusError> {
     let mut err = beam::beam_result::perm_failed(
