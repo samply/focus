@@ -114,9 +114,7 @@ pub static CODE_LISTS: LazyLock<HashMap<&'static str, &'static str>> = LazyLock:
             "TNMmSymbolCS",
             "http://dktk.dkfz.de/fhir/onco/core/CodeSystem/TNMmSymbolCS",
         ),
-        (   "molecularMarker", 
-            "http://www.genenames.org"
-        ),
+        ("molecularMarker", "http://www.genenames.org"),
         (
             "vitalstatusitcc",
             "http://fhir.itcc.org/CodeSystem/VitalStatus",
@@ -193,10 +191,13 @@ pub static CRITERION_CODE_LISTS: LazyLock<HashMap<&'static str, Vec<&'static str
             ),
             ("vitalStatus", vec!["loinc", "vitalstatusitcc"]),
             ("vital_status", vec!["loinc", "vitalstatusitcc"]),
-            ("disease_is_extend", vec!["loinc", "observationDiseaseExtent"]),
+            (
+                "disease_is_extend",
+                vec!["loinc", "observationDiseaseExtent"],
+            ),
             ("type_sample_criteria", vec!["loinc", "sampletypeitcc"]),
-            ("molecular_marker", vec!["loinc", "molecularMarker"],),
-            ("mutation_type", vec!["loinc", "mutationtypeitcc"],),
+            ("molecular_marker", vec!["loinc", "molecularMarker"]),
+            ("mutation_type", vec!["loinc", "mutationtypeitcc"]),
             ("TNM-T", vec!["loinc", "TNMTCS"]),
             ("TNM-N", vec!["loinc", "TNMNCS"]),
             ("TNM-M", vec!["loinc", "TNMMCS"]),

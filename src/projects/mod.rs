@@ -8,8 +8,8 @@ mod bbmri;
 mod cce;
 mod dhki;
 mod dktk;
-mod nngm;
 mod itcc;
+mod nngm;
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Copy)]
 pub enum CriterionRole {
@@ -61,7 +61,7 @@ impl Project {
             Project::Cce => &cce::OBSERVATION_LOINC_CODES,
             Project::Dhki => &dhki::OBSERVATION_LOINC_CODES,
             Project::Nngm => &nngm::OBSERVATION_LOINC_CODES,
-            Project::Itcc => &itcc::OBSERVATION_LOINC_CODES
+            Project::Itcc => &itcc::OBSERVATION_LOINC_CODES,
         }
     }
 
