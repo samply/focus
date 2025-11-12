@@ -526,6 +526,7 @@ async fn run_eucaim_sql_query(
     let mut studies_count: i32 = 0;
     let mut subjects_count: i32 = 0;
     if let Ok(rows) = result {
+        trace!("{:?}",&rows);
         for row in rows {
             let collection: Collection = Collection {
                 age_range: AgeRange { min: 0, max: 0 },
