@@ -15,7 +15,7 @@ pub static CODE_LISTS: LazyLock<HashMap<&'static str, &'static str>> = LazyLock:
         ("icd-O3-topography", "http://hl7.org/fhir/sid/icd-O3-topography"),
         (//TODO
             "Therapieart",
-            "https://simplifier.net/PSCC-Test/StructureDefinition/SystemicTherapy",
+            "https://simplifier.net/PSCC/StructureDefinition/SystemicTherapy",
         ),
         (//TODO - TNM
             "uiccstadiumcs",
@@ -23,7 +23,7 @@ pub static CODE_LISTS: LazyLock<HashMap<&'static str, &'static str>> = LazyLock:
         ),
         (//TODO
             "vitalstatuscs",
-            "http://dktk.dkfz.de/fhir/onco/core/CodeSystem/VitalstatusCS",
+            "https://simplifier.net/PSCC/ValueSet/Vitalstatus",
         ),
         ("molecularMarker", "http://www.genenames.org"),//TODO
     ])
@@ -40,6 +40,7 @@ pub static OBSERVATION_LOINC_CODES: LazyLock<HashMap<&'static str, &'static str>
             ("distantMetastases", "LA4226-2"),
             ("vitalStatus", "75186-7"),
             ("observationMolecularMarkerName", "48018-6"),
+            ("observationMolecularSatellite", "81695-9"),
             ("observationMolecularMarkerAminoacidchange", "48005-3"),
             ("observationMolecularMarkerDNAchange", "81290-9"),
             ("observationMolecularMarkerSeqRefNCBI", "81248-7"),
@@ -62,6 +63,10 @@ pub static CRITERION_CODE_LISTS: LazyLock<HashMap<&'static str, Vec<&'static str
             ("sample_kind", vec!["specimentype"]),
             (
                 "observationMolecularMarkerName",
+                vec!["loinc", "molecularMarker"],
+            ),
+            (
+                "observationMolecularSatellite",
                 vec!["loinc", "molecularMarker"],
             ),
             ("observationMolecularMarkerAminoacidchange", vec!["loinc"]),
@@ -212,6 +217,10 @@ pub static CQL_SNIPPETS: LazyLock<HashMap<(&'static str, CriterionRole), &'stati
         ),
         (
             ("observationMolecularMarkerName", CriterionRole::Query),
+            "exists from [Observation: Code '69548-6' from {{A1}}] O\nwhere O.component.where(code.coding contains Code '{{K}}' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}",
+        ),
+        (
+            ("observationMolecularSatellite", CriterionRole::Query),
             "exists from [Observation: Code '69548-6' from {{A1}}] O\nwhere O.component.where(code.coding contains Code '{{K}}' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}",
         ),
         (
