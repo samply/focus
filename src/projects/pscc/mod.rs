@@ -17,6 +17,10 @@ pub static CODE_LISTS: LazyLock<HashMap<&'static str, &'static str>> = LazyLock:
             "Therapieart",
             "https://simplifier.net/PSCC/StructureDefinition/SystemicTherapy",
         ),
+                (//TODO
+                    "medication",
+                    "http://pscc.org/fhir/TODO",
+                ),
         (//TODO - TNM
             "uiccstadiumcs",
             "https://simplifier.net/PSCC/tnmstagevs",
@@ -58,7 +62,7 @@ pub static CRITERION_CODE_LISTS: LazyLock<HashMap<&'static str, Vec<&'static str
             ("metastases_present", vec!["loinc", "jnucs"]),
             ("localization_metastases", vec!["loinc", "fmlokalisationcs"]),
             ("procedure", vec!["Therapieart"]),
-            ("medicationStatement", vec!["Therapieart"]),
+            ("medicationStatement", vec!["medication"]),
             ("morphology", vec!["loinc", "morph"]),
             ("sample_kind", vec!["specimentype"]),
             (
@@ -327,7 +331,7 @@ pub static CQL_SNIPPETS: LazyLock<HashMap<(&'static str, CriterionRole), &'stati
     });
 
 pub static MANDATORY_CODE_LISTS: LazyLock<IndexSet<&'static str>> =
-    LazyLock::new(|| IndexSet::from(["loinc",VITAL_STATUS_CS]));
+    LazyLock::new(|| IndexSet::from(["loinc"]));
 
 pub static SAMPLE_TYPE_WORKAROUNDS: LazyLock<HashMap<&'static str, Vec<&'static str>>> =
     LazyLock::new(|| {
