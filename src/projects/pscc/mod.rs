@@ -30,6 +30,7 @@ pub static CODE_LISTS: LazyLock<HashMap<&'static str, &'static str>> = LazyLock:
             "https://simplifier.net/PSCC/ValueSet/Vitalstatus",
         ),
         ("molecularMarker", "http://www.genenames.org"),//TODO
+        ("observationMolecularSatelliteSystem", "MicrosatelliteInstabilityStage"),//TODO
     ])
 });
 
@@ -71,7 +72,7 @@ pub static CRITERION_CODE_LISTS: LazyLock<HashMap<&'static str, Vec<&'static str
             ),
             (
                 "observationMolecularSatellite",
-                vec!["loinc", "molecularMarker"],
+                vec!["loinc", "observationMolecularSatelliteSystem"],
             ),
             ("observationMolecularMarkerAminoacidchange", vec!["loinc"]),
             ("observationMolecularMarkerDNAchange", vec!["loinc"]),
@@ -225,7 +226,7 @@ pub static CQL_SNIPPETS: LazyLock<HashMap<(&'static str, CriterionRole), &'stati
         ),
         (
             ("observationMolecularSatellite", CriterionRole::Query),
-            "exists from [Observation: Code '69548-6' from {{A1}}] O\nwhere O.component.where(code.coding contains Code '{{K}}' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}",
+            "exists from [Observation: Code '81695-9' from {{A1}}] O\nwhere O.value.coding contains Code '{{C}}' from {{A2}}",
         ),
         (
             ("observationMolecularMarkerAminoacidchange", CriterionRole::Query),
