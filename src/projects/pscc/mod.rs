@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::LazyLock};
 use indexmap::IndexSet;
 
 use super::CriterionRole;
-
+const VITAL_STATUS_CS: &str = "vitalstatuscs";
 pub static CODE_LISTS: LazyLock<HashMap<&'static str, &'static str>> = LazyLock::new(|| {
     HashMap::from([
         ("icd10", "http://hl7.org/fhir/sid/icd-10"),
@@ -22,7 +22,7 @@ pub static CODE_LISTS: LazyLock<HashMap<&'static str, &'static str>> = LazyLock:
             "https://simplifier.net/PSCC/tnmstagevs",
         ),
         (//TODO
-            "vitalstatuscs",
+            VITAL_STATUS_CS,
             "https://simplifier.net/PSCC/ValueSet/Vitalstatus",
         ),
         ("molecularMarker", "http://www.genenames.org"),//TODO
@@ -38,7 +38,7 @@ pub static OBSERVATION_LOINC_CODES: LazyLock<HashMap<&'static str, &'static str>
             ("localRegionalRecurrence", "LA4583-6"),
             ("lymphNodeRecurrence", "LA4370-8"),
             ("distantMetastases", "LA4226-2"),
-            ("vitalStatus", "75186-7"),
+            (VITAL_STATUS_CS, "75186-7"),
             ("observationMolecularMarkerName", "48018-6"),
             ("observationMolecularSatellite", "81695-9"),
             ("observationMolecularMarkerAminoacidchange", "48005-3"),
@@ -93,7 +93,7 @@ pub static CRITERION_CODE_LISTS: LazyLock<HashMap<&'static str, Vec<&'static str
                 "distantMetastases",
                 vec!["loinc", "verlauftumorstatusfernmetastasencs"],
             ),
-            ("vitalStatus", vec!["loinc", "vitalstatuscs"]),
+            (VITAL_STATUS_CS, vec!["loinc", VITAL_STATUS_CS]),
             ("TNM-T", vec!["loinc", "TNMTCS"]),
             ("TNM-N", vec!["loinc", "TNMNCS"]),
             ("TNM-M", vec!["loinc", "TNMMCS"]),
@@ -204,7 +204,7 @@ pub static CQL_SNIPPETS: LazyLock<HashMap<(&'static str, CriterionRole), &'stati
             observation,
         ),
         (
-            ("vitalStatus", CriterionRole::Query),
+            (VITAL_STATUS_CS, CriterionRole::Query),
             observation,
         ),
         (
@@ -327,7 +327,7 @@ pub static CQL_SNIPPETS: LazyLock<HashMap<(&'static str, CriterionRole), &'stati
     });
 
 pub static MANDATORY_CODE_LISTS: LazyLock<IndexSet<&'static str>> =
-    LazyLock::new(|| IndexSet::from(["loinc"]));
+    LazyLock::new(|| IndexSet::from(["loinc",VITAL_STATUS_CS]));
 
 pub static SAMPLE_TYPE_WORKAROUNDS: LazyLock<HashMap<&'static str, Vec<&'static str>>> =
     LazyLock::new(|| {
