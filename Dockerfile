@@ -1,18 +1,18 @@
-# This Dockerfile is infused with magic to speedup the build.
-# In particular, it requires built binaries to be present (see COPY directive).
-#
-# tl;dr: To make this build work, run
-#   ./dev/focusdev build
-# and find your freshly built images tagged with the `localbuild` tag.
+FROM lukemathwalker/cargo-chef:latest-rust-bookworm AS chef
+WORKDIR /app
 
-FROM alpine AS chmodder
-ARG TARGETARCH
-ARG COMPONENT
-ARG FEATURE
-COPY /artifacts/binaries-$TARGETARCH$FEATURE/$COMPONENT /app/$COMPONENT
-RUN chmod +x /app/*
+FROM chef AS planner
+COPY . .
+RUN cargo chef prepare --recipe-path recipe.json
 
-FROM gcr.io/distroless/cc-debian12
-ARG COMPONENT
-COPY --from=chmodder /app/$COMPONENT /usr/local/bin/focus
-ENTRYPOINT [ "/usr/local/bin/focus" ]
+FROM chef AS builder
+COPY --from=planner /app/recipe.json recipe.json
+# Build dependencies - this is the caching Docker layer!
+RUN cargo chef cook --release --recipe-path recipe.json
+# Build application
+COPY . .
+RUN cargo build --release
+
+FROM gcr.io/distroless/cc-debian12 AS runtime
+COPY --from=builder /app/target/release/focus /usr/local/bin/
+ENTRYPOINT ["/usr/local/bin/focus"]
