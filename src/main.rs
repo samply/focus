@@ -519,7 +519,7 @@ async fn run_eucaim_sql_query(
     let mut studies_count: i32 = 0;
     let mut subjects_count: i32 = 0;
     if let Ok(rows) = result {
-        trace!("{:?}",&rows);
+        trace!("{:?}", &rows);
         for row in rows {
             let collection: Collection = Collection {
                 age_range: AgeRange { min: 0, max: 0 },
@@ -555,7 +555,7 @@ async fn run_eucaim_sql_query(
             CONFIG.beam_app_id_long.clone(),
             vec![task.clone().from],
             task.id,
-            BASE64.encode(serde_json::to_string(&response_json)?),
+            BASE64.encode(&response_json),
         ))
     } else {
         Err(FocusError::QueryResultBad(
