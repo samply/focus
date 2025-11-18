@@ -58,7 +58,8 @@ pub static CRITERION_CODE_LISTS: LazyLock<HashMap<&'static str, Vec<&'static str
         HashMap::from([
             ("diagnosis", vec!["icd10"]),
             ("bodySite", vec!["bodySite"]),
-            ("conditionLocalization", vec!["lokalisation_icd_o_3"]),
+            ("icd-O3-topography", vec!["icd-O3-topography"]),
+            ("icd-o-3-morphology", vec!["icd-o-3-morphology"]),
             ("grading", vec!["loinc", "gradingcs"]),
             ("metastases_present", vec!["loinc", "jnucs"]),
             ("localization_metastases", vec!["loinc", "fmlokalisationcs"]),
@@ -133,7 +134,7 @@ pub static CQL_SNIPPETS: LazyLock<HashMap<(&'static str, CriterionRole), &'stati
             "exists from [Condition] C\nwhere C.bodySite.coding contains Code '{{C}}' from {{A1}}",
         ),
         (
-            ("conditionLocalization", CriterionRole::Query),
+            ("icd-O3-topography", CriterionRole::Query),
             "exists from [Condition] C\nwhere C.bodySite.coding.code contains '{{C}}'",
         ),
         (

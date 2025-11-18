@@ -13,19 +13,19 @@ define AgeClass:
 ToString((AgeInYears() div 10) * 10)
 
 define PatientDeceased:
-First (from [Observation: Code '75186-7' from loinc] O return O.value.coding.where(system = 'http://dktk.dkfz.de/fhir/onco/core/CodeSystem/VitalstatusCS').code.first())
+First (from [Observation: Code '75186-7' from loinc] O return O.value.coding.where(system = 'https://simplifier.net/PSCC/ValueSet/Vitalstatus').code.first())
 define Deceased:
 if (PatientDeceased is null) then 'unbekannt' else PatientDeceased
 
 define Diagnosis:
 if InInitialPopulation then [Condition] else {} as List<Condition>
 define function DiagnosisCode(condition FHIR.Condition):
-condition.code.coding.where(system = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm').code.first()
+condition.code.coding.where(system = 'http://hl7.org/fhir/sid/icd-10').code.first()
 
 define Specimen:
 if InInitialPopulation then [Specimen] else {} as List<Specimen>
 define function SampleType(specimen FHIR.Specimen):
-specimen.type.coding.where(system = 'https://fhir.bbmri.de/CodeSystem/SampleMaterialType').code.first()
+specimen.type.coding.where(system = 'https://pscc.org/fhir/CodeSystem/SampleMaterialType').code.first()
 define function SampleSubtype(specimen FHIR.Specimen):
 specimen.type.text.first()
 
