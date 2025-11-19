@@ -21,7 +21,7 @@ const OVERALL_ASSESSMENT_RESIDUAL_TUMOR_CS: &str = "overallAssessmentResidualTum
 const PROGRESSION_LOCAL_TUMOR_STATUS_CS: &str = "progressionLocalTumorStatusCS";
 // const VERLAUF_TUMOR_STATUS_LYMPH_KNOTEN_CS: &str = "verlaufTumorstatusLymphknotenCS";
 // const VERLAUF_TUMOR_STATUS_FERN_METASTASEN_CS: &str = "verlaufTumorstatusFernmetastasenCS";
-const VITAL_STATUS_CS: &str = "vitalStatusCS";
+//const VITAL_STATUS_CS: &str = "67162-8";
 const YNU_CS: &str = "YNUCS";
 // const FM_LOKALISATION_CS: &str = "fmlokalisationcs";
 const TNM_T_CS: &str = "TNMTCS";
@@ -81,10 +81,14 @@ pub static CODE_LISTS: LazyLock<HashMap<&'static str, &'static str>> = LazyLock:
         //     "verlauftumorstatusfernmetastasencs",
         //     "https://www.cancercoreeurope.eu/fhir/core/CodeSystem/VerlaufTumorstatusFernmetastasenCS",
         // ),
+//        (
+//            VITAL_STATUS_CS,
+//            "https://www.cancercoreeurope.eu/fhir/core/CodeSystem/VitalStatusCS",
+//        ),
         (
-            VITAL_STATUS_CS,
-            "https://www.cancercoreeurope.eu/fhir/core/CodeSystem/VitalStatusCS",
-        ),
+            "vitalstatuscs",
+            "http://uk-koeln.de/fhir/CodeSystem/nNGM/Vitalstatus"
+            ),
         (
             YNU_CS,
             "https://www.cancercoreeurope.eu/fhir/core/CodeSystem/YNUCS",
@@ -124,7 +128,8 @@ pub static CODE_LISTS: LazyLock<HashMap<&'static str, &'static str>> = LazyLock:
 pub static OBSERVATION_LOINC_CODES: LazyLock<HashMap<&'static str, &'static str>> =
     LazyLock::new(|| {
         HashMap::from([
-            (VITAL_STATUS_CS, "75186-7"),
+            ("67162-8","67162-8"),
+          //  (VITAL_STATUS_CS, "75186-7"),
             ("grading", "59542-1"),
             ("morphology", "59847-4"),
             ("body_weight", "29463-7"),
@@ -175,7 +180,8 @@ pub static CRITERION_CODE_LISTS: LazyLock<HashMap<&'static str, Vec<&'static str
             //     "distantMetastases",
             //     vec![LOINC, "verlauftumorstatusfernmetastasencs"],
             // ),
-            (VITAL_STATUS_CS, vec![LOINC, VITAL_STATUS_CS]),
+           // (VITAL_STATUS_CS, vec![LOINC, VITAL_STATUS_CS]),
+            ("67162-8", vec!["loinc", "vitalstatuscs"]),
             ("TNM-T", vec![LOINC, TNM_T_CS]),
             ("TNM-N", vec![LOINC, TNM_N_CS]),
             ("TNM-M", vec![LOINC, TNM_M_CS]),
@@ -282,8 +288,12 @@ pub static CQL_SNIPPETS: LazyLock<HashMap<(&'static str, CriterionRole), &'stati
                 ("distantMetastases", CriterionRole::Query),
                 observation,
             ),
+          //  (
+          //      (VITAL_STATUS_CS, CriterionRole::Query),
+          //      observation,
+          //  ),
             (
-                (VITAL_STATUS_CS, CriterionRole::Query),
+                ("67162-8", CriterionRole::Query),
                 observation,
             ),
             (
@@ -377,7 +387,7 @@ pub static MANDATORY_CODE_LISTS: LazyLock<IndexSet<&'static str>> = LazyLock::ne
         ICD_10,
         SPECIMEN_TYPE,
         THERAPY_TYPE_CS,
-        VITAL_STATUS_CS,
+       // VITAL_STATUS_CS,
     ])
 });
 

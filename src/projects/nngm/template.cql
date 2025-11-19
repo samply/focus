@@ -25,10 +25,22 @@ then ToString((AgeInYearsAt(FHIRHelpers.ToDateTime(FirstDiagnosis.onset)) div 10
 else ToString((AgeInYearsAt(FHIRHelpers.ToDateTime(PrimaryDiagnosis.onset)) div 10) * 10)
 
 define PatientDeceased:
-First (from [Observation: Code '75186-7' from loinc] O return O.value.coding.where(system = 'https://www.cancercoreeurope.eu/fhir/core/CodeSystem/VitalStatusCS').code.first())
+First (from [Observation: Code '67162-8' from loinc] O return O.value.coding.where(system = 'http://uk-koeln.de/fhir/CodeSystem/nNGM/Vitalstatus').code.first())
 
 define Deceased:
 if (PatientDeceased is null) then 'unknown' else PatientDeceased
+
+define SmokingHabit:
+First (from [Observation: Code '72166-2' from loinc] O return O.value.coding.where(system = 'http://loinc.org').code.first())
+
+define smoking:
+if (SmokingHabit is null) then 'unknown' else SmokingHabit
+
+define ecogStatus:
+First (from [Observation: Code '89247-1' from loinc] O return O.value.coding.where(system = 'http://loinc.org').code.first())
+
+define ecog:
+if (ecogStatus is null) then 'unknown' else ecogStatus
 
 define Diagnosis:
 if InInitialPopulation then [Condition] else {} as List<Condition>

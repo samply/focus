@@ -53,10 +53,28 @@
                     },
                     {
                         "code": {
-                            "text": "75186-7"
+                            "text": "72166-2"
+                        },
+                        "criteria": {
+                            "expression": "smoking",
+                            "language": "text/cql"
+                        }
+                    },
+                    {
+                        "code": {
+                            "text": "67162-8"
                         },
                         "criteria": {
                             "expression": "Deceased",
+                            "language": "text/cql"
+                        }
+                    },
+                    {
+                        "code": {
+                            "text": "89247-1"
+                        },
+                        "criteria": {
+                            "expression": "ecog",
                             "language": "text/cql"
                         }
                     },
