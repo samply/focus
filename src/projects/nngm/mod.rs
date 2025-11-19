@@ -81,14 +81,14 @@ pub static CODE_LISTS: LazyLock<HashMap<&'static str, &'static str>> = LazyLock:
         //     "verlauftumorstatusfernmetastasencs",
         //     "https://www.cancercoreeurope.eu/fhir/core/CodeSystem/VerlaufTumorstatusFernmetastasenCS",
         // ),
-//        (
-//            VITAL_STATUS_CS,
-//            "https://www.cancercoreeurope.eu/fhir/core/CodeSystem/VitalStatusCS",
-//        ),
+        //        (
+        //            VITAL_STATUS_CS,
+        //            "https://www.cancercoreeurope.eu/fhir/core/CodeSystem/VitalStatusCS",
+        //        ),
         (
             "vitalstatuscs",
-            "http://uk-koeln.de/fhir/CodeSystem/nNGM/Vitalstatus"
-            ),
+            "http://uk-koeln.de/fhir/CodeSystem/nNGM/Vitalstatus",
+        ),
         (
             YNU_CS,
             "https://www.cancercoreeurope.eu/fhir/core/CodeSystem/YNUCS",
@@ -128,8 +128,7 @@ pub static CODE_LISTS: LazyLock<HashMap<&'static str, &'static str>> = LazyLock:
 pub static OBSERVATION_LOINC_CODES: LazyLock<HashMap<&'static str, &'static str>> =
     LazyLock::new(|| {
         HashMap::from([
-            ("67162-8","67162-8"),
-          //  (VITAL_STATUS_CS, "75186-7"),
+            ("67162-8", "67162-8"),
             ("grading", "59542-1"),
             ("morphology", "59847-4"),
             ("body_weight", "29463-7"),
@@ -180,7 +179,7 @@ pub static CRITERION_CODE_LISTS: LazyLock<HashMap<&'static str, Vec<&'static str
             //     "distantMetastases",
             //     vec![LOINC, "verlauftumorstatusfernmetastasencs"],
             // ),
-           // (VITAL_STATUS_CS, vec![LOINC, VITAL_STATUS_CS]),
+            // (VITAL_STATUS_CS, vec![LOINC, VITAL_STATUS_CS]),
             ("67162-8", vec!["loinc", "vitalstatuscs"]),
             ("TNM-T", vec![LOINC, TNM_T_CS]),
             ("TNM-N", vec![LOINC, TNM_N_CS]),
@@ -381,15 +380,8 @@ pub static CQL_SNIPPETS: LazyLock<HashMap<(&'static str, CriterionRole), &'stati
         ])
     });
 
-pub static MANDATORY_CODE_LISTS: LazyLock<IndexSet<&'static str>> = LazyLock::new(|| {
-    IndexSet::from([
-        LOINC,
-        ICD_10,
-        SPECIMEN_TYPE,
-        THERAPY_TYPE_CS,
-       // VITAL_STATUS_CS,
-    ])
-});
+pub static MANDATORY_CODE_LISTS: LazyLock<IndexSet<&'static str>> =
+    LazyLock::new(|| IndexSet::from([LOINC, ICD_10, SPECIMEN_TYPE, THERAPY_TYPE_CS]));
 
 pub static SAMPLE_TYPE_WORKAROUNDS: LazyLock<HashMap<&'static str, Vec<&'static str>>> =
     LazyLock::new(|| {
