@@ -10,6 +10,7 @@ mod dhki;
 mod dktk;
 mod itcc;
 mod nngm;
+mod pscc;
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Copy)]
 pub enum CriterionRole {
@@ -24,6 +25,7 @@ pub enum Project {
     Dhki,
     Nngm,
     Itcc,
+	Pscc,
 }
 
 impl FromStr for Project {
@@ -37,6 +39,7 @@ impl FromStr for Project {
             "nngm" => Ok(Project::Nngm),
             "dhki" => Ok(Project::Dhki),
             "itcc" => Ok(Project::Itcc),
+            "pscc" => Ok(Project::Pscc),
             _ => Err(FocusError::UnknownProject(s.to_string())),
         }
     }
@@ -51,6 +54,7 @@ impl Project {
             Project::Dhki => &dhki::CODE_LISTS,
             Project::Nngm => &nngm::CODE_LISTS,
             Project::Itcc => &itcc::CODE_LISTS,
+            Project::Pscc => &pscc::CODE_LISTS,
         }
     }
 
@@ -62,6 +66,7 @@ impl Project {
             Project::Dhki => &dhki::OBSERVATION_LOINC_CODES,
             Project::Nngm => &nngm::OBSERVATION_LOINC_CODES,
             Project::Itcc => &itcc::OBSERVATION_LOINC_CODES,
+            Project::Pscc => &pscc::OBSERVATION_LOINC_CODES,
         }
     }
 
@@ -73,6 +78,7 @@ impl Project {
             Project::Dhki => &dhki::SAMPLE_TYPE_WORKAROUNDS,
             Project::Nngm => &nngm::SAMPLE_TYPE_WORKAROUNDS,
             Project::Itcc => &itcc::SAMPLE_TYPE_WORKAROUNDS,
+            Project::Pscc => &pscc::SAMPLE_TYPE_WORKAROUNDS,
         }
     }
 
@@ -84,6 +90,7 @@ impl Project {
             Project::Dhki => &dhki::CRITERION_CODE_LISTS,
             Project::Nngm => &nngm::CRITERION_CODE_LISTS,
             Project::Itcc => &itcc::CRITERION_CODE_LISTS,
+            Project::Pscc => &pscc::CRITERION_CODE_LISTS,
         }
     }
 
@@ -97,6 +104,7 @@ impl Project {
             Project::Dhki => &dhki::CQL_SNIPPETS,
             Project::Nngm => &nngm::CQL_SNIPPETS,
             Project::Itcc => &itcc::CQL_SNIPPETS,
+            Project::Pscc => &pscc::CQL_SNIPPETS,
         }
     }
 
@@ -107,6 +115,7 @@ impl Project {
             Project::Cce => &cce::MANDATORY_CODE_LISTS,
             Project::Dhki => &dhki::MANDATORY_CODE_LISTS,
             Project::Nngm => &nngm::MANDATORY_CODE_LISTS,
+            Project::Pscc => &pscc::MANDATORY_CODE_LISTS,
             Project::Itcc => &itcc::MANDATORY_CODE_LISTS,
         }
     }
@@ -119,6 +128,7 @@ impl Project {
             Project::Dhki => include_str!("dhki/template.cql"),
             Project::Nngm => include_str!("nngm/template.cql"),
             Project::Itcc => include_str!("itcc/template.cql"),
+            Project::Pscc => include_str!("pscc/template.cql"),
         }
     }
 
@@ -130,6 +140,7 @@ impl Project {
             Project::Dhki => include_str!("dhki/body.json"),
             Project::Nngm => include_str!("nngm/body.json"),
             Project::Itcc => include_str!("itcc/body.json"),
+            Project::Pscc => include_str!("pscc/body.json"),
         }
     }
 }
