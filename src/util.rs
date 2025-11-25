@@ -1,5 +1,5 @@
-use crate::errors::FocusError;
 use crate::mr;
+use crate::{config::CONFIG, errors::FocusError};
 use base64::engine::general_purpose;
 use base64::Engine as _;
 use laplace_rs::{get_from_cache_or_privatize, Bin, ObfCache, ObfuscateBelow10Mode};
@@ -255,10 +255,25 @@ fn obfuscate_population(
             &mut rng,
         )
         .map_err(FocusError::LaplaceError)?;
-        pop.count = obfuscated;
+        pop.count = if CONFIG.obfuscate_bbmri_eric_way {
+            round_the_way_bbmri_people_agreed(obfuscated)
+        } else {
+            obfuscated
+        };
     }
 
     Ok(())
+}
+
+fn round_the_way_bbmri_people_agreed(obfuscated: u64) -> u64 {
+    if obfuscated == 0 {
+        return 0;
+    }
+
+    let number_of_insignificant_digits = (((obfuscated as f64).log(10.0)) as u32) / 2 + 1;
+
+    (((obfuscated as f64) / (10u64.pow(number_of_insignificant_digits) as f64)).round() as u64)
+        * 10u64.pow(number_of_insignificant_digits)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -317,6 +332,24 @@ mod test {
     const DELTA_HISTO: f64 = 20.;
     const EPSILON: f64 = 0.1;
     const ROUNDING_STEP: usize = 10;
+
+    #[test]
+    fn test_rounding_bbmri_way() {
+        pretty_assertions::assert_eq!(round_the_way_bbmri_people_agreed(0), 0);
+        pretty_assertions::assert_eq!(round_the_way_bbmri_people_agreed(10), 10);
+        pretty_assertions::assert_eq!(round_the_way_bbmri_people_agreed(150), 200);
+        pretty_assertions::assert_eq!(round_the_way_bbmri_people_agreed(530), 500);
+        pretty_assertions::assert_eq!(round_the_way_bbmri_people_agreed(1320), 1300);
+        pretty_assertions::assert_eq!(round_the_way_bbmri_people_agreed(55469780), 55470000);
+        pretty_assertions::assert_eq!(
+            round_the_way_bbmri_people_agreed(782654123980),
+            782654000000
+        );
+        pretty_assertions::assert_eq!(
+            round_the_way_bbmri_people_agreed(1502503058029030),
+            1502503100000000
+        );
+    }
 
     #[test]
     fn test_get_json_field_success() {
