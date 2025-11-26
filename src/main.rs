@@ -682,7 +682,7 @@ async fn run_cql_query(
             CONFIG.epsilon,
             CONFIG.rounding_step,
             domain_limit,
-            CONFIG.obfuscate_bbmri_eric_way
+            CONFIG.obfuscate_bbmri_eric_way,
         )?,
         false => cql_result,
     };

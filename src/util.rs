@@ -51,7 +51,7 @@ pub fn obfuscate_counts_mr(
     epsilon: f64,
     rounding_step: usize,
     domain_limit: Option<f64>,
-    bbmri_rounding: bool
+    bbmri_rounding: bool,
 ) -> Result<String, FocusError> {
     let obf_10: ObfuscateBelow10Mode = match obfuscate_below_10_mode {
         0 => ObfuscateBelow10Mode::Zero,
@@ -75,7 +75,7 @@ pub fn obfuscate_counts_mr(
                     obf_10.clone(),
                     rounding_step,
                     domain_limit,
-                    bbmri_rounding
+                    bbmri_rounding,
                 )?;
                 obfuscate_stratifier(
                     &mut g.stratifier,
@@ -87,7 +87,7 @@ pub fn obfuscate_counts_mr(
                     obf_10.clone(),
                     rounding_step,
                     domain_limit,
-                    bbmri_rounding
+                    bbmri_rounding,
                 )?;
             }
             "diagnosis" => {
@@ -101,7 +101,7 @@ pub fn obfuscate_counts_mr(
                     obf_10.clone(),
                     rounding_step,
                     domain_limit,
-                    bbmri_rounding
+                    bbmri_rounding,
                 )?;
                 obfuscate_stratifier(
                     &mut g.stratifier,
@@ -113,7 +113,7 @@ pub fn obfuscate_counts_mr(
                     obf_10.clone(),
                     rounding_step,
                     domain_limit,
-                    bbmri_rounding
+                    bbmri_rounding,
                 )?;
             }
             "specimen" => {
@@ -127,7 +127,7 @@ pub fn obfuscate_counts_mr(
                     obf_10.clone(),
                     rounding_step,
                     domain_limit,
-                    bbmri_rounding
+                    bbmri_rounding,
                 )?;
                 obfuscate_stratifier(
                     &mut g.stratifier,
@@ -139,7 +139,7 @@ pub fn obfuscate_counts_mr(
                     obf_10.clone(),
                     rounding_step,
                     domain_limit,
-                    bbmri_rounding
+                    bbmri_rounding,
                 )?;
             }
             "procedures" => {
@@ -153,7 +153,7 @@ pub fn obfuscate_counts_mr(
                     obf_10.clone(),
                     rounding_step,
                     domain_limit,
-                    bbmri_rounding
+                    bbmri_rounding,
                 )?;
                 obfuscate_stratifier(
                     &mut g.stratifier,
@@ -165,7 +165,7 @@ pub fn obfuscate_counts_mr(
                     obf_10.clone(),
                     rounding_step,
                     domain_limit,
-                    bbmri_rounding
+                    bbmri_rounding,
                 )?;
             }
             "medicationStatements" => {
@@ -179,7 +179,7 @@ pub fn obfuscate_counts_mr(
                     obf_10.clone(),
                     rounding_step,
                     domain_limit,
-                    bbmri_rounding
+                    bbmri_rounding,
                 )?;
                 obfuscate_stratifier(
                     &mut g.stratifier,
@@ -191,7 +191,7 @@ pub fn obfuscate_counts_mr(
                     obf_10.clone(),
                     rounding_step,
                     domain_limit,
-                    bbmri_rounding
+                    bbmri_rounding,
                 )?;
             }
             "MolecularMarker" => {
@@ -205,7 +205,7 @@ pub fn obfuscate_counts_mr(
                     obf_10.clone(),
                     rounding_step,
                     domain_limit,
-                    bbmri_rounding
+                    bbmri_rounding,
                 )?;
                 obfuscate_stratifier(
                     &mut g.stratifier,
@@ -217,7 +217,7 @@ pub fn obfuscate_counts_mr(
                     obf_10.clone(),
                     rounding_step,
                     domain_limit,
-                    bbmri_rounding
+                    bbmri_rounding,
                 )?;
             }
             "Encounters" => {
@@ -231,7 +231,7 @@ pub fn obfuscate_counts_mr(
                     obf_10.clone(),
                     rounding_step,
                     domain_limit,
-                    bbmri_rounding
+                    bbmri_rounding,
                 )?;
                 obfuscate_stratifier(
                     &mut g.stratifier,
@@ -243,7 +243,7 @@ pub fn obfuscate_counts_mr(
                     obf_10.clone(),
                     rounding_step,
                     domain_limit,
-                    bbmri_rounding
+                    bbmri_rounding,
                 )?;
             }
             strat => {
@@ -320,7 +320,7 @@ fn obfuscate_stratifier(
     obfuscate_below_10_mode: ObfuscateBelow10Mode,
     rounding_step: usize,
     domain_limit: Option<f64>,
-    bbmri_rounding: bool
+    bbmri_rounding: bool,
 ) -> Result<(), FocusError> {
     for stratifier in val.iter_mut() {
         for stratums in stratifier.stratum.iter_mut() {
@@ -335,7 +335,7 @@ fn obfuscate_stratifier(
                     obfuscate_below_10_mode.clone(),
                     rounding_step,
                     domain_limit,
-                    bbmri_rounding
+                    bbmri_rounding,
                 )?;
             }
         }
@@ -495,7 +495,7 @@ mod test {
             EPSILON,
             ROUNDING_STEP,
             None,
-            false
+            false,
         )
         .unwrap();
 
@@ -520,7 +520,7 @@ mod test {
             EPSILON,
             ROUNDING_STEP,
             None,
-            false
+            false,
         )
         .unwrap();
         pretty_assertions::assert_eq!(obfuscated_json, obfuscated_json_2);
@@ -545,7 +545,7 @@ mod test {
             EPSILON,
             ROUNDING_STEP,
             None,
-            false
+            false,
         )
         .unwrap();
 
@@ -570,7 +570,7 @@ mod test {
             EPSILON,
             ROUNDING_STEP,
             None,
-            false
+            false,
         )
         .unwrap();
         pretty_assertions::assert_eq!(obfuscated_json, obfuscated_json_2);
@@ -595,7 +595,7 @@ mod test {
             EPSILON,
             ROUNDING_STEP,
             None,
-            false
+            false,
         )
         .unwrap();
 
@@ -620,7 +620,7 @@ mod test {
             EPSILON,
             ROUNDING_STEP,
             None,
-            false
+            false,
         )
         .unwrap();
         pretty_assertions::assert_eq!(obfuscated_json, obfuscated_json_2);
@@ -645,7 +645,7 @@ mod test {
             EPSILON,
             ROUNDING_STEP,
             None,
-            false
+            false,
         );
 
         pretty_assertions::assert_eq!(
