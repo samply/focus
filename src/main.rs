@@ -661,6 +661,12 @@ async fn run_cql_query(
 
     trace!("MeasureReport with unobfuscated values: {}", &cql_result);
 
+    let domain_limit: Option<f64> = if CONFIG.obfuscate_bbmri_eric_way {
+        Some(10.) //do we put this in CLI as well?
+    } else {
+        None
+    };
+
     let cql_result_new: String = match obfuscate {
         true => obfuscate_counts_mr(
             &cql_result,
@@ -675,6 +681,8 @@ async fn run_cql_query(
             CONFIG.delta_histo,
             CONFIG.epsilon,
             CONFIG.rounding_step,
+            domain_limit,
+            CONFIG.obfuscate_bbmri_eric_way
         )?,
         false => cql_result,
     };
