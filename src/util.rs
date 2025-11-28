@@ -599,7 +599,7 @@ mod test {
         // Check that the obfuscated JSON is different from the original JSON
         assert_ne!(obfuscated_json_bbmri, EXAMPLE_MEASURE_REPORT_BBMRI);
 
-        // Check that obfuscating the same JSON twice with the same obfuscation cache but with no limit gives a different same result
+        // Check that obfuscating the same JSON again with the same obfuscation cache but with no limit gives a different same result
         let obfuscated_json_not_bbmri = obfuscate_counts_mr(
             EXAMPLE_MEASURE_REPORT_BBMRI,
             &mut obf_cache,
