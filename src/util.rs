@@ -619,7 +619,6 @@ mod test {
         pretty_assertions::assert_ne!(obfuscated_json_bbmri, obfuscated_json_not_bbmri);
     }
 
-
     #[test]
     fn test_obfuscate_counts_dktk() {
         let mut obf_cache = ObfCache {
