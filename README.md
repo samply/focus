@@ -67,6 +67,8 @@ MAX_DB_ATTEMPTS = "8" # Max number of attempts to connect to the database; defau
 
 Obfuscating zero counts is by default switched off. To enable obfuscating zero counts, set the env. variable `OBFUSCATE_ZERO`. 
 
+To obfuscate BBMRI-ERIC way (using a limited Laplace distribution and rounding to the floor(number of digits)/2 significant digits), set the env. variable `OBFUSCATE_BBMRI_ERIC_WAY`.
+
 Optionally, you can provide the `TLS_CA_CERTIFICATES_DIR` environment variable to add additional trusted certificates, e.g., if you have a TLS-terminating proxy server in place. The application respects the `HTTP_PROXY`, `HTTPS_PROXY`, `ALL_PROXY`, `NO_PROXY`, and their respective lowercase equivalents.
 
 Log level can be set using the `RUST_LOG` environment variable.

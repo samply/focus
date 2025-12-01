@@ -8,29 +8,41 @@ pub static CODE_LISTS: LazyLock<HashMap<&'static str, &'static str>> = LazyLock:
     HashMap::from([
         ("icd10", "http://hl7.org/fhir/sid/icd-10"),
         ("loinc", "http://loinc.org"),
-
         //morph
-        ("icd-o-3-morphology", "http://terminology.hl7.org/ValueSet/icd-o-3"),
+        (
+            "icd-o-3-morphology",
+            "http://terminology.hl7.org/ValueSet/icd-o-3",
+        ),
         //lokalisation_icd_o_3
-        ("icd-O3-topography", "http://hl7.org/fhir/sid/icd-O3-topography"),
-        (//TODO
+        (
+            "icd-O3-topography",
+            "http://hl7.org/fhir/sid/icd-O3-topography",
+        ),
+        (
+            //TODO
             "Therapieart",
             "https://simplifier.net/PSCC/StructureDefinition/SystemicTherapy",
         ),
-                (//TODO
-                    "medication",
-                    "http://pscc.org/fhir/TODO",
-                ),
-        (//TODO - TNM
+        (
+            //TODO
+            "medication",
+            "http://pscc.org/fhir/TODO",
+        ),
+        (
+            //TODO - TNM
             "uiccstadiumcs",
             "https://simplifier.net/PSCC/tnmstagevs",
         ),
-        (//TODO
+        (
+            //TODO
             VITAL_STATUS_CS,
             "https://simplifier.net/PSCC/ValueSet/Vitalstatus",
         ),
-        ("molecularMarker", "http://www.genenames.org"),//TODO
-        ("observationMolecularSatelliteSystem", "MicrosatelliteInstabilityStage"),//TODO
+        ("molecularMarker", "http://www.genenames.org"), //TODO
+        (
+            "observationMolecularSatelliteSystem",
+            "MicrosatelliteInstabilityStage",
+        ), //TODO
     ])
 });
 

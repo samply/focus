@@ -675,6 +675,7 @@ async fn run_cql_query(
             CONFIG.delta_histo,
             CONFIG.epsilon,
             CONFIG.rounding_step,
+            CONFIG.obfuscate_bbmri_eric_way,
         )?,
         false => cql_result,
     };
