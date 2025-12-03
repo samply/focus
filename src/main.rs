@@ -232,7 +232,7 @@ async fn main_loop() -> ExitCode {
     };
     let endpoint_service_available: fn() -> BoxFuture<'static, bool> = match CONFIG.endpoint_type {
         EndpointType::Blaze => || blaze::check_availability().boxed(),
-        EndpointType::Omop | EndpointType::EucaimApi => || async { true }.boxed(), // TODO health check
+        EndpointType::Omop | EndpointType::EucaimApi | EndpointType::EucaimBeacon => || async { true }.boxed(), // TODO health check
         #[cfg(feature = "query-sql")]
         EndpointType::EucaimSql => || async { true }.boxed(),
         #[cfg(feature = "query-sql")]
@@ -414,7 +414,7 @@ async fn process_task(
                 ))
             }
         }
-        EndpointType::Omop => {
+        EndpointType::Omop | EndpointType::EucaimBeacon => {
             let decoded = util::base64_decode(&task.body)?;
             let intermediate_rep_query: intermediate_rep::IntermediateRepQuery =
                 serde_json::from_slice(&decoded)?;
