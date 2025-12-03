@@ -301,8 +301,8 @@ async fn process_task(
         let Some(task_type) = metadata.task_type else {
             return Err(FocusError::MissingExporterTaskType);
         };
-        let mut body = task.body.clone();
-        return run_exporter_query(task, &mut body, task_type).await;
+        let body = task.body.clone();
+        return run_exporter_query(task, &body, task_type).await;
     }
 
     match CONFIG.endpoint_type {
@@ -790,7 +790,7 @@ async fn run_eucaim_api_query(task: &BeamTask, ast: ast::Ast) -> Result<BeamResu
 
 async fn run_exporter_query(
     task: &BeamTask,
-    body: &mut String,
+    body: &str,
     task_type: exporter::TaskType,
 ) -> Result<BeamResult, FocusError> {
     let mut err = beam::beam_result::perm_failed(

@@ -42,10 +42,7 @@ const EXECUTE: Params = Params {
     done: "executed",
 };
 
-pub async fn post_exporter_query(
-    body: &mut String,
-    task_type: TaskType,
-) -> Result<String, FocusError> {
+pub async fn post_exporter_query(body: &str, task_type: TaskType) -> Result<String, FocusError> {
     let Some(exporter_url) = &CONFIG.exporter_url else {
         return Err(FocusError::MissingExporterEndpoint);
     };
@@ -59,10 +56,11 @@ pub async fn post_exporter_query(
         );
     }
 
+    let mut value: Value = serde_json::from_slice(&(util::base64_decode(body))?).map_err(|e| {
+        FocusError::DeserializationError(format!(r#"Task body is not a valid JSON: {}"#, e))
+    })?;
+
     if task_type == TaskType::Status {
-        let value: Value = serde_json::from_slice(&(util::base64_decode(body))?).map_err(|e| {
-            FocusError::DeserializationError(format!(r#"Task body is not a valid JSON: {}"#, e))
-        })?;
         let id = value["query-execution-id"].as_str();
         let Some(id) = id else {
             return Err(FocusError::ParsingError(format!(
@@ -112,48 +110,36 @@ pub async fn post_exporter_query(
     }
 
     // as Exporter has no fixed API, we have to drill into the body like this
+    let query_format_string = value["query-format"]
+        .as_str()
+        .ok_or_else(|| FocusError::DeserializationError("No query-format in the body".to_string()))?
+        .to_string();
 
-    let query_format_string: String;
-    let ast = "AST".to_string();
-    let ast_data = "AST_DATA".to_string();
+    // If AST or AST_DATA → convert to CQL
+    if query_format_string == "AST" || query_format_string == "AST_DATA" {
+        debug!("query-format = {}", query_format_string);
 
-    if let Ok(query_format) = util::get_json_field(body, "query_format") {
-        query_format_string = query_format.to_string();
-    } else {
-        return Err(FocusError::DeserializationError(
-            "No query_format in the body".to_string(),
-        ));
-    };
+        let query_b64 = value["query"]
+            .as_str()
+            .ok_or_else(|| FocusError::DeserializationError("No query in the body".to_string()))?;
 
-    if query_format_string == ast || query_format_string == ast_data {
-        debug!("{}", &query_format_string);
-
-        if let Ok(query) = util::get_json_field(body, "query") {
-            //this gives us base64 encoded query which contains lang and payload
-            let data = util::base64_decode(query.to_string().as_str())?;
-            let query: CqlQuery = match serde_json::from_slice::<Language>(&data)? {
-                Language::Cql(_cql_query) => {
-                    return Err(FocusError::CqlLangNotEnabled); // query_format is AST, can't have CQL in the query then
-                }
-                Language::Ast(ast_query) => serde_json::from_str(&cql::generate_body(
-                    parse_blaze_query_payload_ast(&ast_query.payload)?,
-                    crate::projects::Project::Dktk,
-                )?)?,
-            };
-
-            let mut franken_body = json!(body);
-            franken_body["query"] = json!(
-                BASE64.encode(serde_json::to_string(&query).expect("Failed to serialize JSON"))
-            );
-            franken_body["query_format"] = json!(query_format_string.replace("AST", "CQL"));
-
-            *body = serde_json::to_string(&franken_body).expect("Failed to serialize JSON");
-        } else {
-            return Err(FocusError::DeserializationError(
-                "No query in the body".to_string(),
-            ));
+        let query: CqlQuery = {
+            let generated = cql::generate_body(
+                parse_blaze_query_payload_ast(&query_b64)?,
+                crate::projects::Project::Dktk,
+            )?;
+            serde_json::from_str(&generated)?
         };
+
+        value["query"] =
+            json!(BASE64.encode(serde_json::to_string(&query).expect("Failed to serialize query")));
+        value["query-format"] = json!(query_format_string.replace("AST", "CQL"));
     }
+
+    // Re-encode body into base64
+    let new_body_b64 = BASE64.encode(value.to_string());
+
+    // Write transformed body back into the input parameter
 
     let exporter_params = if task_type == TaskType::Execute {
         EXECUTE
@@ -171,7 +157,7 @@ pub async fn post_exporter_query(
         .client
         .post(format!("{}{}", exporter_url, exporter_params.method))
         .headers(headers)
-        .body(body.clone())
+        .body(new_body_b64.clone())
         .send()
         .await
         .map_err(FocusError::UnableToPostExporterQuery)?;
@@ -186,11 +172,11 @@ pub async fn post_exporter_query(
                 Err(e) => {
                     warn!(
                         "The code was 200 OK, but can't get the body of the Exporter's response, while {} query; reply was `{}`, error: {}",
-                        exporter_params.doing, body, e
+                        exporter_params.doing, new_body_b64, e
                     );
                     return Err(FocusError::ExporterQueryErrorReqwest(format!(
                         "Error while {} query, the code was 200 OK, but can't get the body of the Exporter's response: {:?}",
-                        exporter_params.doing, body
+                        exporter_params.doing, new_body_b64
                     )));
                 }
             }
@@ -198,7 +184,7 @@ pub async fn post_exporter_query(
         code => {
             warn!(
                 "Got unexpected code {code} while {} query; reply was `{}`, debug info: {:?}",
-                exporter_params.doing, body, resp
+                exporter_params.doing, new_body_b64, resp
             );
             return Err(FocusError::ExporterQueryErrorReqwest(format!(
                 "Error while {} query: {:?}",
