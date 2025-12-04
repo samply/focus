@@ -232,7 +232,9 @@ async fn main_loop() -> ExitCode {
     };
     let endpoint_service_available: fn() -> BoxFuture<'static, bool> = match CONFIG.endpoint_type {
         EndpointType::Blaze => || blaze::check_availability().boxed(),
-        EndpointType::Omop | EndpointType::EucaimApi | EndpointType::EucaimBeacon => || async { true }.boxed(), // TODO health check
+        EndpointType::Omop | EndpointType::EucaimApi | EndpointType::EucaimBeacon => {
+            || async { true }.boxed()
+        } // TODO health check
         #[cfg(feature = "query-sql")]
         EndpointType::EucaimSql => || async { true }.boxed(),
         #[cfg(feature = "query-sql")]
