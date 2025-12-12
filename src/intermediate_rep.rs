@@ -52,8 +52,8 @@ pub async fn post_ast(ast: ast::Ast) -> Result<String, FocusError> {
         StatusCode::OK => resp.text().await.map_err(FocusError::UnableToPostAst)?,
         code => {
             warn!(
-                "Got unexpected code {code} while posting AST; reply was `{}`, debug info: {:?}",
-                ast_string, resp
+                "Got unexpected code {code} while posting AST; reply was `{:?}`, debug info: {}",
+                resp, ast_string
             );
             return Err(FocusError::AstPostingErrorReqwest(format!(
                 "Error while posting AST `{}`: {:?}",
