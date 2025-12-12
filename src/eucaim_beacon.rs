@@ -9,7 +9,6 @@ use crate::ast;
 use crate::config::CONFIG;
 use crate::errors::FocusError;
 
-
 pub async fn post_beacon_query(ast: ast::Ast) -> Result<String, FocusError> {
     debug!("Posting AST...");
 

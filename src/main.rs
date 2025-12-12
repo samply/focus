@@ -752,10 +752,7 @@ async fn run_intermediate_rep_query(
     Ok(result)
 }
 
-async fn run_eucaim_beacon_query(
-    task: &BeamTask,
-    ast: ast::Ast,
-) -> Result<BeamResult, FocusError> {
+async fn run_eucaim_beacon_query(task: &BeamTask, ast: ast::Ast) -> Result<BeamResult, FocusError> {
     let mut err = beam::beam_result::perm_failed(
         CONFIG.beam_app_id_long.clone(),
         vec![task.to_owned().from],
@@ -778,11 +775,8 @@ async fn run_eucaim_beacon_query(
 
     let provider = CONFIG.provider.clone().unwrap_or_default();
 
-    eucaim_beacon_result = eucaim_beacon_result.replacen(
-        '{',
-        format!(r#"{{"provider":"{}","#, provider).as_str(),
-        1,
-    );
+    eucaim_beacon_result =
+        eucaim_beacon_result.replacen('{', format!(r#"{{"provider":"{}","#, provider).as_str(), 1);
 
     let result = beam_result(task.to_owned(), eucaim_beacon_result).unwrap_or_else(|e| {
         err.body = beam_lib::RawString(e.to_string());
@@ -791,7 +785,6 @@ async fn run_eucaim_beacon_query(
 
     Ok(result)
 }
-
 
 async fn run_eucaim_api_query(task: &BeamTask, ast: ast::Ast) -> Result<BeamResult, FocusError> {
     let mut err = beam::beam_result::perm_failed(
