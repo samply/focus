@@ -46,11 +46,11 @@ pub async fn post_beacon_query(ast: ast::Ast) -> Result<String, FocusError> {
         StatusCode::OK => resp.text().await.map_err(FocusError::UnableToPostAst)?,
         code => {
             warn!(
-                "Got unexpected code {code} while posting AST; reply was `{}`, debug info: {:?}",
+                "Got unexpected code {code} while querying Beacon; reply was `{}`, debug info: {:?}",
                 ast_string, resp
             );
             return Err(FocusError::AstPostingErrorReqwest(format!(
-                "Error while posting AST `{}`: {:?}",
+                "Error while querying Beacon `{}`: {:?}",
                 ast_string, resp
             )));
         }
