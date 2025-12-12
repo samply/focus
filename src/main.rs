@@ -9,6 +9,7 @@ mod graceful_shutdown;
 mod logger;
 
 mod eucaim_api;
+mod eucaim_beacon;
 mod exporter;
 mod intermediate_rep;
 mod mr;
@@ -426,7 +427,7 @@ async fn process_task(
                 .map_err(FocusError::DecodeError)?;
             let ast: ast::Ast = serde_json::from_slice(&query_decoded)?;
 
-            Ok(run_intermediate_rep_query(task, ast).await?)
+            Ok(run_eucaim_beacon_query(task, ast).await?)
         }
         EndpointType::EucaimApi => {
             let decoded = util::base64_decode(&task.body)?;
@@ -750,6 +751,47 @@ async fn run_intermediate_rep_query(
 
     Ok(result)
 }
+
+async fn run_eucaim_beacon_query(
+    task: &BeamTask,
+    ast: ast::Ast,
+) -> Result<BeamResult, FocusError> {
+    let mut err = beam::beam_result::perm_failed(
+        CONFIG.beam_app_id_long.clone(),
+        vec![task.to_owned().from],
+        task.to_owned().id,
+        String::new(),
+    );
+
+    let mut eucaim_beacon_result = eucaim_beacon::post_beacon_query(ast).await?;
+
+    let provider_icon = CONFIG
+        .provider_icon
+        .clone()
+        .unwrap_or(include_str!("../resources/default_provider_icon").to_string());
+
+    eucaim_beacon_result = eucaim_beacon_result.replacen(
+        '{',
+        format!(r#"{{"provider_icon":"{}","#, provider_icon).as_str(),
+        1,
+    );
+
+    let provider = CONFIG.provider.clone().unwrap_or_default();
+
+    eucaim_beacon_result = eucaim_beacon_result.replacen(
+        '{',
+        format!(r#"{{"provider":"{}","#, provider).as_str(),
+        1,
+    );
+
+    let result = beam_result(task.to_owned(), eucaim_beacon_result).unwrap_or_else(|e| {
+        err.body = beam_lib::RawString(e.to_string());
+        err
+    });
+
+    Ok(result)
+}
+
 
 async fn run_eucaim_api_query(task: &BeamTask, ast: ast::Ast) -> Result<BeamResult, FocusError> {
     let mut err = beam::beam_result::perm_failed(

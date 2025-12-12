@@ -1,0 +1,60 @@
+use reqwest::{
+    header::{self, HeaderMap, HeaderValue},
+    StatusCode,
+};
+
+use tracing::{debug, warn};
+
+use crate::ast;
+use crate::config::CONFIG;
+use crate::errors::FocusError;
+
+
+pub async fn post_beacon_query(ast: ast::Ast) -> Result<String, FocusError> {
+    debug!("Posting AST...");
+
+    let ast_string = serde_json::to_string_pretty(&ast)
+        .map_err(|e| FocusError::SerializationError(e.to_string()))?;
+
+    let mut headers = HeaderMap::new();
+
+    headers.insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static("application/json"),
+    );
+
+    if let Some(auth_header_value) = CONFIG.auth_header.clone() {
+        headers.insert(
+            header::AUTHORIZATION,
+            HeaderValue::from_str(auth_header_value.as_str())
+                .map_err(FocusError::InvalidHeaderValue)?,
+        );
+    }
+
+    let resp = CONFIG
+        .client
+        .post(format!("{}/collections", CONFIG.endpoint_url))
+        .headers(headers)
+        .body("")
+        .send()
+        .await
+        .map_err(FocusError::UnableToPostAst)?;
+
+    debug!("Querying beacon...");
+
+    let text = match resp.status() {
+        StatusCode::OK => resp.text().await.map_err(FocusError::UnableToPostAst)?,
+        code => {
+            warn!(
+                "Got unexpected code {code} while posting AST; reply was `{}`, debug info: {:?}",
+                ast_string, resp
+            );
+            return Err(FocusError::AstPostingErrorReqwest(format!(
+                "Error while posting AST `{}`: {:?}",
+                ast_string, resp
+            )));
+        }
+    };
+
+    Ok(text)
+}
