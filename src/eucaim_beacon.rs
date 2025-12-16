@@ -2,21 +2,14 @@ use reqwest::{
     header::{self, HeaderMap, HeaderValue},
     StatusCode,
 };
-use serde::Deserialize;
-use serde::Serialize;
+
 use tracing::{debug, warn};
 
 use crate::ast;
 use crate::config::CONFIG;
 use crate::errors::FocusError;
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct IntermediateRepQuery {
-    pub lang: String,
-    pub query: String,
-}
-
-pub async fn post_ast(ast: ast::Ast) -> Result<String, FocusError> {
+pub async fn post_beacon_query(ast: ast::Ast) -> Result<String, FocusError> {
     debug!("Posting AST...");
 
     let ast_string = serde_json::to_string_pretty(&ast)
@@ -39,24 +32,24 @@ pub async fn post_ast(ast: ast::Ast) -> Result<String, FocusError> {
 
     let resp = CONFIG
         .client
-        .post(format!("{}", CONFIG.endpoint_url))
+        .post(format!("{}/collections", CONFIG.endpoint_url))
         .headers(headers)
-        .body(ast_string.clone())
+        .body("")
         .send()
         .await
         .map_err(FocusError::UnableToPostAst)?;
 
-    debug!("Posted AST...");
+    debug!("Querying beacon...");
 
     let text = match resp.status() {
         StatusCode::OK => resp.text().await.map_err(FocusError::UnableToPostAst)?,
         code => {
             warn!(
-                "Got unexpected code {code} while posting AST; reply was `{:?}`, debug info: {}",
+                "Got unexpected code {code} while querying Beacon; reply was `{:?}`, debug info: {}",
                 resp, ast_string
             );
             return Err(FocusError::AstPostingErrorReqwest(format!(
-                "Error while posting AST `{}`: {:?}",
+                "Error while querying Beacon `{}`: {:?}",
                 ast_string, resp
             )));
         }
