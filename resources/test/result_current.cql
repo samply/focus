@@ -81,5 +81,5 @@ Coalesce(
 )
 
 define InInitialPopulation:
-((((((Patient.gender = 'male')))) and ((((((exists[Condition: Code 'C61' from icd10]) or (exists[Condition: Code 'C61' from icd10gm]) or (exists[Condition: Code 'C61' from icd10gmnew])) or (exists from [Specimen] S where (S.extension.where(url='https://fhir.bbmri.de/StructureDefinition/SampleDiagnosis').value.coding.code contains 'C61')))))) and (( AgeInYears() between Ceiling(10) and Ceiling(90)))) or (((exists from [Specimen] S
+((((((Patient.gender = 'male')))) and ((((((exists[Condition: Code 'C61' from icd10]) or (exists[Condition: Code 'C61' from icd10gm]) or (exists[Condition: Code 'C61' from icd10gmnew]))))))) and (( AgeInYears() between Ceiling(10) and Ceiling(90)))) or (((exists from [Specimen] S
 where FHIRHelpers.ToDateTime(S.collection.collected) between @1900-01-01 and @2024-10-25 )) and ((((exists from [Specimen] S where (S.extension.where(url='https://fhir.bbmri.de/StructureDefinition/StorageTemperature').value.coding contains Code 'temperature2to10' from StorageTemperature) ))))))

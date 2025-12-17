@@ -80,4 +80,4 @@ Coalesce(
 )
 
 define InInitialPopulation:
-((((((((exists[Condition: Code 'C61\"\'\\\n\r\t' from icd10]) or (exists[Condition: Code 'C61\"\'\\\n\r\t' from icd10gm]) or (exists[Condition: Code 'C61\"\'\\\n\r\t' from icd10gmnew])) or (exists from [Specimen] S where (S.extension.where(url='https://fhir.bbmri.de/StructureDefinition/SampleDiagnosis').value.coding.code contains 'C61\"\'\\\n\r\t')))))) and ((((Patient.gender = 'male'))))))
+((((((((exists[Condition: Code 'C61\"\'\\\n\r\t' from icd10]) or (exists[Condition: Code 'C61\"\'\\\n\r\t' from icd10gm]) or (exists[Condition: Code 'C61\"\'\\\n\r\t' from icd10gmnew]))))))) and ((((Patient.gender = 'male'))))))
