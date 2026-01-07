@@ -70,9 +70,6 @@ fn generate_cql(ast: ast::Ast, project: Project) -> Result<String, FocusError> {
 
     if retrieval_criteria.is_empty()
         || retrieval_criteria
-            .chars()
-            .all(|c| [' ', '(', ')'].contains(&c))
-        || retrieval_criteria
             .replace("or", " ")
             .chars()
             .all(|c| [' ', '(', ')'].contains(&c))
