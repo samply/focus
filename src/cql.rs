@@ -512,7 +512,7 @@ mod test {
         );
 
         pretty_assertions::assert_eq!(
-            generate_cql(serde_json::from_str(EMPTY).unwrap(), Project::Bbmri).unwrap(),
+            generate_cql(serde_json::from_str(EMPTY_OR).unwrap(), Project::Bbmri).unwrap(),
             include_str!("../resources/test/result_empty.cql").to_string()
         );
 
