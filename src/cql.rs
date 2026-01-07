@@ -72,9 +72,10 @@ fn generate_cql(ast: ast::Ast, project: Project) -> Result<String, FocusError> {
         || retrieval_criteria
             .chars()
             .all(|c| [' ', '(', ')'].contains(&c))
-        || retrieval_criteria.replace("or"," ")
+        || retrieval_criteria
+            .replace("or", " ")
             .chars()
-            .all(|c| [' ', '(', ')'].contains(&c))    
+            .all(|c| [' ', '(', ')'].contains(&c))
     {
         //to deal with an empty criteria tree of an arbitrary depth
         cql = cql.replace("{{retrieval_criteria}}", "true"); //()?
@@ -434,9 +435,8 @@ mod test {
 
     const EMPTY: &str =
         r#"{"ast":{"children":[],"operand":"OR"}, "id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
-    
-    const EMPTY_OR: &str =
-        r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[]},{"operand":"AND","children":[]}]},"id":"f1f59c3b-fbe6-4941-a718-c6656c96b70e"}"#;
+
+    const EMPTY_OR: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[]},{"operand":"AND","children":[]}]},"id":"f1f59c3b-fbe6-4941-a718-c6656c96b70e"}"#;
 
     const CURRENT: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"operand":"OR","children":[{"key":"gender","type":"EQUALS","system":"","value":"male"}]},{"operand":"OR","children":[{"key":"diagnosis","type":"EQUALS","system":"http://fhir.de/CodeSystem/dimdi/icd-10-gm","value":"C61"}]},{"operand":"OR","children":[{"key":"donor_age","type":"BETWEEN","system":"","value":{"min":10,"max":90}}]}]},{"operand":"AND","children":[{"operand":"OR","children":[{"key":"sampling_date","type":"BETWEEN","system":"","value":{"min":"1900-01-01","max":"2024-10-25"}}]},{"operand":"OR","children":[{"key":"storage_temperature","type":"EQUALS","system":"","value":"temperature2to10"}]}]}]},"id":"53b4414e-75e4-401b-b794-20a2936e1be5"}"#;
 
