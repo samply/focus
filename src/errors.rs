@@ -76,6 +76,12 @@ pub enum FocusError {
     ErrorExecutingSqlQuery(sqlx::Error),
     #[error("Unknown project: {0}")]
     UnknownProject(String),
+    #[error("Beacon querying error in Reqwest: {0}")]
+    BeaconQueryingErrorReqwest(String),
+    #[error("Unable to query Beacon: {0}")]
+    UnableToQueryBeacon(reqwest::Error),
+
+    
 }
 
 impl FocusError {
