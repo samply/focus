@@ -1,3 +1,17 @@
+# Samply.Focus v0.20.0 2026-01-13
+
+## Major changes
+
+* Optional obfuscation using limited Laplace distribution and rounding to the floor(number of digits /2) significant digits
+* Exporter uses DKTK CQL generation
+
+## Minor changes
+
+* Workaround for multiple ORed empty criteria fields
+* BETWEEN operator suported with only one boundary defined in the numeric range
+* Fixed double serialization in EUCAIM SQL
+
+
 # Samply.Focus v0.19.0 2025-11-03
 
 ## Major changes
