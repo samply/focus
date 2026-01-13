@@ -233,12 +233,18 @@ pub fn process(
                                 let min = wrapped_min.unwrap().to_string();
                                 condition_string = condition_string
                                     .replace("between {{D1}} and {{D2}}", " >= {{D1}}")
-                                    .replace("between Ceiling({{D1}}) and Ceiling({{D2}}", " >= Ceiling({{D1}}");
+                                    .replace(
+                                        "between Ceiling({{D1}}) and Ceiling({{D2}}",
+                                        " >= Ceiling({{D1}}",
+                                    );
                                 condition_string = condition_string.replace("{{D1}}", min.as_str()); // no CQL injection possible here
 
                                 filter_string = filter_string
                                     .replace("between {{D1}} and {{D2}}", " >= {{D1}}")
-                                    .replace("between Ceiling({{D1}}) and Ceiling({{D2}}", " >= Ceiling({{D1}}"); // no condition needed, "" stays ""
+                                    .replace(
+                                        "between Ceiling({{D1}}) and Ceiling({{D2}}",
+                                        " >= Ceiling({{D1}}",
+                                    ); // no condition needed, "" stays ""
                                 filter_string = filter_string.replace("{{D1}}", min.as_str());
                             // no condition needed, "" stays ""; no CQL injection possible here
                             } else {
@@ -248,13 +254,19 @@ pub fn process(
                                     // only max is defined
                                     condition_string = condition_string
                                         .replace("between {{D1}} and {{D2}}", " <= {{D2}}")
-                                        .replace("between Ceiling({{D1}}) and Ceiling({{D2}}", " <= Ceiling({{D2}}");
+                                        .replace(
+                                            "between Ceiling({{D1}}) and Ceiling({{D2}}",
+                                            " <= Ceiling({{D2}}",
+                                        );
                                     condition_string =
                                         condition_string.replace("{{D2}}", max.as_str()); // no CQL injection possible here
 
                                     filter_string = filter_string
                                         .replace("between {{D1}} and {{D2}}", " <= {{D2}}")
-                                        .replace("between Ceiling({{D1}}) and Ceiling({{D2}}", " <= Ceiling({{D2}}"); // no condition needed, "" stays ""
+                                        .replace(
+                                            "between Ceiling({{D1}}) and Ceiling({{D2}}",
+                                            " <= Ceiling({{D2}}",
+                                        ); // no condition needed, "" stays ""
                                     filter_string = filter_string.replace("{{D2}}", max.as_str());
                                 // no condition needed, "" stays ""; no CQL injection possible here
                                 } else {
