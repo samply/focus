@@ -13,8 +13,8 @@ use crate::errors::FocusError;
 
 pub static CATEGORY: Lazy<HashMap<&str, (&str, &str)>> = Lazy::new(|| {
     let mut map: HashMap<&'static str, (&'static str, &'static str)> = HashMap::new();
-    map.insert("SNOMEDCT263495000", ("sex", ""));
-    map.insert("SNOMEDCT439401001", ("diagnosis", ""));
+    map.insert("SNOMEDCT263495000", ("sex", "patients"));
+    map.insert("SNOMEDCT439401001", ("diagnosis", "patients"));
     map.insert("RID10311", ("modality", ""));
     map.insert("SNOMEDCT123037004", ("bodyPart", ""));
     map.insert("C25392", ("manufacturer", ""));
@@ -24,10 +24,10 @@ pub static CATEGORY: Lazy<HashMap<&str, (&str, &str)>> = Lazy::new(|| {
 
 pub static CRITERION: Lazy<HashMap<&str, &str>> = Lazy::new(|| {
     let mut map: HashMap<&'static str, &'static str> = HashMap::new();
-    map.insert("SNOMEDCT248153007", "male");
-    map.insert("SNOMEDCT248152002", "female");
-    map.insert("SNOMEDCT74964007", "other");
-    map.insert("SNOMEDCT261665006", "unknown");
+    map.insert("SNOMEDCT248153007", "EUCAIM:COM1001366"); //male
+    map.insert("SNOMEDCT248152002", "EUCAIM:COM1001370"); //female
+    map.insert("SNOMEDCT74964007", "EUCAIM:COM1001288"); //sex unspecified
+    map.insert("SNOMEDCT261665006", "EUCAIM:COM1001288"); //sex unspecified
     map.insert("SNOMEDCT363406005", "SNOMEDCT363406005"); // colon cancer
     map.insert("SNOMEDCT254837009", "SNOMEDCT254837009"); // breast cancer
     map.insert("SNOMEDCT363358000", "SNOMEDCT363358000"); // lung cancer
