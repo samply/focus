@@ -1,6 +1,6 @@
 use crate::{
     errors::FocusError,
-    transformed::{Facets, Stratifiers, Transformed},
+    transformed::{Facets, Transformed},
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -107,7 +107,7 @@ pub fn transform_lens(measure_report: MeasureReport) -> Result<Transformed, Focu
     for g in &measure_report.group {
         transformed
             .totals
-            .insert(g.code.text.clone(), g.population[0].count.clone());
+            .insert(g.code.text.clone(), g.population[0].count);
         for s in &g.stratifier {
             let mut facets = Facets::new();
 

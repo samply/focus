@@ -23,8 +23,6 @@ pub enum FocusError {
     DecodeError(base64::DecodeError),
     #[error("Configuration error: {0}")]
     ConfigurationError(String),
-    #[error("Cannot open file: {0}")]
-    FileOpeningError(String),
     #[error("Serde parsing error: {0}")]
     SerdeParsingError(#[from] serde_json::Error),
     #[error("Parsing error: {0}")]
@@ -55,6 +53,8 @@ pub enum FocusError {
     AstUnknownCriterion(String),
     #[error("Unknown option in AST: {0}")]
     AstUnknownOption(String),
+    #[error("Both min and max values undefined")]
+    NoMinNoMax,
     #[error("Mismatch between operator and value type: {0}")]
     AstOperatorValueMismatch(String),
     #[error("Invalid date format: {0}")]

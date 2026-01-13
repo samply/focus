@@ -9,6 +9,7 @@ mod graceful_shutdown;
 mod logger;
 
 mod eucaim_api;
+mod eucaim_beacon;
 mod exporter;
 mod intermediate_rep;
 mod mr;
@@ -34,11 +35,11 @@ use futures_util::FutureExt;
 use laplace_rs::ObfCache;
 use tokio::sync::Mutex;
 
-use crate::blaze::{parse_blaze_query_payload_ast, AstQuery};
+use crate::blaze::parse_blaze_query_payload_ast;
 use crate::config::EndpointType;
 use crate::util::{base64_decode, is_cql_tampered_with, obfuscate_counts_mr};
 use crate::{config::CONFIG, errors::FocusError};
-use blaze::CqlQuery;
+use blaze::{CqlQuery, Language};
 
 use std::collections::{HashMap, HashSet};
 use std::ops::DerefMut;
@@ -57,13 +58,6 @@ type Obfuscated = bool;
 type QueryResult = String;
 type BeamTask = TaskRequest<String>;
 type BeamResult = TaskResult<beam_lib::RawString>;
-
-#[derive(Deserialize, Debug)]
-#[serde(tag = "lang", rename_all = "lowercase")]
-enum Language {
-    Cql(CqlQuery),
-    Ast(AstQuery),
-}
 
 #[derive(Clone, PartialEq, Debug, Copy, Serialize, Deserialize, Eq, Hash, Default)]
 #[serde(rename_all = "UPPERCASE")]
@@ -239,7 +233,9 @@ async fn main_loop() -> ExitCode {
     };
     let endpoint_service_available: fn() -> BoxFuture<'static, bool> = match CONFIG.endpoint_type {
         EndpointType::Blaze => || blaze::check_availability().boxed(),
-        EndpointType::Omop | EndpointType::EucaimApi => || async { true }.boxed(), // TODO health check
+        EndpointType::Omop | EndpointType::EucaimApi | EndpointType::EucaimBeacon => {
+            || async { true }.boxed()
+        } // TODO health check
         #[cfg(feature = "query-sql")]
         EndpointType::EucaimSql => || async { true }.boxed(),
         #[cfg(feature = "query-sql")]
@@ -306,8 +302,8 @@ async fn process_task(
         let Some(task_type) = metadata.task_type else {
             return Err(FocusError::MissingExporterTaskType);
         };
-        let body = &task.body;
-        return run_exporter_query(task, body, task_type).await;
+        let mut body = task.body.clone();
+        return run_exporter_query(task, &mut body, task_type).await;
     }
 
     match CONFIG.endpoint_type {
@@ -421,7 +417,7 @@ async fn process_task(
                 ))
             }
         }
-        EndpointType::Omop => {
+        EndpointType::Omop | EndpointType::EucaimBeacon => {
             let decoded = util::base64_decode(&task.body)?;
             let intermediate_rep_query: intermediate_rep::IntermediateRepQuery =
                 serde_json::from_slice(&decoded)?;
@@ -431,7 +427,7 @@ async fn process_task(
                 .map_err(FocusError::DecodeError)?;
             let ast: ast::Ast = serde_json::from_slice(&query_decoded)?;
 
-            Ok(run_intermediate_rep_query(task, ast).await?)
+            Ok(run_eucaim_beacon_query(task, ast).await?)
         }
         EndpointType::EucaimApi => {
             let decoded = util::base64_decode(&task.body)?;
@@ -526,6 +522,7 @@ async fn run_eucaim_sql_query(
     let mut studies_count: i32 = 0;
     let mut subjects_count: i32 = 0;
     if let Ok(rows) = result {
+        trace!("{:?}", &rows);
         for row in rows {
             let collection: Collection = Collection {
                 age_range: AgeRange { min: 0, max: 0 },
@@ -561,7 +558,7 @@ async fn run_eucaim_sql_query(
             CONFIG.beam_app_id_long.clone(),
             vec![task.clone().from],
             task.id,
-            BASE64.encode(serde_json::to_string(&response_json)?),
+            BASE64.encode(&response_json),
         ))
     } else {
         Err(FocusError::QueryResultBad(
@@ -681,6 +678,7 @@ async fn run_cql_query(
             CONFIG.delta_histo,
             CONFIG.epsilon,
             CONFIG.rounding_step,
+            CONFIG.obfuscate_bbmri_eric_way,
         )?,
         false => cql_result,
     };
@@ -754,6 +752,40 @@ async fn run_intermediate_rep_query(
     Ok(result)
 }
 
+async fn run_eucaim_beacon_query(task: &BeamTask, ast: ast::Ast) -> Result<BeamResult, FocusError> {
+    let mut err = beam::beam_result::perm_failed(
+        CONFIG.beam_app_id_long.clone(),
+        vec![task.to_owned().from],
+        task.to_owned().id,
+        String::new(),
+    );
+
+    let mut eucaim_beacon_result = eucaim_beacon::post_beacon_query(ast).await?;
+
+    let provider_icon = CONFIG
+        .provider_icon
+        .clone()
+        .unwrap_or(include_str!("../resources/default_provider_icon").to_string());
+
+    eucaim_beacon_result = eucaim_beacon_result.replacen(
+        '{',
+        format!(r#"{{"provider_icon":"{}","#, provider_icon).as_str(),
+        1,
+    );
+
+    let provider = CONFIG.provider.clone().unwrap_or_default();
+
+    eucaim_beacon_result =
+        eucaim_beacon_result.replacen('{', format!(r#"{{"provider":"{}","#, provider).as_str(), 1);
+
+    let result = beam_result(task.to_owned(), eucaim_beacon_result).unwrap_or_else(|e| {
+        err.body = beam_lib::RawString(e.to_string());
+        err
+    });
+
+    Ok(result)
+}
+
 async fn run_eucaim_api_query(task: &BeamTask, ast: ast::Ast) -> Result<BeamResult, FocusError> {
     let mut err = beam::beam_result::perm_failed(
         CONFIG.beam_app_id_long.clone(),
@@ -793,7 +825,7 @@ async fn run_eucaim_api_query(task: &BeamTask, ast: ast::Ast) -> Result<BeamResu
 
 async fn run_exporter_query(
     task: &BeamTask,
-    body: &String,
+    body: &mut String,
     task_type: exporter::TaskType,
 ) -> Result<BeamResult, FocusError> {
     let mut err = beam::beam_result::perm_failed(

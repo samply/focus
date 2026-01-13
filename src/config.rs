@@ -21,6 +21,7 @@ pub enum EndpointType {
     Blaze,
     Omop,      // endpoint is URL of a query mediator translating AST to provider specific SQL
     EucaimApi, // endpoint is URL of custom API for querying EUCAIM provider
+    EucaimBeacon,
     #[cfg(feature = "query-sql")]
     EucaimSql,
     #[cfg(feature = "query-sql")]
@@ -35,6 +36,7 @@ impl fmt::Display for EndpointType {
             EndpointType::Blaze => write!(f, "blaze"),
             EndpointType::Omop => write!(f, "omop"),
             EndpointType::EucaimApi => write!(f, "eucaim_api"),
+            EndpointType::EucaimBeacon => write!(f, "eucaim_beacon"),
             #[cfg(feature = "query-sql")]
             EndpointType::EucaimSql => write!(f, "eucaim_sql"),
             #[cfg(feature = "query-sql")]
@@ -102,6 +104,10 @@ struct CliArgs {
     /// Should the results be obfuscated
     #[clap(long, env, value_parser = clap::value_parser!(Obfuscate), default_value = "yes")]
     obfuscate: Obfuscate,
+
+    /// Should the results be obfuscated the BBMRI ERIC way - default false
+    #[clap(long, env, value_parser)]
+    obfuscate_bbmri_eric_way: bool,
 
     /// Should zero values be obfuscated - default false
     #[clap(long, env, value_parser)]
@@ -198,6 +204,7 @@ pub(crate) struct Config {
     pub endpoint_type: EndpointType,
     pub cql_projects_enabled: Option<Vec<String>>,
     pub obfuscate: Obfuscate,
+    pub obfuscate_bbmri_eric_way: bool,
     pub obfuscate_zero: bool,
     pub obfuscate_below_10_mode: usize,
     pub delta_patient: f64,
@@ -252,6 +259,7 @@ impl Config {
             endpoint_type: cli_args.endpoint_type,
             cql_projects_enabled: cli_args.cql_projects_enabled,
             obfuscate: cli_args.obfuscate,
+            obfuscate_bbmri_eric_way: cli_args.obfuscate_bbmri_eric_way,
             obfuscate_zero: cli_args.obfuscate_zero,
             obfuscate_below_10_mode: cli_args.obfuscate_below_10_mode,
             delta_patient: cli_args.delta_patient,

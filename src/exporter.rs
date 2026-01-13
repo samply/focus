@@ -1,14 +1,18 @@
+use base64::{prelude::BASE64_STANDARD as BASE64, Engine as _};
 use reqwest::{
     header::{self, HeaderMap, HeaderValue},
     StatusCode,
 };
 use serde::Deserialize;
 use serde::Serialize;
+use serde_json::json;
 use serde_json::Value;
 use std::str;
 use tracing::{debug, warn};
 
+use crate::blaze::{parse_blaze_query_payload_ast, CqlQuery, Language};
 use crate::config::CONFIG;
+use crate::cql;
 use crate::errors::FocusError;
 use crate::util;
 
@@ -38,7 +42,10 @@ const EXECUTE: Params = Params {
     done: "executed",
 };
 
-pub async fn post_exporter_query(body: &String, task_type: TaskType) -> Result<String, FocusError> {
+pub async fn post_exporter_query(
+    body: &mut String,
+    task_type: TaskType,
+) -> Result<String, FocusError> {
     let Some(exporter_url) = &CONFIG.exporter_url else {
         return Err(FocusError::MissingExporterEndpoint);
     };
@@ -52,10 +59,12 @@ pub async fn post_exporter_query(body: &String, task_type: TaskType) -> Result<S
         );
     }
 
-    if task_type == TaskType::Status {
-        let value: Value = serde_json::from_slice(&(util::base64_decode(body))?).map_err(|e| {
+    let mut value: Value =
+        serde_json::from_slice(&(util::base64_decode(body.clone()))?).map_err(|e| {
             FocusError::DeserializationError(format!(r#"Task body is not a valid JSON: {}"#, e))
         })?;
+
+    if task_type == TaskType::Status {
         let id = value["query-execution-id"].as_str();
         let Some(id) = id else {
             return Err(FocusError::ParsingError(format!(
@@ -102,6 +111,62 @@ pub async fn post_exporter_query(body: &String, task_type: TaskType) -> Result<S
                 )));
             }
         };
+    }
+
+    // as Exporter has no fixed API, we have to drill into the body like this
+
+    let ast = "AST".to_string();
+    let ast_data = "AST_DATA".to_string();
+
+    let query_format = value["query-format"].clone();
+    let query_format_string = match query_format {
+        Value::Null => {
+            return Err(FocusError::DeserializationError(
+                "No query-format in the body".to_string(),
+            ));
+        }
+        Value::String(s) => s,
+        _ => {
+            return Err(FocusError::DeserializationError(
+                "Wrong parameter type for query-format".to_string(),
+            ));
+        }
+    };
+
+    if query_format_string == ast || query_format_string == ast_data {
+        debug!("{}", &query_format_string);
+
+        let query_json = value["query"].clone();
+        let data = match query_json {
+            Value::Null => {
+                return Err(FocusError::DeserializationError(
+                    "Parameter query is missing".to_string(),
+                ));
+            }
+            Value::String(s) => util::base64_decode(s)?,
+            _ => {
+                return Err(FocusError::DeserializationError(
+                    "Wrong parameter type for query".to_string(),
+                ))
+            }
+        };
+
+        //this gives us base64 encoded query which contains lang and payload
+        let query: CqlQuery = match serde_json::from_slice::<Language>(&data)? {
+            Language::Cql(_cql_query) => {
+                return Err(FocusError::CqlLangNotEnabled); // query_format is AST, can't have CQL in the query then
+            }
+            Language::Ast(ast_query) => serde_json::from_str(&cql::generate_body(
+                parse_blaze_query_payload_ast(&ast_query.payload)?,
+                crate::projects::Project::Dktk,
+            )?)?,
+        };
+
+        value["query"] =
+            json!(BASE64.encode(serde_json::to_string(&query).expect("Failed to serialize JSON")));
+        value["query-format"] = json!(query_format_string.replace("AST", "CQL"));
+
+        *body = serde_json::to_string(&value).expect("Failed to serialize JSON");
     }
 
     let exporter_params = if task_type == TaskType::Execute {

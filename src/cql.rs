@@ -70,6 +70,7 @@ fn generate_cql(ast: ast::Ast, project: Project) -> Result<String, FocusError> {
 
     if retrieval_criteria.is_empty()
         || retrieval_criteria
+            .replace("or", " ")
             .chars()
             .all(|c| [' ', '(', ')'].contains(&c))
     {
@@ -219,17 +220,70 @@ pub fn process(
                             // no condition needed, "" stays ""
                         }
                         ast::ConditionValue::NumRange(num_range) => {
-                            condition_string = condition_string
-                                .replace("{{D1}}", num_range.min.to_string().as_str()); // no CQL injection possible here
-                            condition_string = condition_string
-                                .replace("{{D2}}", num_range.max.to_string().as_str()); // no CQL injection possible here
-                            filter_string =
-                                filter_string.replace("{{D1}}", num_range.min.to_string().as_str()); // no condition needed, "" stays ""; no CQL injection possible here
-                            filter_string =
-                                filter_string.replace("{{D2}}", num_range.max.to_string().as_str());
-                            // no CQL injection possible here
+                            // check which values exist
+                            let wrapped_min = num_range.min;
+                            let wrapped_max = num_range.max;
 
-                            // no condition needed, "" stays ""
+                            if wrapped_max == None {
+                                // no max is defined
+                                if wrapped_min == None {
+                                    return Err(FocusError::NoMinNoMax);
+                                }
+                                // only min value defined
+                                let min = wrapped_min.unwrap().to_string();
+                                condition_string = condition_string
+                                    .replace("between {{D1}} and {{D2}}", " >= {{D1}}")
+                                    .replace(
+                                        "between Ceiling({{D1}}) and Ceiling({{D2}}",
+                                        " >= Ceiling({{D1}}",
+                                    );
+                                condition_string = condition_string.replace("{{D1}}", min.as_str()); // no CQL injection possible here
+
+                                filter_string = filter_string
+                                    .replace("between {{D1}} and {{D2}}", " >= {{D1}}")
+                                    .replace(
+                                        "between Ceiling({{D1}}) and Ceiling({{D2}}",
+                                        " >= Ceiling({{D1}}",
+                                    ); // no condition needed, "" stays ""
+                                filter_string = filter_string.replace("{{D1}}", min.as_str());
+                            // no condition needed, "" stays ""; no CQL injection possible here
+                            } else {
+                                // max is defined
+                                let max = wrapped_max.unwrap().to_string();
+                                if wrapped_min == None {
+                                    // only max is defined
+                                    condition_string = condition_string
+                                        .replace("between {{D1}} and {{D2}}", " <= {{D2}}")
+                                        .replace(
+                                            "between Ceiling({{D1}}) and Ceiling({{D2}}",
+                                            " <= Ceiling({{D2}}",
+                                        );
+                                    condition_string =
+                                        condition_string.replace("{{D2}}", max.as_str()); // no CQL injection possible here
+
+                                    filter_string = filter_string
+                                        .replace("between {{D1}} and {{D2}}", " <= {{D2}}")
+                                        .replace(
+                                            "between Ceiling({{D1}}) and Ceiling({{D2}}",
+                                            " <= Ceiling({{D2}}",
+                                        ); // no condition needed, "" stays ""
+                                    filter_string = filter_string.replace("{{D2}}", max.as_str());
+                                // no condition needed, "" stays ""; no CQL injection possible here
+                                } else {
+                                    // both min and max are defined
+                                    let min = wrapped_min.unwrap().to_string();
+
+                                    condition_string =
+                                        condition_string.replace("{{D1}}", min.as_str()); // no CQL injection possible here
+                                    condition_string =
+                                        condition_string.replace("{{D2}}", max.as_str()); // no CQL injection possible here
+                                    filter_string = filter_string.replace("{{D1}}", min.as_str()); // no condition needed, "" stays ""; no CQL injection possible here
+                                    filter_string = filter_string.replace("{{D2}}", max.as_str());
+                                    // no CQL injection possible here
+
+                                    // no condition needed, "" stays ""
+                                }
+                            }
                         }
                         other => {
                             return Err(FocusError::AstOperatorValueMismatch(format!("Operator BETWEEN can only be used for numerical and date values, not for {:?}", other)));
@@ -432,6 +486,12 @@ mod test {
     const EMPTY: &str =
         r#"{"ast":{"children":[],"operand":"OR"}, "id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
 
+    const EMPTY_OR: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[]},{"operand":"AND","children":[]}]},"id":"f1f59c3b-fbe6-4941-a718-c6656c96b70e"}"#;
+
+    const LESS: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"key":"diagnosis_age_donor","operand":"OR","children":[{"key":"diagnosis_age_donor","type":"BETWEEN","value":{"max":60}}]}]}]},"id":"6e914349-6cb1-4f84-b959-813c683f458d"}"#;
+
+    const GREATER: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"key":"diagnosis_age_donor","operand":"OR","children":[{"key":"diagnosis_age_donor","type":"BETWEEN","value":{"min":60}}]}]}]},"id":"6e914349-6cb1-4f84-b959-813c683f458d"}"#;
+
     const CURRENT: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"operand":"OR","children":[{"key":"gender","type":"EQUALS","system":"","value":"male"}]},{"operand":"OR","children":[{"key":"diagnosis","type":"EQUALS","system":"http://fhir.de/CodeSystem/dimdi/icd-10-gm","value":"C61"}]},{"operand":"OR","children":[{"key":"donor_age","type":"BETWEEN","system":"","value":{"min":10,"max":90}}]}]},{"operand":"AND","children":[{"operand":"OR","children":[{"key":"sampling_date","type":"BETWEEN","system":"","value":{"min":"1900-01-01","max":"2024-10-25"}}]},{"operand":"OR","children":[{"key":"storage_temperature","type":"EQUALS","system":"","value":"temperature2to10"}]}]}]},"id":"53b4414e-75e4-401b-b794-20a2936e1be5"}"#;
 
     const VAFAN: &str = r#"{"ast":{"nodeType":"branch","operand":"OR","children":[{"nodeType":"branch","operand":"AND","children":[]}]},"id":"0b29f6d1-4e6a-4679-9212-3327e498b304__search__0b29f6d1-4e6a-4679-9212-3327e498b304"}"#;
@@ -503,6 +563,21 @@ mod test {
         pretty_assertions::assert_eq!(
             generate_cql(serde_json::from_str(EMPTY).unwrap(), Project::Bbmri).unwrap(),
             include_str!("../resources/test/result_empty.cql").to_string()
+        );
+
+        pretty_assertions::assert_eq!(
+            generate_cql(serde_json::from_str(EMPTY_OR).unwrap(), Project::Bbmri).unwrap(),
+            include_str!("../resources/test/result_empty.cql").to_string()
+        );
+
+        pretty_assertions::assert_eq!(
+            generate_cql(serde_json::from_str(LESS).unwrap(), Project::Bbmri).unwrap(),
+            include_str!("../resources/test/result_less.cql").to_string()
+        );
+
+        pretty_assertions::assert_eq!(
+            generate_cql(serde_json::from_str(GREATER).unwrap(), Project::Bbmri).unwrap(),
+            include_str!("../resources/test/result_greater.cql").to_string()
         );
 
         pretty_assertions::assert_eq!(
