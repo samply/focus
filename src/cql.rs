@@ -224,34 +224,12 @@ pub fn process(
                             let wrapped_min = num_range.min;
                             let wrapped_max = num_range.max;
 
-                            if wrapped_max == None {
-                                // no max is defined
-                                if wrapped_min == None {
+                            match (wrapped_min, wrapped_max) {
+                                (None, None) => {
                                     return Err(FocusError::NoMinNoMax);
                                 }
-                                // only min value defined
-                                let min = wrapped_min.unwrap().to_string();
-                                condition_string = condition_string
-                                    .replace("between {{D1}} and {{D2}}", " >= {{D1}}")
-                                    .replace(
-                                        "between Ceiling({{D1}}) and Ceiling({{D2}}",
-                                        " >= Ceiling({{D1}}",
-                                    );
-                                condition_string = condition_string.replace("{{D1}}", min.as_str()); // no CQL injection possible here
-
-                                filter_string = filter_string
-                                    .replace("between {{D1}} and {{D2}}", " >= {{D1}}")
-                                    .replace(
-                                        "between Ceiling({{D1}}) and Ceiling({{D2}}",
-                                        " >= Ceiling({{D1}}",
-                                    ); // no condition needed, "" stays ""
-                                filter_string = filter_string.replace("{{D1}}", min.as_str());
-                            // no condition needed, "" stays ""; no CQL injection possible here
-                            } else {
-                                // max is defined
-                                let max = wrapped_max.unwrap().to_string();
-                                if wrapped_min == None {
-                                    // only max is defined
+                                (None, Some(max)) => {
+                                    let max = max.to_string();
                                     condition_string = condition_string
                                         .replace("between {{D1}} and {{D2}}", " <= {{D2}}")
                                         .replace(
@@ -268,10 +246,31 @@ pub fn process(
                                             " <= Ceiling({{D2}}",
                                         ); // no condition needed, "" stays ""
                                     filter_string = filter_string.replace("{{D2}}", max.as_str());
-                                // no condition needed, "" stays ""; no CQL injection possible here
-                                } else {
-                                    // both min and max are defined
-                                    let min = wrapped_min.unwrap().to_string();
+                                    // no condition needed, "" stays ""; no CQL injection possible here
+                                }
+                                (Some(min), None) => {
+                                    let min = min.to_string();
+                                    condition_string = condition_string
+                                        .replace("between {{D1}} and {{D2}}", " >= {{D1}}")
+                                        .replace(
+                                            "between Ceiling({{D1}}) and Ceiling({{D2}}",
+                                            " >= Ceiling({{D1}}",
+                                        );
+                                    condition_string =
+                                        condition_string.replace("{{D1}}", min.as_str()); // no CQL injection possible here
+
+                                    filter_string = filter_string
+                                        .replace("between {{D1}} and {{D2}}", " >= {{D1}}")
+                                        .replace(
+                                            "between Ceiling({{D1}}) and Ceiling({{D2}}",
+                                            " >= Ceiling({{D1}}",
+                                        ); // no condition needed, "" stays ""
+                                    filter_string = filter_string.replace("{{D1}}", min.as_str());
+                                    // no condition needed, "" stays ""; no CQL injection possible here
+                                }
+                                (Some(min), Some(max)) => {
+                                    let min = min.to_string();
+                                    let max = max.to_string();
 
                                     condition_string =
                                         condition_string.replace("{{D1}}", min.as_str()); // no CQL injection possible here
@@ -279,9 +278,7 @@ pub fn process(
                                         condition_string.replace("{{D2}}", max.as_str()); // no CQL injection possible here
                                     filter_string = filter_string.replace("{{D1}}", min.as_str()); // no condition needed, "" stays ""; no CQL injection possible here
                                     filter_string = filter_string.replace("{{D2}}", max.as_str());
-                                    // no CQL injection possible here
-
-                                    // no condition needed, "" stays ""
+                                    // no CQL injection possible here; no condition needed, "" stays ""
                                 }
                             }
                         }
