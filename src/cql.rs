@@ -159,99 +159,78 @@ pub fn process(
                     // both min and max values stated
                     match condition.value {
                         ast::ConditionValue::DateRange(date_range) => {
-                            let datetime_str_min = date_range.min.as_str();
+                            // check which values exist
+                            let wrapped_min = date_range.min;
+                            let wrapped_max = date_range.max;
 
-                            let datetime_min_maybe: Result<DateTime<Utc>, _> =
-                                datetime_str_min.parse();
-
-                            let datetime_min: DateTime<Utc> = if let Ok(datetime) =
-                                datetime_min_maybe
-                            {
-                                datetime
-                            } else {
-                                let naive_date_maybe =
-                                    NaiveDate::parse_from_str(datetime_str_min, "%Y-%m-%d"); //FIXME remove once Lens2 behaves, only return the error
-
-                                if let Ok(naive_date) = naive_date_maybe {
-                                    DateTime::<Utc>::from_naive_utc_and_offset(
-                                        naive_date.and_time(NaiveTime::default()),
-                                        Utc,
-                                    )
-                                } else {
-                                    return Err(FocusError::AstInvalidDateFormat(date_range.min));
+                            match (wrapped_min, wrapped_max) {
+                                (None, None) => {
+                                    return Err(FocusError::NoMinNoMax);
                                 }
-                            };
+                                (None, Some(max)) => {
+                                    condition_string = condition_string
+                                        .replace("between {{D1}} and {{D2}}", " <= {{D2}}");
+                                    condition_string = condition_string.replace(
+                                        "{{D2}}",
+                                        formated_date_string(max.as_str())?.as_str(),
+                                    ); // no CQL injection possible here
 
-                            let date_str_min = format!("@{}", datetime_min.format("%Y-%m-%d"));
-
-                            condition_string =
-                                condition_string.replace("{{D1}}", date_str_min.as_str()); // no CQL injection possible here
-                            filter_string = filter_string.replace("{{D1}}", date_str_min.as_str()); // no CQL injection possible here
-                                                                                                    // no condition needed, "" stays ""
-
-                            let datetime_str_max = date_range.max.as_str();
-                            let datetime_max_maybe: Result<DateTime<Utc>, _> =
-                                datetime_str_max.parse();
-
-                            let datetime_max: DateTime<Utc> = if let Ok(datetime) =
-                                datetime_max_maybe
-                            {
-                                datetime
-                            } else {
-                                let naive_date_maybe =
-                                    NaiveDate::parse_from_str(datetime_str_max, "%Y-%m-%d"); //FIXME remove once Lens2 behaves, only return the error
-
-                                if let Ok(naive_date) = naive_date_maybe {
-                                    DateTime::<Utc>::from_naive_utc_and_offset(
-                                        naive_date.and_time(NaiveTime::default()),
-                                        Utc,
-                                    )
-                                } else {
-                                    return Err(FocusError::AstInvalidDateFormat(date_range.max));
+                                    filter_string = filter_string
+                                        .replace("between {{D1}} and {{D2}}", " <= {{D2}}"); // no condition needed, "" stays ""
+                                    filter_string = filter_string.replace(
+                                        "{{D2}}",
+                                        formated_date_string(max.as_str())?.as_str(),
+                                    );
+                                    // no condition needed, "" stays ""; no CQL injection possible here
                                 }
-                            };
-                            let date_str_max = format!("@{}", datetime_max.format("%Y-%m-%d"));
+                                (Some(min), None) => {
+                                    condition_string = condition_string
+                                        .replace("between {{D1}} and {{D2}}", " >= {{D1}}");
+                                    condition_string = condition_string.replace(
+                                        "{{D1}}",
+                                        formated_date_string(min.as_str())?.as_str(),
+                                    ); // no CQL injection possible here
 
-                            condition_string =
-                                condition_string.replace("{{D2}}", date_str_max.as_str()); // no CQL injection possible here
-                            filter_string = filter_string.replace("{{D2}}", date_str_max.as_str());
-                            // no CQL injection possible here
-
-                            // no condition needed, "" stays ""
+                                    filter_string = filter_string
+                                        .replace("between {{D1}} and {{D2}}", " >= {{D1}}"); // no condition needed, "" stays ""
+                                    filter_string = filter_string.replace(
+                                        "{{D1}}",
+                                        formated_date_string(min.as_str())?.as_str(),
+                                    );
+                                    // no condition needed, "" stays ""; no CQL injection possible here
+                                }
+                                (Some(min), Some(max)) => {
+                                    condition_string = condition_string.replace(
+                                        "{{D1}}",
+                                        formated_date_string(min.as_str())?.as_str(),
+                                    ); // no CQL injection possible here
+                                    condition_string = condition_string.replace(
+                                        "{{D2}}",
+                                        formated_date_string(max.as_str())?.as_str(),
+                                    ); // no CQL injection possible here
+                                    filter_string = filter_string.replace(
+                                        "{{D1}}",
+                                        formated_date_string(min.as_str())?.as_str(),
+                                    ); // no condition needed, "" stays ""; no CQL injection possible here
+                                    filter_string = filter_string.replace(
+                                        "{{D2}}",
+                                        formated_date_string(max.as_str())?.as_str(),
+                                    );
+                                    // no CQL injection possible here; no condition needed, "" stays ""
+                                }
+                            }
                         }
                         ast::ConditionValue::NumRange(num_range) => {
                             // check which values exist
                             let wrapped_min = num_range.min;
                             let wrapped_max = num_range.max;
 
-                            if wrapped_max == None {
-                                // no max is defined
-                                if wrapped_min == None {
+                            match (wrapped_min, wrapped_max) {
+                                (None, None) => {
                                     return Err(FocusError::NoMinNoMax);
                                 }
-                                // only min value defined
-                                let min = wrapped_min.unwrap().to_string();
-                                condition_string = condition_string
-                                    .replace("between {{D1}} and {{D2}}", " >= {{D1}}")
-                                    .replace(
-                                        "between Ceiling({{D1}}) and Ceiling({{D2}}",
-                                        " >= Ceiling({{D1}}",
-                                    );
-                                condition_string = condition_string.replace("{{D1}}", min.as_str()); // no CQL injection possible here
-
-                                filter_string = filter_string
-                                    .replace("between {{D1}} and {{D2}}", " >= {{D1}}")
-                                    .replace(
-                                        "between Ceiling({{D1}}) and Ceiling({{D2}}",
-                                        " >= Ceiling({{D1}}",
-                                    ); // no condition needed, "" stays ""
-                                filter_string = filter_string.replace("{{D1}}", min.as_str());
-                            // no condition needed, "" stays ""; no CQL injection possible here
-                            } else {
-                                // max is defined
-                                let max = wrapped_max.unwrap().to_string();
-                                if wrapped_min == None {
-                                    // only max is defined
+                                (None, Some(max)) => {
+                                    let max = max.to_string();
                                     condition_string = condition_string
                                         .replace("between {{D1}} and {{D2}}", " <= {{D2}}")
                                         .replace(
@@ -268,10 +247,31 @@ pub fn process(
                                             " <= Ceiling({{D2}}",
                                         ); // no condition needed, "" stays ""
                                     filter_string = filter_string.replace("{{D2}}", max.as_str());
-                                // no condition needed, "" stays ""; no CQL injection possible here
-                                } else {
-                                    // both min and max are defined
-                                    let min = wrapped_min.unwrap().to_string();
+                                    // no condition needed, "" stays ""; no CQL injection possible here
+                                }
+                                (Some(min), None) => {
+                                    let min = min.to_string();
+                                    condition_string = condition_string
+                                        .replace("between {{D1}} and {{D2}}", " >= {{D1}}")
+                                        .replace(
+                                            "between Ceiling({{D1}}) and Ceiling({{D2}}",
+                                            " >= Ceiling({{D1}}",
+                                        );
+                                    condition_string =
+                                        condition_string.replace("{{D1}}", min.as_str()); // no CQL injection possible here
+
+                                    filter_string = filter_string
+                                        .replace("between {{D1}} and {{D2}}", " >= {{D1}}")
+                                        .replace(
+                                            "between Ceiling({{D1}}) and Ceiling({{D2}}",
+                                            " >= Ceiling({{D1}}",
+                                        ); // no condition needed, "" stays ""
+                                    filter_string = filter_string.replace("{{D1}}", min.as_str());
+                                    // no condition needed, "" stays ""; no CQL injection possible here
+                                }
+                                (Some(min), Some(max)) => {
+                                    let min = min.to_string();
+                                    let max = max.to_string();
 
                                     condition_string =
                                         condition_string.replace("{{D1}}", min.as_str()); // no CQL injection possible here
@@ -279,9 +279,7 @@ pub fn process(
                                         condition_string.replace("{{D2}}", max.as_str()); // no CQL injection possible here
                                     filter_string = filter_string.replace("{{D1}}", min.as_str()); // no condition needed, "" stays ""; no CQL injection possible here
                                     filter_string = filter_string.replace("{{D2}}", max.as_str());
-                                    // no CQL injection possible here
-
-                                    // no condition needed, "" stays ""
+                                    // no CQL injection possible here; no condition needed, "" stays ""
                                 }
                             }
                         }
@@ -460,6 +458,29 @@ fn escape(value: &str) -> String {
         .replace("\n", "\\n")
 }
 
+fn formated_date_string(date: &str) -> Result<String, FocusError> {
+    let datetime_str = date;
+
+    let datetime_maybe: Result<DateTime<Utc>, _> = datetime_str.parse();
+
+    let datetime_min: DateTime<Utc> = if let Ok(datetime) = datetime_maybe {
+        datetime
+    } else {
+        let naive_date_maybe = NaiveDate::parse_from_str(datetime_str, "%Y-%m-%d"); //FIXME remove once Lens2 behaves, only return the error
+
+        if let Ok(naive_date) = naive_date_maybe {
+            DateTime::<Utc>::from_naive_utc_and_offset(
+                naive_date.and_time(NaiveTime::default()),
+                Utc,
+            )
+        } else {
+            return Err(FocusError::AstInvalidDateFormat(date.to_string()));
+        }
+    };
+
+    Ok(format!("@{}", datetime_min.format("%Y-%m-%d")))
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -491,6 +512,10 @@ mod test {
     const LESS: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"key":"diagnosis_age_donor","operand":"OR","children":[{"key":"diagnosis_age_donor","type":"BETWEEN","value":{"max":60}}]}]}]},"id":"6e914349-6cb1-4f84-b959-813c683f458d"}"#;
 
     const GREATER: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"key":"diagnosis_age_donor","operand":"OR","children":[{"key":"diagnosis_age_donor","type":"BETWEEN","value":{"min":60}}]}]}]},"id":"6e914349-6cb1-4f84-b959-813c683f458d"}"#;
+
+    const AFTER: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"key":"sampling_date","operand":"OR","children":[{"key":"sampling_date","type":"BETWEEN","value":{"min":"2015-01-01"}}]}]}]},"id":"a0be5029-4c69-490e-b017-810308b0187a"}"#;
+
+    const BEFORE: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"key":"sampling_date","operand":"OR","children":[{"key":"sampling_date","type":"BETWEEN","value":{"max":"2015-01-01"}}]}]}]},"id":"a0be5029-4c69-490e-b017-810308b0187a"}"#;
 
     const CURRENT: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"operand":"OR","children":[{"key":"gender","type":"EQUALS","system":"","value":"male"}]},{"operand":"OR","children":[{"key":"diagnosis","type":"EQUALS","system":"http://fhir.de/CodeSystem/dimdi/icd-10-gm","value":"C61"}]},{"operand":"OR","children":[{"key":"donor_age","type":"BETWEEN","system":"","value":{"min":10,"max":90}}]}]},{"operand":"AND","children":[{"operand":"OR","children":[{"key":"sampling_date","type":"BETWEEN","system":"","value":{"min":"1900-01-01","max":"2024-10-25"}}]},{"operand":"OR","children":[{"key":"storage_temperature","type":"EQUALS","system":"","value":"temperature2to10"}]}]}]},"id":"53b4414e-75e4-401b-b794-20a2936e1be5"}"#;
 
@@ -578,6 +603,16 @@ mod test {
         pretty_assertions::assert_eq!(
             generate_cql(serde_json::from_str(GREATER).unwrap(), Project::Bbmri).unwrap(),
             include_str!("../resources/test/result_greater.cql").to_string()
+        );
+
+        pretty_assertions::assert_eq!(
+            generate_cql(serde_json::from_str(AFTER).unwrap(), Project::Bbmri).unwrap(),
+            include_str!("../resources/test/result_after.cql").to_string()
+        );
+
+        pretty_assertions::assert_eq!(
+            generate_cql(serde_json::from_str(BEFORE).unwrap(), Project::Bbmri).unwrap(),
+            include_str!("../resources/test/result_before.cql").to_string()
         );
 
         pretty_assertions::assert_eq!(
