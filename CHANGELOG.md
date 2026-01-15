@@ -1,3 +1,9 @@
+# Samply.Focus v0.20.1 2026-01-15
+
+## Minor changes
+
+* BETWEEN operator supported with only one boundary defined in the date range
+
 # Samply.Focus v0.20.0 2026-01-13
 
 ## Major changes
