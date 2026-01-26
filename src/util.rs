@@ -1,5 +1,5 @@
 use crate::mr;
-use crate::{config::CONFIG, errors::FocusError};
+use crate::errors::FocusError;
 use base64::engine::general_purpose;
 use base64::Engine as _;
 use laplace_rs::{get_from_cache_or_privatize, Bin, ObfCache, ObfuscateBelow10Mode};
