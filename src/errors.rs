@@ -82,8 +82,6 @@ pub enum FocusError {
     BeaconQueryingErrorReqwest(String),
     #[error("Unable to query Beacon: {0}")]
     UnableToQueryBeacon(reqwest::Error),
-
-    
 }
 
 impl FocusError {

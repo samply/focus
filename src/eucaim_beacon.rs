@@ -3,9 +3,9 @@ use reqwest::{
     StatusCode,
 };
 
-use tracing::{debug, error, trace, warn};
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
+use tracing::{debug, error, trace, warn};
 
 use crate::util::get_json_field;
 
@@ -140,7 +140,6 @@ pub fn build_eucaim_beacon_body(ast: ast::Ast) -> Result<String, FocusError> {
 
     Ok(body)
 }
-
 
 pub async fn post_beacon_query(ast: ast::Ast) -> Result<String, FocusError> {
     debug!("Posting Beacon query...");
