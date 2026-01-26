@@ -183,7 +183,7 @@ pub async fn post_beacon_query(ast: ast::Ast) -> Result<String, FocusError> {
         .client
         .post(format!("{}/collections", CONFIG.endpoint_url))
         .headers(headers)
-        .body("")
+        .body(build_eucaim_beacon_body(ast)?)
         .send()
         .await
         .map_err(FocusError::UnableToQueryBeacon)?;
