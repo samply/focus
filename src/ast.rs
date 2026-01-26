@@ -23,9 +23,6 @@ pub enum ConditionType {
     NotEquals,
     In,
     Between,
-    LowerThan,
-    GreaterThan,
-    Contains,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -41,14 +38,14 @@ pub enum ConditionValue {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct NumRange {
-    pub min: f64,
-    pub max: f64,
+    pub min: Option<f64>,
+    pub max: Option<f64>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DateRange {
-    pub min: String, // we don't parse dates yet
-    pub max: String,
+    pub min: Option<String>, // we don't parse dates yet
+    pub max: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
