@@ -54,7 +54,22 @@ pub static CRITERION: Lazy<HashMap<&str, &str>> = Lazy::new(|| {
 });
 
 pub fn build_eucaim_beacon_body(ast: ast::Ast) -> Result<String, FocusError> {
-    let mut body: String = String::default();
+    let mut body = String::from(r#"{
+    "meta": {
+        "apiVersion": "2.0"
+    },
+    "query":{ 
+        "filters": ["#);
+    let after_filter: String = String::from(r#"],
+        "includeResultsetResponses": "HIT",
+        "pagination": {
+            "skip": 0,
+            "limit": 10
+        },
+        "testMode": false,
+        "requestedGranularity": "record"
+    }
+}"#);
 
     let mut parameters: Vec<String> = Vec::new();
 
@@ -103,7 +118,8 @@ pub fn build_eucaim_beacon_body(ast: ast::Ast) -> Result<String, FocusError> {
                                                         CRITERION.get(&(value).as_str());
                                                     if let Some(crit) = criterion {
                                                         parameters
-                                                            .push(cat.0.to_string() + "=" + crit);
+                                                            //.push(cat.0.to_string() + "=" + crit);
+                                                            .push(format!(r#"{{"id":"{}", "scope":"{}" }}"#, crit, cat.1.to_string()));
                                                     }
                                                 }
                                                 _ => {
@@ -134,7 +150,8 @@ pub fn build_eucaim_beacon_body(ast: ast::Ast) -> Result<String, FocusError> {
         }
     }
 
-    body += parameters.join("&").as_str();
+    body += parameters.join(",").as_str();
+    body += &after_filter;
 
     trace!("body: {}", &body);
 
