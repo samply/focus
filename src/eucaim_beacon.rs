@@ -20,7 +20,7 @@ pub static CATEGORY: Lazy<HashMap<&str, (&str, &str)>> = Lazy::new(|| {
     map.insert("RID10311", ("imageModality", "patients")); // I would think the scope is imageStudies for this one and the two down
     map.insert("SNOMEDCT123037004", ("imageBodyPart", "patients")); // But in the example Beacon people gave me it is patients
     map.insert("C25392", ("imageManufacturer", "patients")); // Always patients
-    // also the criterion name is absent in the example, which is not much of a problem because EUCAIM codes are unique
+                                                             // also the criterion name is absent in the example, which is not much of a problem because EUCAIM codes are unique
 
     map
 });
@@ -252,21 +252,14 @@ const FIRST_BODY: &str = r#"{"meta": {
     }
 }"#;
 
+#[test]
+fn test_build_body_empty() {
+    let body = build_eucaim_beacon_body(serde_json::from_str(EMPTY).unwrap()).unwrap();
+    pretty_assertions::assert_eq!(body, EMPTY_BODY);
+}
 
-   #[test]
-    fn test_build_body_empty() {
-        let body = build_eucaim_beacon_body(
-            serde_json::from_str(EMPTY).unwrap(),
-        )
-        .unwrap();
-        pretty_assertions::assert_eq!(body, EMPTY_BODY);
-    }
-
-    #[test]
-    fn test_build_body_first() {
-        let body = build_eucaim_beacon_body(
-            serde_json::from_str(FIRST).unwrap(),
-        )
-        .unwrap();
-        pretty_assertions::assert_eq!(body, FIRST_BODY);
-    }
+#[test]
+fn test_build_body_first() {
+    let body = build_eucaim_beacon_body(serde_json::from_str(FIRST).unwrap()).unwrap();
+    pretty_assertions::assert_eq!(body, FIRST_BODY);
+}
