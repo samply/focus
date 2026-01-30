@@ -17,9 +17,10 @@ pub static CATEGORY: Lazy<HashMap<&str, (&str, &str)>> = Lazy::new(|| {
     let mut map: HashMap<&'static str, (&'static str, &'static str)> = HashMap::new();
     map.insert("SNOMEDCT263495000", ("sex", "patients"));
     map.insert("SNOMEDCT439401001", ("diagnosis", "patients"));
-    map.insert("RID10311", ("imageModality", "imageStudies"));
-    map.insert("SNOMEDCT123037004", ("imageBodyPart", "imageStudies"));
-    map.insert("C25392", ("imageManufacturer", "imageStudies"));
+    map.insert("RID10311", ("imageModality", "patients")); // I would think the scope is imageStudies for this one and the two down
+    map.insert("SNOMEDCT123037004", ("imageBodyPart", "patients")); // But in the example Beacon people gave me it is patients
+    map.insert("C25392", ("imageManufacturer", "patients")); // Always patients
+    // also the criterion name is absent in the example, which is not much of a problem because EUCAIM codes are unique
 
     map
 });
@@ -32,31 +33,30 @@ pub static CRITERION: Lazy<HashMap<&str, &str>> = Lazy::new(|| {
     map.insert("SNOMEDCT261665006", "EUCAIM:COM1002760"); //sex unknown
     map.insert("SNOMEDCT363406005", "EUCAIM:CLIN1000057"); // colon cancer
     map.insert("SNOMEDCT254837009", "EUCAIM:CLIN1000060"); // breast cancer
-    map.insert("SNOMEDCT363358000", "SNOMEDCT363358000"); // lung cancer
-    map.insert("SNOMEDCT363484005", "SNOMEDCT363484005"); // pelvis cancer
+    map.insert("SNOMEDCT363358000", "EUCAIM:CLIN1000065"); // lung cancer
+    map.insert("SNOMEDCT363484005", "EUCAIM:CLIN1000087"); // pelvis cancer
     map.insert("SNOMEDCT399068003", "EUCAIM:CLIN1000075"); // prostate cancer
-    map.insert("RID10312", "MR");
-    map.insert("RID10337", "PET");
-    map.insert("RID10334", "SPECT");
-    map.insert("RID10321", "EUCAIM:CLIN1000185");
-    map.insert("SNOMEDCT76752008", "breast");
-    map.insert("SNOMEDCT71854001", "colon");
-    map.insert("SNOMEDCT39607008", "lung");
-    map.insert("SNOMEDCT12921003", "pelvis");
-    map.insert("SNOMEDCT41216001", "prostate");
-    map.insert("C200140", "Siemens");
-    map.insert("birnlex_3066", "Siemens");
-    map.insert("birnlex_12833", "General%20Electric");
-    map.insert("birnlex_3065", "Philips");
-    map.insert("birnlex_3067", "Toshiba");
+    map.insert("RID10312", "EUCAIM:IMG1000038"); //MR
+    map.insert("RID10337", "EUCAIM:IMG1000062"); //PET
+    map.insert("RID10334", "EUCAIM:IMG1000061"); //SPECT
+    map.insert("RID10321", "EUCAIM:CLIN1000185"); //CT
+    map.insert("SNOMEDCT76752008", "EUCAIM:BP1000136"); //breast
+    map.insert("SNOMEDCT71854001", "EUCAIM:BP1000257"); //colon
+    map.insert("SNOMEDCT39607008", "EUCAIM:BP1000113"); //lung
+    map.insert("SNOMEDCT12921003", "EUCAIM:BP1000092"); //pelvis
+    map.insert("SNOMEDCT41216001", "EUCAIM:BP1000021"); //prostate
+    map.insert("C200140", "EUCAIM:IMG1000044"); //Siemens
+    map.insert("birnlex_3066", "EUCAIM:IMG1000044"); //Siemens
+    map.insert("birnlex_12833", "EUCAIM:IMG1000047"); //General Electric
+    map.insert("birnlex_3065", "EUCAIM:IMG1000046"); //Philips
+    map.insert("birnlex_3067", "EUCAIM:IMG1000045"); //Toshiba
 
     map
 });
 
 pub fn build_eucaim_beacon_body(ast: ast::Ast) -> Result<String, FocusError> {
     let mut body = String::from(
-        r#"{
-    "meta": {
+        r#"{"meta": {
         "apiVersion": "2.0"
     },
     "query":{ 
@@ -216,3 +216,57 @@ pub async fn post_beacon_query(ast: ast::Ast) -> Result<String, FocusError> {
 
     Ok(serde_json::to_string(&response)?)
 }
+
+const FIRST: &str = r#"{"ast":{"children":[{"children":[{"children":[{"key":"SNOMEDCT263495000","system":"","type":"EQUALS","value":"SNOMEDCT248153007"}],"operand":"OR"},{"children":[{"key":"SNOMEDCT439401001","system":"urn:snomed-org/sct","type":"EQUALS","value":"SNOMEDCT399068003"}],"operand":"OR"},{"children":[{"key":"RID10311","system":"urn:oid:2.16.840.1.113883.6.256","type":"EQUALS","value":"RID10312"}],"operand":"OR"},{"children":[{"key":"SNOMEDCT123037004","system":"urn:snomed-org/sct","type":"EQUALS","value":"SNOMEDCT76752008"}],"operand":"OR"},{"children":[{"key":"C25392","system":"http://bioontology.org/projects/ontologies/birnlex","type":"EQUALS","value":"birnlex_3065"}],"operand":"OR"}],"operand":"AND"}],"operand":"OR"},"id":"66b8bbf4-ded2-4f94-87ab-3a3ca2f4edc0__search__66b8bbf4-ded2-4f94-87ab-3a3ca2f4edc0"}"#;
+
+const TOO_MUCH: &str = r#"{"ast":{"children":[{"children":[{"children":[{"key":"SNOMEDCT263495000","system":"","type":"EQUALS","value":"SNOMEDCT248153007"},{"key":"SNOMEDCT263495000","system":"","type":"EQUALS","value":"SNOMEDCT248152002"}],"operand":"OR"},{"children":[{"key":"SNOMEDCT439401001","system":"urn:snomed-org/sct","type":"EQUALS","value":"SNOMEDCT399068003"},{"key":"SNOMEDCT439401001","system":"urn:snomed-org/sct","type":"EQUALS","value":"SNOMEDCT254837009"}],"operand":"OR"},{"children":[{"key":"RID10311","system":"urn:oid:2.16.840.1.113883.6.256","type":"EQUALS","value":"RID10312"},{"key":"RID10311","system":"urn:oid:2.16.840.1.113883.6.256","type":"EQUALS","value":"RID10337"}],"operand":"OR"},{"children":[{"key":"SNOMEDCT123037004","system":"urn:snomed-org/sct","type":"EQUALS","value":"SNOMEDCT76752008"},{"key":"SNOMEDCT123037004","system":"urn:snomed-org/sct","type":"EQUALS","value":"SNOMEDCT41216001"}],"operand":"OR"},{"children":[{"key":"C25392","system":"http://bioontology.org/projects/ontologies/birnlex","type":"EQUALS","value":"birnlex_3065"},{"key":"C25392","system":"http://bioontology.org/projects/ontologies/birnlex","type":"EQUALS","value":"birnlex_3067"}],"operand":"OR"}],"operand":"AND"}],"operand":"OR"},"id":"c57e075c-19de-4c5a-ba9c-b8f697a98dfc__search__c57e075c-19de-4c5a-ba9c-b8f697a98dfc"}"#;
+
+const EMPTY: &str = r#"{"ast":{"children":[],"operand":"OR"},"id":"ef8bae78-522c-498c-b7db-3f96f279a1a0__search__ef8bae78-522c-498c-b7db-3f96f279a1a0"}"#;
+const EMPTY_BODY: &str = r#"{"meta": {
+        "apiVersion": "2.0"
+    },
+    "query":{ 
+        "filters": [],
+        "includeResultsetResponses": "HIT",
+        "pagination": {
+            "skip": 0,
+            "limit": 10
+        },
+        "testMode": false,
+        "requestedGranularity": "record"
+    }
+}"#;
+
+const FIRST_BODY: &str = r#"{"meta": {
+        "apiVersion": "2.0"
+    },
+    "query":{ 
+        "filters": [{"id":"EUCAIM:COM1001366", "scope":"patients" },{"id":"EUCAIM:CLIN1000075", "scope":"patients" },{"id":"EUCAIM:IMG1000038", "scope":"patients" },{"id":"EUCAIM:BP1000136", "scope":"patients" },{"id":"EUCAIM:IMG1000046", "scope":"patients" }],
+        "includeResultsetResponses": "HIT",
+        "pagination": {
+            "skip": 0,
+            "limit": 10
+        },
+        "testMode": false,
+        "requestedGranularity": "record"
+    }
+}"#;
+
+
+   #[test]
+    fn test_build_body_empty() {
+        let body = build_eucaim_beacon_body(
+            serde_json::from_str(EMPTY).unwrap(),
+        )
+        .unwrap();
+        pretty_assertions::assert_eq!(body, EMPTY_BODY);
+    }
+
+    #[test]
+    fn test_build_body_first() {
+        let body = build_eucaim_beacon_body(
+            serde_json::from_str(FIRST).unwrap(),
+        )
+        .unwrap();
+        pretty_assertions::assert_eq!(body, FIRST_BODY);
+    }
