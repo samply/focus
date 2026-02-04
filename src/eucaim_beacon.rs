@@ -270,7 +270,7 @@ mod test {
     }
 
     #[test]
-    fn test_build_sql_too_much() {
+    fn test_build_beacon_too_much() {
         assert!(build_eucaim_beacon_body(serde_json::from_str(TOO_MUCH).unwrap(),).is_err());
     }
 }
