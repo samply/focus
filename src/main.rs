@@ -137,7 +137,7 @@ pub enum QueryResultCacheOutcome<'a> {
     DontCache,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 struct EucaimResponse {
     collections: Vec<Collection>,
     total: TotalCount,
@@ -145,7 +145,7 @@ struct EucaimResponse {
     provider_icon: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 struct Collection {
     age_range: AgeRange,
     body_parts: Vec<String>,
@@ -158,13 +158,13 @@ struct Collection {
     subjects_count: i32,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 struct AgeRange {
     min: u8,
     max: u8,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 struct TotalCount {
     studies_count: i32,
     subjects_count: i32,
