@@ -137,15 +137,19 @@ pub enum QueryResultCacheOutcome<'a> {
     DontCache,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
 struct EucaimResponse {
     collections: Vec<Collection>,
-    total: TotalCount,
+    #[serde(default)]
+    total: TotalCount, // not used by FE, should be removed from the API
+    #[serde(default)]
     provider: String,
+    #[serde(default)]
     provider_icon: String,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
+#[serde(rename_all(deserialize = "camelCase"))]
 struct Collection {
     age_range: AgeRange,
     body_parts: Vec<String>,
@@ -158,13 +162,15 @@ struct Collection {
     subjects_count: i32,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
 struct AgeRange {
-    min: u8,
-    max: u8,
+    #[serde(default)]
+    min: f32,
+    #[serde(default)]
+    max: f32,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
 struct TotalCount {
     studies_count: i32,
     subjects_count: i32,
@@ -417,7 +423,19 @@ async fn process_task(
                 ))
             }
         }
-        EndpointType::Omop | EndpointType::EucaimBeacon => {
+        EndpointType::Omop => {
+            let decoded = util::base64_decode(&task.body)?;
+            let intermediate_rep_query: intermediate_rep::IntermediateRepQuery =
+                serde_json::from_slice(&decoded)?;
+            //TODO check that the language is ast
+            let query_decoded = general_purpose::STANDARD
+                .decode(intermediate_rep_query.query)
+                .map_err(FocusError::DecodeError)?;
+            let ast: ast::Ast = serde_json::from_slice(&query_decoded)?;
+
+            Ok(run_intermediate_rep_query(task, ast).await?)
+        }
+        EndpointType::EucaimBeacon => {
             let decoded = util::base64_decode(&task.body)?;
             let intermediate_rep_query: intermediate_rep::IntermediateRepQuery =
                 serde_json::from_slice(&decoded)?;
@@ -525,7 +543,7 @@ async fn run_eucaim_sql_query(
         trace!("{:?}", &rows);
         for row in rows {
             let collection: Collection = Collection {
-                age_range: AgeRange { min: 0, max: 0 },
+                age_range: AgeRange { min: 0., max: 0. },
                 body_parts: Vec::new(),
                 description: row.get("description"),
                 gender: Vec::new(),
@@ -761,22 +779,18 @@ async fn run_eucaim_beacon_query(task: &BeamTask, ast: ast::Ast) -> Result<BeamR
     );
 
     let mut eucaim_beacon_result = eucaim_beacon::post_beacon_query(ast).await?;
+    let mut response: EucaimResponse = serde_json::from_str(&eucaim_beacon_result)?;
+
+    response.provider = CONFIG.provider.clone().unwrap_or_default();
 
     let provider_icon = CONFIG
         .provider_icon
         .clone()
         .unwrap_or(include_str!("../resources/default_provider_icon").to_string());
 
-    eucaim_beacon_result = eucaim_beacon_result.replacen(
-        '{',
-        format!(r#"{{"provider_icon":"{}","#, provider_icon).as_str(),
-        1,
-    );
+    response.provider_icon = provider_icon;
 
-    let provider = CONFIG.provider.clone().unwrap_or_default();
-
-    eucaim_beacon_result =
-        eucaim_beacon_result.replacen('{', format!(r#"{{"provider":"{}","#, provider).as_str(), 1);
+    let eucaim_beacon_result = serde_json::to_string(&response)?;
 
     let result = beam_result(task.to_owned(), eucaim_beacon_result).unwrap_or_else(|e| {
         err.body = beam_lib::RawString(e.to_string());
@@ -897,6 +911,35 @@ mod test {
 
     const METADATA_STRING: &str = r#"{"project": "exliquid"}"#;
     const METADATA_STRING_EXPORTER: &str = r#"{"project": "exporter", "task_type": "EXECUTE"}"#;
+    const BEACON_RESPONSE: &str = r#"{
+    "collections": [
+      {
+        "name": "EUCAIM Breast Cancer DEMO",
+        "id": "DemoDatasetBreast",
+        "description": "Dataset with synthetic metadata for breast cancer",
+        "ageRange": {
+          "min": 19.1,
+          "max": 94.7
+        },
+        "modalities": [
+          "CT"
+        ],
+        "bodyParts": [
+          "Chest",
+          "Breast"
+        ],
+        "gender": [
+          "Female",
+          "Unspecified"
+        ],
+        "subjectsCount": 100,
+        "studiesCount": 1,
+        "datasetId": "DemoDatasetBreast"
+      }
+    ]
+  }
+"#;
+    const EUCAIM_RESPONSE: &str = r#"{"collections":[{"age_range":{"min":19.1,"max":94.7},"body_parts":["Chest","Breast"],"description":"Dataset with synthetic metadata for breast cancer","gender":["Female","Unspecified"],"id":"DemoDatasetBreast","modalities":["CT"],"name":"EUCAIM Breast Cancer DEMO","studies_count":1,"subjects_count":100}],"total":{"studies_count":0,"subjects_count":0},"provider":"","provider_icon":""}"#;
 
     #[test]
     fn test_metadata_deserialization_default() {
@@ -914,5 +957,13 @@ mod test {
         let metadata: Metadata = serde_json::from_str(METADATA_STRING_EXPORTER).unwrap();
 
         assert_eq!(metadata.task_type, Some(exporter::TaskType::Execute));
+    }
+
+    #[test]
+    fn test_eucaim_beacon_data_deserialization_serialization() {
+        let response: EucaimResponse = serde_json::from_str(BEACON_RESPONSE).unwrap();
+        let response_string = serde_json::to_string(&response).unwrap();
+
+        assert_eq!(response_string, EUCAIM_RESPONSE);
     }
 }
