@@ -54,28 +54,23 @@ pub static CRITERION: Lazy<HashMap<&str, &str>> = Lazy::new(|| {
     map
 });
 
-pub fn build_eucaim_beacon_body(ast: ast::Ast) -> Result<String, FocusError> {
-    let mut body = String::from(
-        r#"{"meta": {
-        "apiVersion": "2.0"
-    },
-    "query":{ 
-        "filters": ["#,
-    );
-    let after_filter: String = String::from(
-        r#"],
-        "includeResultsetResponses": "HIT",
-        "pagination": {
-            "skip": 0,
-            "limit": 10
+pub fn build_eucaim_beacon_body(ast: ast::Ast) -> Result<serde_json::Value, FocusError> {
+    let mut body = serde_json::json!({
+        "meta": {
+            "apiVersion": "2.0",
         },
-        "testMode": false,
-        "requestedGranularity": "record"
-    }
-}"#,
-    );
-
-    let mut parameters: Vec<String> = Vec::new();
+        "query": {
+            "includeResultsetResponses": "HIT",
+            "pagination": {
+                "skip": 0,
+                "limit": 10
+            },
+            "filters": [],
+            "testMode": false,
+            "requestedGranularity": "record"
+        }
+    });
+    let filters = body["query"]["filters"].as_array_mut().unwrap();
 
     let children = ast.ast.children;
 
@@ -85,83 +80,60 @@ pub fn build_eucaim_beacon_body(ast: ast::Ast) -> Result<String, FocusError> {
     }
 
     for child in children {
-        // will be either 0 or 1
-        match child {
-            ast::Child::Operation(operation) => {
-                if operation.operand == ast::Operand::Or {
-                    error!("OR found as first level operator");
-                    return Err(FocusError::EucaimQueryGenerationError);
-                }
-                for grandchild in operation.children {
-                    match grandchild {
-                        ast::Child::Operation(operation) => {
-                            if operation.operand == ast::Operand::And {
-                                error!("AND found as second level operator");
-                                return Err(FocusError::EucaimQueryGenerationError);
-                            }
-                            let greatgrandchildren = operation.children;
-                            if greatgrandchildren.len() > 1 {
-                                error!("Too many children! OR operator between criteria of the same type not supported.");
-                                return Err(FocusError::EucaimQueryGenerationError);
-                            }
-
-                            for greatgrandchild in greatgrandchildren {
-                                match greatgrandchild {
-                                    ast::Child::Operation(_) => {
-                                        error!(
-                                            "Search tree has too many levels. Query not supported"
-                                        );
-                                        return Err(FocusError::EucaimQueryGenerationError);
-                                    }
-                                    ast::Child::Condition(condition) => {
-                                        let category = CATEGORY.get(&(condition.key).as_str());
-                                        if let Some(cat) = category {
-                                            match condition.value {
-                                                ast::ConditionValue::String(value) => {
-                                                    let criterion =
-                                                        CRITERION.get(&(value).as_str());
-                                                    if let Some(crit) = criterion {
-                                                        parameters
-                                                            //.push(cat.0.to_string() + "=" + crit);
-                                                            .push(format!(
-                                                                r#"{{"id":"{}", "scope":"{}" }}"#,
-                                                                crit,
-                                                                cat.1.to_string()
-                                                            ));
-                                                    }
-                                                }
-                                                _ => {
-                                                    error!("The only supported condition value type is string");
-                                                    return Err(
-                                                        FocusError::EucaimQueryGenerationError,
-                                                    );
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        ast::Child::Condition(_) => {
-                            // must be operation
-                            error!("Condition found as second level child");
-                            return Err(FocusError::EucaimQueryGenerationError);
-                        }
-                    }
-                }
-            }
+        let operation = match child {
+            ast::Child::Operation(operation) => operation,
             ast::Child::Condition(_) => {
-                // must be operation
                 error!("Condition found as first level child");
                 return Err(FocusError::EucaimQueryGenerationError);
             }
+        };
+        if operation.operand == ast::Operand::Or {
+            error!("OR found as first level operator");
+            return Err(FocusError::EucaimQueryGenerationError);
+        }
+        for grandchild in operation.children {
+            let operation = match grandchild {
+                ast::Child::Operation(operation) => operation,
+                ast::Child::Condition(_) => {
+                    error!("Condition found as second level child");
+                    return Err(FocusError::EucaimQueryGenerationError);
+                }
+            };
+            if operation.operand == ast::Operand::And {
+                error!("AND found as second level operator");
+                return Err(FocusError::EucaimQueryGenerationError);
+            }
+            let [grandgrandchildren] = operation.children.as_slice() else {
+                error!("Too many children! OR operator between criteria of the same type not supported.");
+                return Err(FocusError::EucaimQueryGenerationError);
+            };
+            let condition = match grandgrandchildren {
+                ast::Child::Condition(condition) => condition,
+                ast::Child::Operation(_op) => {
+                    error!("Search tree has too many levels. Query not supported");
+                    return Err(FocusError::EucaimQueryGenerationError);
+                }
+            };
+            let Some((_crit_name, scope)) = CATEGORY.get(condition.key.as_str()) else {
+                error!("The only supported condition value type is string");
+                return Err(FocusError::EucaimQueryGenerationError);
+            };
+            let ast::ConditionValue::String(value) = &condition.value else {
+                error!("The only supported condition value type is string");
+                return Err(FocusError::EucaimQueryGenerationError);
+            };
+            let Some(crit_id) = CRITERION.get(value.as_str()) else {
+                error!("Unknown criterion {value}. Skipping");
+                continue;
+            };
+            filters.push(serde_json::json!({
+                "id": crit_id,
+                "scope": scope,
+            }));
         }
     }
 
-    body += parameters.join(",").as_str();
-    body += &after_filter;
-
-    trace!("body: {}", &body);
+    trace!("body: {:#?}", &body);
 
     Ok(body)
 }
@@ -173,11 +145,6 @@ pub async fn post_beacon_query(ast: ast::Ast) -> Result<String, FocusError> {
         .map_err(|e| FocusError::SerializationError(e.to_string()))?;
 
     let mut headers = HeaderMap::new();
-
-    headers.insert(
-        header::CONTENT_TYPE,
-        HeaderValue::from_static("application/json"),
-    );
 
     if let Some(auth_header_value) = CONFIG.auth_header.clone() {
         headers.insert(
@@ -191,7 +158,7 @@ pub async fn post_beacon_query(ast: ast::Ast) -> Result<String, FocusError> {
         .client
         .post(format!("{}/collections", CONFIG.endpoint_url))
         .headers(headers)
-        .body(build_eucaim_beacon_body(ast)?)
+        .json(&build_eucaim_beacon_body(ast)?)
         .send()
         .await
         .map_err(FocusError::UnableToQueryBeacon)?;
@@ -230,7 +197,7 @@ mod test {
     const EMPTY_BODY: &str = r#"{"meta": {
         "apiVersion": "2.0"
     },
-    "query":{ 
+    "query":{
         "filters": [],
         "includeResultsetResponses": "HIT",
         "pagination": {
@@ -245,7 +212,7 @@ mod test {
     const FIRST_BODY: &str = r#"{"meta": {
         "apiVersion": "2.0"
     },
-    "query":{ 
+    "query":{
         "filters": [{"id":"EUCAIM:COM1001366", "scope":"patients" },{"id":"EUCAIM:CLIN1000075", "scope":"patients" },{"id":"EUCAIM:IMG1000038", "scope":"patients" },{"id":"EUCAIM:BP1000136", "scope":"patients" },{"id":"EUCAIM:IMG1000046", "scope":"patients" }],
         "includeResultsetResponses": "HIT",
         "pagination": {
@@ -260,17 +227,23 @@ mod test {
     #[test]
     fn test_build_body_empty() {
         let body = build_eucaim_beacon_body(serde_json::from_str(EMPTY).unwrap()).unwrap();
-        pretty_assertions::assert_eq!(body, EMPTY_BODY);
+        pretty_assertions::assert_eq!(
+            body,
+            serde_json::from_str::<serde_json::Value>(EMPTY_BODY).unwrap()
+        );
     }
 
     #[test]
     fn test_build_body_first() {
         let body = build_eucaim_beacon_body(serde_json::from_str(FIRST).unwrap()).unwrap();
-        pretty_assertions::assert_eq!(body, FIRST_BODY);
+        pretty_assertions::assert_eq!(
+            body,
+            serde_json::from_str::<serde_json::Value>(FIRST_BODY).unwrap()
+        );
     }
 
     #[test]
     fn test_build_beacon_too_much() {
-        assert!(build_eucaim_beacon_body(serde_json::from_str(TOO_MUCH).unwrap(),).is_err());
+        assert!(build_eucaim_beacon_body(serde_json::from_str(TOO_MUCH).unwrap()).is_err());
     }
 }
