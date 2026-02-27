@@ -5,7 +5,7 @@ use indexmap::IndexSet;
 use super::CriterionRole;
 
 // CodeSystem URIs for MIABIS-on-FHIR 1.0.0
-// Hosted at https://fhir.bbmri-eric.eu (Czech BBMRI-cz IG)
+// IG hosted at https://fhir.miabis.bbmri-eric.eu/; canonical resource profile URLs use https://fhir.bbmri-eric.eu
 
 pub static CODE_LISTS: LazyLock<HashMap<&'static str, &'static str>> = LazyLock::new(|| {
     HashMap::from([
