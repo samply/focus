@@ -9,6 +9,7 @@ mod cce;
 mod dhki;
 mod dktk;
 mod itcc;
+mod miabis;
 mod nngm;
 mod pscc;
 
@@ -25,6 +26,7 @@ pub enum Project {
     Dhki,
     Nngm,
     Itcc,
+    MiabisOnFhir,
     Pscc,
 }
 
@@ -39,6 +41,7 @@ impl FromStr for Project {
             "nngm" => Ok(Project::Nngm),
             "dhki" => Ok(Project::Dhki),
             "itcc" => Ok(Project::Itcc),
+            "miabis" => Ok(Project::MiabisOnFhir),
             "pscc" => Ok(Project::Pscc),
             _ => Err(FocusError::UnknownProject(s.to_string())),
         }
@@ -54,6 +57,7 @@ impl Project {
             Project::Dhki => &dhki::CODE_LISTS,
             Project::Nngm => &nngm::CODE_LISTS,
             Project::Itcc => &itcc::CODE_LISTS,
+            Project::MiabisOnFhir => &miabis::CODE_LISTS,
             Project::Pscc => &pscc::CODE_LISTS,
         }
     }
@@ -66,6 +70,7 @@ impl Project {
             Project::Dhki => &dhki::OBSERVATION_LOINC_CODES,
             Project::Nngm => &nngm::OBSERVATION_LOINC_CODES,
             Project::Itcc => &itcc::OBSERVATION_LOINC_CODES,
+            Project::MiabisOnFhir => &miabis::OBSERVATION_LOINC_CODES,
             Project::Pscc => &pscc::OBSERVATION_LOINC_CODES,
         }
     }
@@ -78,6 +83,7 @@ impl Project {
             Project::Dhki => &dhki::SAMPLE_TYPE_WORKAROUNDS,
             Project::Nngm => &nngm::SAMPLE_TYPE_WORKAROUNDS,
             Project::Itcc => &itcc::SAMPLE_TYPE_WORKAROUNDS,
+            Project::MiabisOnFhir => &miabis::SAMPLE_TYPE_WORKAROUNDS,
             Project::Pscc => &pscc::SAMPLE_TYPE_WORKAROUNDS,
         }
     }
@@ -90,6 +96,7 @@ impl Project {
             Project::Dhki => &dhki::CRITERION_CODE_LISTS,
             Project::Nngm => &nngm::CRITERION_CODE_LISTS,
             Project::Itcc => &itcc::CRITERION_CODE_LISTS,
+            Project::MiabisOnFhir => &miabis::CRITERION_CODE_LISTS,
             Project::Pscc => &pscc::CRITERION_CODE_LISTS,
         }
     }
@@ -104,6 +111,7 @@ impl Project {
             Project::Dhki => &dhki::CQL_SNIPPETS,
             Project::Nngm => &nngm::CQL_SNIPPETS,
             Project::Itcc => &itcc::CQL_SNIPPETS,
+            Project::MiabisOnFhir => &miabis::CQL_SNIPPETS,
             Project::Pscc => &pscc::CQL_SNIPPETS,
         }
     }
@@ -117,6 +125,7 @@ impl Project {
             Project::Nngm => &nngm::MANDATORY_CODE_LISTS,
             Project::Pscc => &pscc::MANDATORY_CODE_LISTS,
             Project::Itcc => &itcc::MANDATORY_CODE_LISTS,
+            Project::MiabisOnFhir => &miabis::MANDATORY_CODE_LISTS,
         }
     }
 
@@ -128,6 +137,7 @@ impl Project {
             Project::Dhki => include_str!("dhki/template.cql"),
             Project::Nngm => include_str!("nngm/template.cql"),
             Project::Itcc => include_str!("itcc/template.cql"),
+            Project::MiabisOnFhir => include_str!("miabis/template.cql"),
             Project::Pscc => include_str!("pscc/template.cql"),
         }
     }
@@ -140,6 +150,7 @@ impl Project {
             Project::Dhki => include_str!("dhki/body.json"),
             Project::Nngm => include_str!("nngm/body.json"),
             Project::Itcc => include_str!("itcc/body.json"),
+            Project::MiabisOnFhir => include_str!("miabis/body.json"),
             Project::Pscc => include_str!("pscc/body.json"),
         }
     }
