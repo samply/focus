@@ -724,4 +724,100 @@ mod test {
     //     // pretty_assertions::assert_eq!(generated_cql.contains(expected), true);
     //     pretty_assertions::assert_eq!(false, true);
     // }
+
+    // ── MIABIS-on-FHIR 1.0.0 tests ───────────────────────────────────────────
+
+    const MIABIS_FEMALE: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"operand":"OR","children":[{"key":"gender","type":"EQUALS","system":"","value":"female"}]}]}]},"id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
+
+    const MIABIS_DIAGNOSIS_C34: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"operand":"OR","children":[{"key":"diagnosis","type":"EQUALS","system":"http://hl7.org/fhir/sid/icd-10","value":"C34"}]}]}]},"id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
+
+    const MIABIS_SAMPLE_KIND_FFPE: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"operand":"OR","children":[{"key":"sample_kind","type":"EQUALS","system":"","value":"tissue-ffpe"}]}]}]},"id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
+
+    const MIABIS_STORAGE_TEMP_LN: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"operand":"OR","children":[{"key":"storage_temperature","type":"EQUALS","system":"","value":"LN"}]}]}]},"id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
+
+    #[test]
+    fn test_miabis_empty() {
+        // An empty query must always declare both mandatory code systems so that
+        // SampleType() and DiagnosisCode() in the template can reference them.
+        let cql = generate_cql(serde_json::from_str(EMPTY).unwrap(), Project::MiabisOnFhir)
+            .unwrap();
+        assert!(
+            cql.contains("codesystem icd10: 'http://hl7.org/fhir/sid/icd-10'"),
+            "icd10 codesystem declaration missing"
+        );
+        assert!(
+            cql.contains("codesystem MiabisDetailedSampleType: 'https://fhir.bbmri-eric.eu/CodeSystem/miabis-detailed-samply-type-cs'"),
+            "MiabisDetailedSampleType codesystem declaration missing"
+        );
+        assert!(
+            cql.contains("define InInitialPopulation:\ntrue"),
+            "empty query should match all patients"
+        );
+    }
+
+    #[test]
+    fn test_miabis_gender() {
+        let cql = generate_cql(serde_json::from_str(MIABIS_FEMALE).unwrap(), Project::MiabisOnFhir)
+            .unwrap();
+        assert!(cql.contains("Patient.gender = 'female'"), "gender snippet missing");
+    }
+
+    #[test]
+    fn test_miabis_diagnosis() {
+        // MIABIS-on-FHIR 1.0.0 uses ICD-10 only — not the German GM variants.
+        let cql = generate_cql(
+            serde_json::from_str(MIABIS_DIAGNOSIS_C34).unwrap(),
+            Project::MiabisOnFhir,
+        )
+        .unwrap();
+        assert!(
+            cql.contains("exists[Condition: Code 'C34' from icd10]"),
+            "diagnosis snippet missing"
+        );
+        assert!(
+            !cql.contains("icd10gm"),
+            "ICD-10-GM must not appear in MIABIS CQL"
+        );
+    }
+
+    #[test]
+    fn test_miabis_sample_kind() {
+        // tissue-ffpe maps to the canonical code AND the MIABIS workaround code TissueFixed.
+        let cql = generate_cql(
+            serde_json::from_str(MIABIS_SAMPLE_KIND_FFPE).unwrap(),
+            Project::MiabisOnFhir,
+        )
+        .unwrap();
+        assert!(
+            cql.contains("exists [Specimen: Code 'tissue-ffpe' from MiabisDetailedSampleType]"),
+            "canonical tissue-ffpe query missing"
+        );
+        assert!(
+            cql.contains("exists [Specimen: Code 'TissueFixed' from MiabisDetailedSampleType]"),
+            "TissueFixed workaround missing"
+        );
+    }
+
+    #[test]
+    fn test_miabis_storage_temperature() {
+        // Storage temperature is in Specimen.processing[].extension — the most
+        // MIABIS-specific path in the implementation.
+        let cql = generate_cql(
+            serde_json::from_str(MIABIS_STORAGE_TEMP_LN).unwrap(),
+            Project::MiabisOnFhir,
+        )
+        .unwrap();
+        assert!(
+            cql.contains("'https://fhir.bbmri-eric.eu/StructureDefinition/miabis-sample-storage-temperature-extension'"),
+            "storage temperature extension URL missing"
+        );
+        assert!(
+            cql.contains(".coding.code contains 'LN'"),
+            "storage temperature value match missing"
+        );
+        assert!(
+            cql.contains("S.processing"),
+            "must query Specimen.processing[], not Specimen.extension"
+        );
+    }
 }
