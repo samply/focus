@@ -49,9 +49,11 @@ define function SampleType(specimen FHIR.Specimen):
 // Specimen.processing[].extension, not in Specimen.extension directly.
 // Nested 'from P.extension' avoids the Blaze "name cannot be null" error
 // that occurs when using flatten(processing.extension) + where E.url.
-define StorageTemperature:
+// Defined as a function (not a define) so Blaze evaluates it per-specimen
+// in the specimen stratifier, consistent with SampleType().
+define function StorageTemperature(specimen FHIR.Specimen):
     First(
-        from Specimen.processing P
+        from specimen.processing P
         return First(
             from P.extension E
             where E.url = 'https://fhir.bbmri-eric.eu/StructureDefinition/miabis-sample-storage-temperature-extension'

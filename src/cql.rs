@@ -815,9 +815,17 @@ mod test {
             cql.contains(".coding.code contains 'LN'"),
             "storage temperature value match missing"
         );
+        // S.processing appears in the InInitialPopulation query snippet;
+        // specimen.processing appears in the StorageTemperature function.
+        // Both must be present: the function must use the parameter (not the
+        // patient-level Specimen define) so Blaze evaluates it per-specimen.
         assert!(
             cql.contains("S.processing"),
-            "must query Specimen.processing[], not Specimen.extension"
+            "InInitialPopulation query must use Specimen.processing[], not Specimen.extension"
+        );
+        assert!(
+            cql.contains("specimen.processing"),
+            "StorageTemperature must be a function using its parameter, not the patient-level Specimen define"
         );
     }
 }
