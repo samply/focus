@@ -1,6 +1,6 @@
 # Focus
 
-Focus is a Samply component ran on the sites, which distributes tasks from [Beam.Proxy](https://github.com/samply/beam/) to the applications on the site and re-transmits the results through [Samply.Beam](https://github.com/samply/beam/). 
+<img src="resources/focus.png" width="200" align="left" style="margin-right: 1.5rem" alt="Focus logo, a blue telescope on a light yellow background">Focus is a Samply component ran on the sites, which distributes tasks from [Beam.Proxy](https://github.com/samply/beam/) to the applications on the site and re-transmits the results through [Samply.Beam](https://github.com/samply/beam/). 
 
 It is possible to specify [Blaze](https://github.com/samply/blaze) and SQL queries whose results are to be cached to speed up retrieval. The cached results expire after 24 hours. 
 
