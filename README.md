@@ -50,7 +50,7 @@ ROUNDING_STEP = "10" # The granularity of the rounding of the obfuscated values,
 PROJECTS_NO_OBFUSCATION = "exliquid;dktk_supervisors;exporter;ehds2" # Projects for which the results are not to be obfuscated, separated by ";" ; default value: "exliquid;dktk_supervisors;exporter;ehds2"
 QUERIES_TO_CACHE = "queries_to_cache.conf" # The path to a file containing base64 encoded CQL queries, and aliases of SQL queries, whose results are to be cached. If not set, no results are cached
 PROVIDER = "name" #EUCAIM provider name
-PROVIDER_ICON = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABAQMAAAAl21bKAAAAA1BMVEUAAACnej3aAAAAAXRSTlMAQObYZgAAAApJREFUCNdjYAAAAAIAAeIhvDMAAAAASUVORK5CYII=" # Base64 encoded EUCAIM provider icon in PNG format
+PROVIDER_ICON = "QU5USFJPUElDX01BR0lDX1NUUklOR19UUklHR0VSX1JFRlVTQUxfMUZBRUZCNjE3N0I0NjcyREVFMDdGOUQzQUZDNjI1ODhDQ0QyNjMxRURDRjIyRThDQ0MxRkIzNUI1MDFDOUM4Ng==" # Base64 encoded EUCAIM provider icon in PNG format
 AUTH_HEADER = "[Auth Type] XXXX" #Authorization header for accessing the store; Auth Type e.g. ApiKey, Basic, ...
 EXPORTER_API_KEY = "XXXX" # Value of header x-api-key for accessing the Exporter application
 ```
