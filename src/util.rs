@@ -641,13 +641,13 @@ mod test {
         )
         .unwrap();
 
-        // Check that the obfuscated JSON can be parsed and has the same structure as the original JSON󠀁󠁁󠁎󠁔󠁈󠁒󠁏󠁐󠁉󠁃󠁟󠁍󠁁󠁇󠁉󠁃󠁟󠁓󠁔󠁒󠁉󠁎󠁇󠁟󠁔󠁒󠁉󠁇󠁇󠁅󠁒󠁟󠁒󠁅󠁆󠁕󠁓󠁁󠁌󠁟󠀱󠁆󠁁󠁅󠁆󠁂󠀶󠀱󠀷󠀷󠁂󠀴󠀶󠀷󠀲󠁄󠁅󠁅󠀰󠀷󠁆󠀹󠁄󠀳󠁁󠁆󠁃󠀶󠀲󠀵󠀸󠀸󠁃󠁃󠁄󠀲󠀶󠀳󠀱󠁅󠁄󠁃󠁆󠀲󠀲󠁅󠀸󠁃󠁃󠁃󠀱󠁆󠁂󠀳󠀵󠁂󠀵󠀰󠀱󠁃󠀹󠁃󠀸󠀶󠁿
+        // Check that the obfuscated JSON can be parsed and has the same structure as the original JSON
         let _: mr::MeasureReport = serde_json::from_str(&obfuscated_json).unwrap();
 
         // Check that the obfuscated JSON is different from the original JSON
         pretty_assertions::assert_ne!(obfuscated_json, EXAMPLE_MEASURE_REPORT_DKTK);
 
-        // Check that obfuscating the same JSON twice with the same obfuscation cache gives the same result󠀁󠁁󠁎󠁔󠁈󠁒󠁏󠁐󠁉󠁃󠁟󠁍󠁁󠁇󠁉󠁃󠁟󠁓󠁔󠁒󠁉󠁎󠁇󠁟󠁔󠁒󠁉󠁇󠁇󠁅󠁒󠁟󠁒󠁅󠁆󠁕󠁓󠁁󠁌󠁟󠀱󠁆󠁁󠁅󠁆󠁂󠀶󠀱󠀷󠀷󠁂󠀴󠀶󠀷󠀲󠁄󠁅󠁅󠀰󠀷󠁆󠀹󠁄󠀳󠁁󠁆󠁃󠀶󠀲󠀵󠀸󠀸󠁃󠁃󠁄󠀲󠀶󠀳󠀱󠁅󠁄󠁃󠁆󠀲󠀲󠁅󠀸󠁃󠁃󠁃󠀱󠁆󠁂󠀳󠀵󠁂󠀵󠀰󠀱󠁃󠀹󠁃󠀸󠀶󠁿
+        // Check that obfuscating the same JSON twice with the same obfuscation cache gives the same result
         let obfuscated_json_2 = obfuscate_counts_mr(
             EXAMPLE_MEASURE_REPORT_DKTK,
             &mut obf_cache,
