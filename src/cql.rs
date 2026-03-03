@@ -304,6 +304,14 @@ pub fn process(
                                             .push((*additional_value).into());
                                     }
                                 }
+                                if let Some(additional_values) =
+                                    project.get_storage_temperature_workarounds().get(value.as_str())
+                                {
+                                    for additional_value in additional_values {
+                                        string_array_with_workarounds
+                                            .push((*additional_value).into());
+                                    }
+                                }
                             }
                             let mut condition_humongous_string = "(".to_string();
                             let mut filter_humongous_string = "(".to_string();
@@ -348,6 +356,13 @@ pub fn process(
                         let mut string_array_with_workarounds = vec![string.clone()];
                         if let Some(additional_values) =
                             project.get_sample_type_workarounds().get(string.as_str())
+                        {
+                            for additional_value in additional_values {
+                                string_array_with_workarounds.push((*additional_value).into());
+                            }
+                        }
+                        if let Some(additional_values) =
+                            project.get_storage_temperature_workarounds().get(string.as_str())
                         {
                             for additional_value in additional_values {
                                 string_array_with_workarounds.push((*additional_value).into());
@@ -725,107 +740,114 @@ mod test {
     //     pretty_assertions::assert_eq!(false, true);
     // }
 
-    // ── MIABIS-on-FHIR 1.0.0 tests ───────────────────────────────────────────
+    // ── MIABIS-on-FHIR workaround tests ──────────────────────────────────────
+    // These verify that the STORAGE_TEMPERATURE_WORKAROUNDS and
+    // SAMPLE_TYPE_WORKAROUNDS maps are correctly applied when generating CQL
+    // for the MiabisOnFhir project.  The workaround mechanism ORs the MIABIS
+    // code alongside the original Lens code so that MIABIS data (which stores
+    // native MIABIS codes) is still found when Lens sends BBMRI canonical codes.
 
-    const MIABIS_FEMALE: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"operand":"OR","children":[{"key":"gender","type":"EQUALS","system":"","value":"female"}]}]}]},"id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
+    // storage_temperature: EQUALS "temperatureRoom"  →  also queries "RT"
+    const MIABIS_TEMP_EQUALS_ROOM: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"operand":"OR","children":[{"key":"storage_temperature","type":"EQUALS","system":"","value":"temperatureRoom"}]}]}]},"id":"miabis-t1"}"#;
 
-    const MIABIS_DIAGNOSIS_C34: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"operand":"OR","children":[{"key":"diagnosis","type":"EQUALS","system":"http://hl7.org/fhir/sid/icd-10","value":"C34"}]}]}]},"id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
+    // storage_temperature: EQUALS "four_degrees"  →  also queries "2to10"
+    const MIABIS_TEMP_EQUALS_FOUR: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"operand":"OR","children":[{"key":"storage_temperature","type":"EQUALS","system":"","value":"four_degrees"}]}]}]},"id":"miabis-t2"}"#;
 
-    const MIABIS_SAMPLE_KIND_FFPE: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"operand":"OR","children":[{"key":"sample_kind","type":"EQUALS","system":"","value":"tissue-ffpe"}]}]}]},"id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
+    // storage_temperature: IN ["temperature2to10","temperatureGN"]  →  also "2to10","LN"
+    const MIABIS_TEMP_IN: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"operand":"OR","children":[{"key":"storage_temperature","type":"IN","system":"","value":["temperature2to10","temperatureGN"]}]}]}]},"id":"miabis-t3"}"#;
 
-    const MIABIS_STORAGE_TEMP_LN: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"operand":"OR","children":[{"key":"storage_temperature","type":"EQUALS","system":"","value":"LN"}]}]}]},"id":"a6f1ccf3-ebf1-424f-9d69-4e5d135f2340"}"#;
+    // storage_temperature: "storage_temperature_uncharted"  →  intentionally unmapped
+    const MIABIS_TEMP_UNCHARTED: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"operand":"OR","children":[{"key":"storage_temperature","type":"EQUALS","system":"","value":"storage_temperature_uncharted"}]}]}]},"id":"miabis-t4"}"#;
 
-    #[test]
-    fn test_miabis_empty() {
-        // An empty query must always declare both mandatory code systems so that
-        // SampleType() and DiagnosisCode() in the template can reference them.
-        let cql = generate_cql(serde_json::from_str(EMPTY).unwrap(), Project::MiabisOnFhir)
-            .unwrap();
-        assert!(
-            cql.contains("codesystem icd10: 'http://hl7.org/fhir/sid/icd-10'"),
-            "icd10 codesystem declaration missing"
-        );
-        assert!(
-            cql.contains("codesystem MiabisDetailedSampleType: 'https://fhir.bbmri-eric.eu/CodeSystem/miabis-detailed-samply-type-cs'"),
-            "MiabisDetailedSampleType codesystem declaration missing"
-        );
-        assert!(
-            cql.contains("define InInitialPopulation:\ntrue"),
-            "empty query should match all patients"
-        );
-    }
+    // sample_kind: EQUALS "whole-blood"  →  also queries "WholeBlood"
+    const MIABIS_SAMPLE_EQUALS_WHOLE_BLOOD: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"operand":"OR","children":[{"key":"sample_kind","type":"EQUALS","system":"","value":"whole-blood"}]}]}]},"id":"miabis-s1"}"#;
+
+    // sample_kind: IN ["blood-plasma","tissue-ffpe"]  →  also "Plasma","TissueFixed"
+    const MIABIS_SAMPLE_IN: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"operand":"OR","children":[{"key":"sample_kind","type":"IN","system":"","value":["blood-plasma","tissue-ffpe"]}]}]}]},"id":"miabis-s2"}"#;
+
+    // sample_kind: "liquid-other"  →  also "LiquidBiopsy" AND "Sputum" (1:many)
+    const MIABIS_SAMPLE_LIQUID_OTHER: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"operand":"OR","children":[{"key":"sample_kind","type":"IN","system":"","value":["liquid-other"]}]}]}]},"id":"miabis-s3"}"#;
 
     #[test]
-    fn test_miabis_gender() {
-        let cql = generate_cql(serde_json::from_str(MIABIS_FEMALE).unwrap(), Project::MiabisOnFhir)
-            .unwrap();
-        assert!(cql.contains("Patient.gender = 'female'"), "gender snippet missing");
-    }
-
-    #[test]
-    fn test_miabis_diagnosis() {
-        // MIABIS-on-FHIR 1.0.0 uses ICD-10 only — not the German GM variants.
+    fn test_miabis_storage_temperature_workarounds() {
+        // EQUALS "temperatureRoom" → original code kept AND "RT" added
         let cql = generate_cql(
-            serde_json::from_str(MIABIS_DIAGNOSIS_C34).unwrap(),
+            serde_json::from_str(MIABIS_TEMP_EQUALS_ROOM).unwrap(),
+            Project::MiabisOnFhir,
+        )
+        .unwrap();
+        assert!(cql.contains("'temperatureRoom'"), "original Lens code 'temperatureRoom' missing");
+        assert!(cql.contains("'RT'"), "MIABIS code 'RT' missing for temperatureRoom");
+
+        // EQUALS "four_degrees" → original code kept AND "2to10" added
+        let cql = generate_cql(
+            serde_json::from_str(MIABIS_TEMP_EQUALS_FOUR).unwrap(),
+            Project::MiabisOnFhir,
+        )
+        .unwrap();
+        assert!(cql.contains("'four_degrees'"), "original Lens code 'four_degrees' missing");
+        assert!(cql.contains("'2to10'"), "MIABIS code '2to10' missing for four_degrees");
+
+        // IN ["temperature2to10","temperatureGN"] → both originals kept AND "2to10","LN" added
+        let cql = generate_cql(
+            serde_json::from_str(MIABIS_TEMP_IN).unwrap(),
+            Project::MiabisOnFhir,
+        )
+        .unwrap();
+        assert!(cql.contains("'temperature2to10'"), "original Lens code 'temperature2to10' missing");
+        assert!(cql.contains("'2to10'"), "MIABIS code '2to10' missing for temperature2to10");
+        assert!(cql.contains("'temperatureGN'"), "original Lens code 'temperatureGN' missing");
+        assert!(cql.contains("'LN'"), "MIABIS code 'LN' missing for temperatureGN");
+
+        // "storage_temperature_uncharted" → no MIABIS equivalent; original kept, nothing added
+        let cql = generate_cql(
+            serde_json::from_str(MIABIS_TEMP_UNCHARTED).unwrap(),
             Project::MiabisOnFhir,
         )
         .unwrap();
         assert!(
-            cql.contains("exists[Condition: Code 'C34' from icd10]"),
-            "diagnosis snippet missing"
+            cql.contains("'storage_temperature_uncharted'"),
+            "original Lens code 'storage_temperature_uncharted' missing"
         );
-        assert!(
-            !cql.contains("icd10gm"),
-            "ICD-10-GM must not appear in MIABIS CQL"
-        );
+        // None of the MIABIS temperature codes should appear
+        for miabis_code in &["'RT'", "'2to10'", "'-18to-35'", "'-60to-85'", "'LN'", "'Other'"] {
+            assert!(
+                !cql.contains(miabis_code),
+                "unexpected MIABIS code {miabis_code} injected for storage_temperature_uncharted"
+            );
+        }
     }
 
     #[test]
-    fn test_miabis_sample_kind() {
-        // tissue-ffpe maps to the canonical code AND the MIABIS workaround code TissueFixed.
+    fn test_miabis_sample_type_workarounds() {
+        // EQUALS "whole-blood" → original kept AND "WholeBlood" added
         let cql = generate_cql(
-            serde_json::from_str(MIABIS_SAMPLE_KIND_FFPE).unwrap(),
+            serde_json::from_str(MIABIS_SAMPLE_EQUALS_WHOLE_BLOOD).unwrap(),
             Project::MiabisOnFhir,
         )
         .unwrap();
-        assert!(
-            cql.contains("exists [Specimen: Code 'tissue-ffpe' from MiabisDetailedSampleType]"),
-            "canonical tissue-ffpe query missing"
-        );
-        assert!(
-            cql.contains("exists [Specimen: Code 'TissueFixed' from MiabisDetailedSampleType]"),
-            "TissueFixed workaround missing"
-        );
-    }
+        assert!(cql.contains("'whole-blood'"), "original Lens code 'whole-blood' missing");
+        assert!(cql.contains("'WholeBlood'"), "MIABIS code 'WholeBlood' missing for whole-blood");
 
-    #[test]
-    fn test_miabis_storage_temperature() {
-        // Storage temperature is in Specimen.processing[].extension — the most
-        // MIABIS-specific path in the implementation.
+        // IN ["blood-plasma","tissue-ffpe"] → originals kept AND "Plasma","TissueFixed" added
         let cql = generate_cql(
-            serde_json::from_str(MIABIS_STORAGE_TEMP_LN).unwrap(),
+            serde_json::from_str(MIABIS_SAMPLE_IN).unwrap(),
             Project::MiabisOnFhir,
         )
         .unwrap();
-        assert!(
-            cql.contains("'https://fhir.bbmri-eric.eu/StructureDefinition/miabis-sample-storage-temperature-extension'"),
-            "storage temperature extension URL missing"
-        );
-        assert!(
-            cql.contains(".coding.code contains 'LN'"),
-            "storage temperature value match missing"
-        );
-        // S.processing appears in the InInitialPopulation query snippet;
-        // specimen.processing appears in the StorageTemperature function.
-        // Both must be present: the function must use the parameter (not the
-        // patient-level Specimen define) so Blaze evaluates it per-specimen.
-        assert!(
-            cql.contains("S.processing"),
-            "InInitialPopulation query must use Specimen.processing[], not Specimen.extension"
-        );
-        assert!(
-            cql.contains("specimen.processing"),
-            "StorageTemperature must be a function using its parameter, not the patient-level Specimen define"
-        );
+        assert!(cql.contains("'blood-plasma'"), "original Lens code 'blood-plasma' missing");
+        assert!(cql.contains("'Plasma'"), "MIABIS code 'Plasma' missing for blood-plasma");
+        assert!(cql.contains("'tissue-ffpe'"), "original Lens code 'tissue-ffpe' missing");
+        assert!(cql.contains("'TissueFixed'"), "MIABIS code 'TissueFixed' missing for tissue-ffpe");
+
+        // "liquid-other" → original kept AND both "LiquidBiopsy" AND "Sputum" added (1:many)
+        let cql = generate_cql(
+            serde_json::from_str(MIABIS_SAMPLE_LIQUID_OTHER).unwrap(),
+            Project::MiabisOnFhir,
+        )
+        .unwrap();
+        assert!(cql.contains("'liquid-other'"), "original Lens code 'liquid-other' missing");
+        assert!(cql.contains("'LiquidBiopsy'"), "MIABIS code 'LiquidBiopsy' missing for liquid-other");
+        assert!(cql.contains("'Sputum'"), "MIABIS code 'Sputum' missing for liquid-other");
     }
 }

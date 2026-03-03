@@ -5,7 +5,7 @@ use indexmap::IndexSet;
 use super::CriterionRole;
 
 // CodeSystem URIs for MIABIS-on-FHIR 1.0.0
-// IG hosted at https://fhir.miabis.bbmri-eric.eu/; canonical resource profile URLs use https://fhir.bbmri-eric.eu
+// Hosted at https://fhir.bbmri-eric.eu (Czech BBMRI-cz IG)
 
 pub static CODE_LISTS: LazyLock<HashMap<&'static str, &'static str>> = LazyLock::new(|| {
     HashMap::from([
@@ -132,5 +132,40 @@ pub static SAMPLE_TYPE_WORKAROUNDS: LazyLock<HashMap<&'static str, Vec<&'static 
             ("saliva",                      vec!["Saliva"]),
             ("stool-faeces",                vec!["Faeces"]),
             ("liquid-other",                vec!["LiquidBiopsy", "Sputum"]),
+        ])
+    });
+
+// Maps canonical Sample Locator storage temperature codes (sent by Lens) to the
+// MIABIS-on-FHIR 1.0.0 codes stored in the data
+// (miabis-storage-temperature-cs, hosted at https://fhir.bbmri-eric.eu).
+//
+// Lens code             MIABIS code   Notes
+// ─────────────────────────────────────────────────────────────────────────────
+// temperatureRoom       RT            Room temperature
+// temperature2to10      2to10         2–10 °C
+// four_degrees          2to10         4 °C is within the MIABIS 2–10 °C band;
+//                                     MIABIS has no dedicated 4 °C code
+// temperature-18to-35   -18to-35      −18 to −35 °C
+// temperature-60to-85   -60to-85      −60 to −85 °C
+// temperatureGN         LN            Gaseous/vapour-phase nitrogen (−150 to
+//                                     −196 °C); mapped to MIABIS LN (liquid
+//                                     nitrogen, same range) — closest available
+// temperatureLN         LN            Liquid nitrogen
+// temperatureOther      Other         Any other temperature
+//
+// Note: "storage_temperature_uncharted" has no MIABIS equivalent and is left
+// unmapped; queries for it will return zero results on MIABIS nodes, which is
+// the correct behaviour (the information is genuinely absent in the data model).
+pub static STORAGE_TEMPERATURE_WORKAROUNDS: LazyLock<HashMap<&'static str, Vec<&'static str>>> =
+    LazyLock::new(|| {
+        HashMap::from([
+            ("temperatureRoom",    vec!["RT"]),
+            ("temperature2to10",   vec!["2to10"]),
+            ("four_degrees",       vec!["2to10"]),
+            ("temperature-18to-35",vec!["-18to-35"]),
+            ("temperature-60to-85",vec!["-60to-85"]),
+            ("temperatureGN",      vec!["LN"]),
+            ("temperatureLN",      vec!["LN"]),
+            ("temperatureOther",   vec!["Other"]),
         ])
     });

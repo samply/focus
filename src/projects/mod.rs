@@ -1,4 +1,4 @@
-use std::{collections::HashMap, hash::Hash, str::FromStr};
+use std::{collections::HashMap, hash::Hash, str::FromStr, sync::LazyLock};
 
 use indexmap::IndexSet;
 
@@ -48,6 +48,11 @@ impl FromStr for Project {
     }
 }
 
+// Shared empty map returned by get_storage_temperature_workarounds() for all
+// projects that do not define their own storage temperature code mapping.
+static EMPTY_WORKAROUNDS: LazyLock<HashMap<&'static str, Vec<&'static str>>> =
+    LazyLock::new(HashMap::new);
+
 impl Project {
     pub fn get_code_lists(&self) -> &'static HashMap<&'static str, &'static str> {
         match self {
@@ -85,6 +90,18 @@ impl Project {
             Project::Itcc => &itcc::SAMPLE_TYPE_WORKAROUNDS,
             Project::MiabisOnFhir => &miabis::SAMPLE_TYPE_WORKAROUNDS,
             Project::Pscc => &pscc::SAMPLE_TYPE_WORKAROUNDS,
+        }
+    }
+
+    /// Maps canonical Lens storage-temperature codes to the project-specific codes
+    /// stored in the FHIR data.  Only MIABIS-on-FHIR requires a non-trivial mapping;
+    /// all other projects return an empty map (their codes already match what Lens sends).
+    pub fn get_storage_temperature_workarounds(
+        &self,
+    ) -> &'static HashMap<&'static str, Vec<&'static str>> {
+        match self {
+            Project::MiabisOnFhir => &miabis::STORAGE_TEMPERATURE_WORKAROUNDS,
+            _ => &EMPTY_WORKAROUNDS,
         }
     }
 
