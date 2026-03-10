@@ -20,10 +20,7 @@ pub static CRITERION_CATEGORY: Lazy<HashMap<&str, &u8>> = Lazy::new(|| {
 
 pub static CRITERION_SNIPPET: Lazy<HashMap<&str, &str>> = Lazy::new(|| {
     let mut map: HashMap<&'static str, &'static str> = HashMap::new();
-    map.insert(
-        "SNOMEDCT263495000",
-        " (patient.patient_birth_sex = '?') ",
-    );
+    map.insert("SNOMEDCT263495000", " (patient.patient_birth_sex = '?') ");
     map.insert("SNOMEDCT439401001", " (EXISTS (SELECT * FROM cancer_condition WHERE cancer_condition.patient_id = patient.patient_id AND cancer_condition_code = '?')) ");
     map.insert("RID10311", " TRUE ");
     map.insert("SNOMEDCT123037004", " EXISTS (SELECT FROM image_series WHERE series_body_site_code = '?' AND image_series.study_id = image_study.study_id) ");
@@ -64,8 +61,7 @@ pub static CRITERION: Lazy<HashMap<&str, &str>> = Lazy::new(|| {
 pub fn build_eucaim_sql_query(ast: ast::Ast) -> Result<String, FocusError> {
     const BEFORE_IMAGE_CRITERIA: &str = r#"SELECT dataset.dataset_id id, dataset.dataset_title name, dataset.dataset_description description, COUNT(patient.*)::int4 subjects_count, COALESCE(SUM ((SELECT COUNT(image_study.*) FROM procedure JOIN image_study ON procedure.procedure_id = image_study.procedure_id JOIN cancer_condition on procedure.cancer_condition_id = cancer_condition.cancer_condition_id WHERE TRUE "#;
     const BETWEEN_CRITERIA: &str = r#" GROUP BY cancer_condition.patient_id HAVING cancer_condition.patient_id = patient.patient_id)), 0)::int4 studies_count FROM dataset JOIN patient ON patient.dataset_id = dataset.dataset_id WHERE TRUE "#;
-    const AFTER_PATIENT_CRITERIA: &str =
-        r#" GROUP BY patient.dataset_id, dataset.dataset_id;"#;
+    const AFTER_PATIENT_CRITERIA: &str = r#" GROUP BY patient.dataset_id, dataset.dataset_id;"#;
 
     let mut criteria: HashMap<u8, String> = HashMap::new(); // 0 - patient criteria; 1 - image criteria
     criteria.insert(0, "".to_string());
