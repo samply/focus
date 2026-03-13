@@ -11,9 +11,9 @@ mod logger;
 mod eucaim_api;
 mod eucaim_beacon;
 mod exporter;
+mod flavours;
 mod intermediate_rep;
 mod mr;
-mod flavours;
 mod task_processing;
 mod transformed;
 mod util;
@@ -330,7 +330,8 @@ async fn process_task(
                 }
                 Language::Ast(ast_query) => {
                     generated_from_ast = true;
-                    let cql_flavour = if let Some(cql_flavour) = &CONFIG.cql_flavour { //same FEs query blazes with different FHIR profiles
+                    let cql_flavour = if let Some(cql_flavour) = &CONFIG.cql_flavour {
+                        //same FEs query blazes with different FHIR profiles
                         cql_flavour
                     } else {
                         &metadata.project

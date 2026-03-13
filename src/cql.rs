@@ -61,7 +61,10 @@ fn generate_cql(ast: ast::Ast, cql_flavour: Flavour) -> Result<String, FocusErro
         lists += format!(
             "codesystem {}: '{}'\n",
             code_system,
-            cql_flavour.get_code_lists().get(code_system).unwrap_or(&(""))
+            cql_flavour
+                .get_code_lists()
+                .get(code_system)
+                .unwrap_or(&(""))
         )
         .as_str();
     }
@@ -294,12 +297,14 @@ pub fn process(
 
                     match condition.value {
                         ast::ConditionValue::StringArray(string_array) => {
-                            let mut string_array_with_workarounds= if *cql_flavour == Flavour::Miabis { //empty, codes get replaced
-                                Default::default()
-                            } else {
-                                string_array.clone()
-                            };
-                            
+                            let mut string_array_with_workarounds =
+                                if *cql_flavour == Flavour::Miabis {
+                                    //empty, codes get replaced
+                                    Default::default()
+                                } else {
+                                    string_array.clone()
+                                };
+
                             for value in string_array {
                                 if let Some(additional_values) =
                                     cql_flavour.get_code_workarounds().get(value.as_str())
@@ -350,8 +355,7 @@ pub fn process(
                 ast::ConditionType::Equals => match condition.value {
                     ast::ConditionValue::String(string) => {
                         let operator_str = " or ";
-                        let mut string_array_with_workarounds = 
-                        vec![string.clone()];
+                        let mut string_array_with_workarounds = vec![string.clone()];
                         if let Some(additional_values) =
                             cql_flavour.get_code_workarounds().get(string.as_str())
                         {

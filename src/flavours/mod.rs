@@ -9,9 +9,9 @@ mod cce;
 mod dhki;
 mod dktk;
 mod itcc;
+mod miabis;
 mod nngm;
 mod pscc;
-mod miabis;
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash, Copy)]
 pub enum CriterionRole {
@@ -20,7 +20,8 @@ pub enum CriterionRole {
 }
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
-pub enum Flavour { //not 1:1 with project anymore
+pub enum Flavour {
+    //not 1:1 with project anymore
     Bbmri,
     Dktk,
     Cce,
@@ -28,7 +29,7 @@ pub enum Flavour { //not 1:1 with project anymore
     Nngm,
     Itcc,
     Pscc,
-    Miabis
+    Miabis,
 }
 
 impl FromStr for Flavour {
@@ -76,7 +77,8 @@ impl Flavour {
         }
     }
 
-    pub fn get_code_workarounds(&self) -> &'static HashMap<&'static str, Vec<&'static str>> { // used for all code workarounds, different criteria do not contain overlapping codes
+    pub fn get_code_workarounds(&self) -> &'static HashMap<&'static str, Vec<&'static str>> {
+        // used for all code workarounds, different criteria do not contain overlapping codes
         match self {
             Flavour::Bbmri => &bbmri::CODE_WORKAROUNDS,
             Flavour::Dktk => &dktk::CODE_WORKAROUNDS,
