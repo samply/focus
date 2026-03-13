@@ -9,16 +9,10 @@ pub static CODE_LISTS: LazyLock<HashMap<&'static str, &'static str>> = LazyLock:
     HashMap::from([
         ("icd10", "http://fhir.de/CodeSystem/bfarm/icd-10-gm"),
         ("loinc", "http://loinc.org"),
-        ("snomed", "http://snomed.info/sct"),
         (
             "gradingcs",
             "http://dktk.dkfz.de/fhir/onco/core/CodeSystem/GradingCS",
         ),
-        ("gradingcsnngm", "urn:oid:2.16.840.1.113883.15.16"),
-        ("tnmtnngm", "urn:oid:2.16.840.1.113883.15.16"),
-        ("tnmnnngm", "urn:oid:2.16.840.1.113883.15.16"),
-        ("tnmmnngm", "urn:oid:2.16.840.1.113883.15.16"),
-        ("tnmrynngm", "urn:oid:2.16.840.1.113883.15.16"),
         ("ops", "http://fhir.de/CodeSystem/bfarm/ops"),
         ("morph", "urn:oid:2.16.840.1.113883.6.43.1"),
         ("lokalisation_icd_o_3", "urn:oid:2.16.840.1.113883.6.43.1"),
@@ -27,20 +21,12 @@ pub static CODE_LISTS: LazyLock<HashMap<&'static str, &'static str>> = LazyLock:
             "http://dktk.dkfz.de/fhir/onco/core/CodeSystem/SeitenlokalisationCS",
         ),
         (
-            "bodySiteNNGM",
-            "http://terminology.hl7.org/CodeSystem/icd-o-3",
-        ),
-        (
-            "uicc8nNGM",
-            "http://uk-koeln.de/fhir/CodeSystem/nNGM/uiccStagingV8",
-        ),
-        (
-            "uicc7nNGM",
-            "http://uk-koeln.de/fhir/CodeSystem/nNGM/uiccStagingV7",
-        ),
-        (
             "Therapieart",
             "http://dktk.dkfz.de/fhir/onco/core/CodeSystem/SYSTTherapieartCS",
+        ),
+        (
+            "specimentype",
+            "https://fhir.bbmri.de/CodeSystem/SampleMaterialType",
         ),
         (
             "uiccstadiumcs",
@@ -69,18 +55,6 @@ pub static CODE_LISTS: LazyLock<HashMap<&'static str, &'static str>> = LazyLock:
         (
             "vitalstatuscs",
             "http://dktk.dkfz.de/fhir/onco/core/CodeSystem/VitalstatusCS",
-        ),
-        (
-            "vitalstatuscsnngm",
-            "http://uk-koeln.de/fhir/nNGM/Vitalstatus",
-        ),
-        (
-            "raucherstatuscsnngm",
-            "http://uk-koeln.de/fhir/StructureDefinition/Observation/nNGM/raucherstatus",
-        ),
-        (
-            "ecogcsnngm",
-            "http://uk-koeln.de/fhir/StructureDefinition/Observation/nNGM/ecog",
         ),
         (
             "jnucs",
@@ -115,22 +89,6 @@ pub static CODE_LISTS: LazyLock<HashMap<&'static str, &'static str>> = LazyLock:
             "http://dktk.dkfz.de/fhir/onco/core/CodeSystem/TNMmSymbolCS",
         ),
         ("molecularMarker", "http://www.genenames.org"),
-        (
-            "vitalstatusitcc",
-            "http://fhir.itcc.org/CodeSystem/VitalStatus",
-        ),
-        (
-            "observationDiseaseExtent",
-            "http://fhir.itcc.org/CodeSystem/DiseaseExtent",
-        ),
-        (
-            "sampletypeitcc",
-            "http://fhir.itcc.org/CodeSystem/SampleType",
-        ),
-        (
-            "mutationtypeitcc",
-            "http://itcc.dkfz.de/fhir/itcc/CodeSystem/MutationTypeCS",
-        ),
     ])
 });
 
@@ -144,7 +102,7 @@ pub static OBSERVATION_LOINC_CODES: LazyLock<HashMap<&'static str, &'static str>
             ("lymphNodeRecurrence", "LA4370-8"),
             ("distantMetastases", "LA4226-2"),
             ("vitalStatus", "75186-7"),
-            ("molecular_marker", "48018-6"),
+            ("observationMolecularMarkerName", "48018-6"),
             ("observationMolecularMarkerAminoacidchange", "48005-3"),
             ("observationMolecularMarkerDNAchange", "81290-9"),
             ("observationMolecularMarkerSeqRefNCBI", "81248-7"),
@@ -165,6 +123,10 @@ pub static CRITERION_CODE_LISTS: LazyLock<HashMap<&'static str, Vec<&'static str
             ("medicationStatement", vec!["Therapieart"]),
             ("morphology", vec!["loinc", "morph"]),
             ("sample_kind", vec!["specimentype"]),
+            (
+                "observationMolecularMarkerName",
+                vec!["loinc", "molecularMarker"],
+            ),
             ("observationMolecularMarkerAminoacidchange", vec!["loinc"]),
             ("observationMolecularMarkerDNAchange", vec!["loinc"]),
             ("observationMolecularMarkerSeqRefNCBI", vec!["loinc"]),
@@ -189,15 +151,7 @@ pub static CRITERION_CODE_LISTS: LazyLock<HashMap<&'static str, Vec<&'static str
                 "distantMetastases",
                 vec!["loinc", "verlauftumorstatusfernmetastasencs"],
             ),
-            ("vitalStatus", vec!["loinc", "vitalstatusitcc"]),
-            ("vital_status", vec!["loinc", "vitalstatusitcc"]),
-            (
-                "disease_is_extend",
-                vec!["loinc", "observationDiseaseExtent"],
-            ),
-            ("type_sample_criteria", vec!["loinc", "sampletypeitcc"]),
-            ("molecular_marker", vec!["loinc", "molecularMarker"]),
-            ("mutation_type", vec!["loinc", "mutationtypeitcc"]),
+            ("vitalStatus", vec!["loinc", "vitalstatuscs"]),
             ("TNM-T", vec!["loinc", "TNMTCS"]),
             ("TNM-N", vec!["loinc", "TNMNCS"]),
             ("TNM-M", vec!["loinc", "TNMMCS"]),
@@ -313,22 +267,6 @@ pub static CQL_SNIPPETS: LazyLock<HashMap<(&'static str, CriterionRole), &'stati
             observation,
         ),
         (
-            ("vital_status", CriterionRole::Query),
-             "exists from [Observation: Code '75186-7' from {{A1}}] O\nwhere (O.value as CodeableConcept).coding.code = '{{C}}'",
-        ),
-        (
-            ("disease_is_extend", CriterionRole::Query),
-             "exists from [Observation: Code '21908-9' from {{A1}}] O\nwhere (O.value as CodeableConcept).coding.code in {{C}}",
-        ),
-        (
-            ("type_sample_criteria", CriterionRole::Query),
-             "exists from [Specimen] S\nwhere S.type.coding.code = '{{C}}'",
-        ),
-        (
-            ("mutation_type", CriterionRole::Query),
-             "exists from [Observation: Code '69548-6' from {{A1}}] O\nwhere (O.value as CodeableConcept).coding.code in {{C}}",
-        ),
-        (
             ("metastases_present", CriterionRole::Query),
             "exists from [Observation: Code '21907-1' from {{A1}}] O\nwhere O.value.coding.code contains '{{C}}'",
         ),
@@ -337,7 +275,7 @@ pub static CQL_SNIPPETS: LazyLock<HashMap<(&'static str, CriterionRole), &'stati
             "exists from [Observation: Code '21907-1' from {{A1}}] O\nwhere O.bodySite.coding.code contains '{{C}}'",
         ),
         (
-            ("molecular_marker", CriterionRole::Query),
+            ("observationMolecularMarkerName", CriterionRole::Query),
             "exists from [Observation: Code '69548-6' from {{A1}}] O\nwhere O.component.where(code.coding contains Code '{{K}}' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}",
         ),
         (
@@ -426,7 +364,7 @@ pub static CQL_SNIPPETS: LazyLock<HashMap<(&'static str, CriterionRole), &'stati
 pub static MANDATORY_CODE_LISTS: LazyLock<IndexSet<&'static str>> =
     LazyLock::new(|| IndexSet::from(["loinc"]));
 
-pub static SAMPLE_TYPE_WORKAROUNDS: LazyLock<HashMap<&'static str, Vec<&'static str>>> =
+pub static CODE_WORKAROUNDS: LazyLock<HashMap<&'static str, Vec<&'static str>>> =
     LazyLock::new(|| {
         HashMap::new() // No workarounds for dktk
     });

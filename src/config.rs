@@ -97,7 +97,7 @@ struct CliArgs {
     #[clap(long, env, value_parser = clap::value_parser!(EndpointType), default_value = "blaze")]
     endpoint_type: EndpointType,
 
-    // Comma separated list of enabled projects that allow cql queries
+    /// Comma separated list of enabled projects that allow cql queries
     #[clap(long, env, value_parser, value_delimiter = ',')]
     cql_projects_enabled: Option<Vec<String>>,
 
@@ -166,11 +166,15 @@ struct CliArgs {
     #[clap(long, env, value_parser)]
     tls_ca_certificates_dir: Option<PathBuf>,
 
-    /// OMOP provider name
+    /// CQL flavour, if different from the project name
+    #[clap(long, env, value_parser)]
+    cql_flavour: Option<String>,
+
+    /// EUCAIM provider name
     #[clap(long, env, value_parser)]
     provider: Option<String>,
 
-    /// Base64 encoded OMOP provider icon
+    /// Base64 encoded EUCAIM provider icon
     #[clap(long, env, value_parser)]
     provider_icon: Option<String>,
 
@@ -218,6 +222,7 @@ pub(crate) struct Config {
     pub unobfuscated: Vec<String>,
     pub queries_to_cache: Option<PathBuf>,
     pub client: Client,
+    pub cql_flavour: Option<String>,
     pub provider: Option<String>,
     pub provider_icon: Option<String>,
     pub auth_header: Option<String>,
@@ -272,6 +277,7 @@ impl Config {
             rounding_step: cli_args.rounding_step,
             unobfuscated: cli_args.projects_no_obfuscation.split(';').map(|s| s.to_string()).collect(),
             queries_to_cache: cli_args.queries_to_cache,
+            cql_flavour: cli_args.cql_flavour,
             provider: cli_args.provider,
             provider_icon: cli_args.provider_icon,
             auth_header: cli_args.auth_header,
