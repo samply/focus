@@ -1,4 +1,11 @@
-# Samply.Focus v0.21.0 2026-02-09
+# Samply.Focus v0.21.0 2026-03-13
+
+## Major changes
+
+* EUCAIM CDM SQL querying for the new schema
+
+
+# Samply.Focus v0.21.0 2026-03-09
 
 ## Major changes
 
