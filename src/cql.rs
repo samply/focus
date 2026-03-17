@@ -295,21 +295,27 @@ pub fn process(
                     match condition.value {
                         ast::ConditionValue::StringArray(string_array) => {
                             let mut string_array_with_workarounds = string_array.clone();
-                            for value in string_array {
-                                if let Some(additional_values) =
-                                    project.get_sample_type_workarounds().get(value.as_str())
-                                {
-                                    for additional_value in additional_values {
-                                        string_array_with_workarounds
-                                            .push((*additional_value).into());
+                            if condition_key_trans == "sample_kind" {
+                                for value in &string_array_with_workarounds.clone() {
+                                    if let Some(additional_values) =
+                                        project.get_sample_type_workarounds().get(value.as_str())
+                                    {
+                                        for additional_value in additional_values {
+                                            string_array_with_workarounds
+                                                .push((*additional_value).into());
+                                        }
                                     }
                                 }
-                                if let Some(additional_values) =
-                                    project.get_storage_temperature_workarounds().get(value.as_str())
-                                {
-                                    for additional_value in additional_values {
-                                        string_array_with_workarounds
-                                            .push((*additional_value).into());
+                            }
+                            if condition_key_trans == "storage_temperature" {
+                                for value in &string_array_with_workarounds.clone() {
+                                    if let Some(additional_values) =
+                                        project.get_storage_temperature_workarounds().get(value.as_str())
+                                    {
+                                        for additional_value in additional_values {
+                                            string_array_with_workarounds
+                                                .push((*additional_value).into());
+                                        }
                                     }
                                 }
                             }
@@ -354,18 +360,22 @@ pub fn process(
                     ast::ConditionValue::String(string) => {
                         let operator_str = " or ";
                         let mut string_array_with_workarounds = vec![string.clone()];
-                        if let Some(additional_values) =
-                            project.get_sample_type_workarounds().get(string.as_str())
-                        {
-                            for additional_value in additional_values {
-                                string_array_with_workarounds.push((*additional_value).into());
+                        if condition_key_trans == "sample_kind" {
+                            if let Some(additional_values) =
+                                project.get_sample_type_workarounds().get(string.as_str())
+                            {
+                                for additional_value in additional_values {
+                                    string_array_with_workarounds.push((*additional_value).into());
+                                }
                             }
                         }
-                        if let Some(additional_values) =
-                            project.get_storage_temperature_workarounds().get(string.as_str())
-                        {
-                            for additional_value in additional_values {
-                                string_array_with_workarounds.push((*additional_value).into());
+                        if condition_key_trans == "storage_temperature" {
+                            if let Some(additional_values) =
+                                project.get_storage_temperature_workarounds().get(string.as_str())
+                            {
+                                for additional_value in additional_values {
+                                    string_array_with_workarounds.push((*additional_value).into());
+                                }
                             }
                         }
                         let mut condition_humongous_string = "(".to_string();
