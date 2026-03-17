@@ -330,15 +330,15 @@ async fn process_task(
                 }
                 Language::Ast(ast_query) => {
                     generated_from_ast = true;
-                    let cql_flavour = if let Some(cql_flavour) = &CONFIG.cql_flavour {
+                    let cql_flavour = if let Some(cql_flavour) = CONFIG.cql_flavour {
                         //same FEs query blazes with different FHIR profiles
                         cql_flavour
                     } else {
-                        &metadata.project
+                        metadata.project.parse()?
                     };
                     serde_json::from_str(&cql::generate_body(
                         parse_blaze_query_payload_ast(&ast_query.payload)?,
-                        cql_flavour.parse()?,
+                        cql_flavour,
                     )?)?
                 }
             };
