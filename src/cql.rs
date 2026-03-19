@@ -734,4 +734,151 @@ mod test {
     //     // pretty_assertions::assert_eq!(generated_cql.contains(expected), true);
     //     pretty_assertions::assert_eq!(false, true);
     // }
+
+    const MIABIS_DIAGNOSIS: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"operand":"OR","children":[{"key":"diagnosis","type":"EQUALS","system":"","value":"C61"}]}]}]},"id":"miabis-d1"}"#;
+
+    const MIABIS_SAMPLE_EQUALS_WHOLE_BLOOD: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"operand":"OR","children":[{"key":"sample_kind","type":"EQUALS","system":"","value":"whole-blood"}]}]}]},"id":"miabis-s1"}"#;
+
+    const MIABIS_SAMPLE_IN: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"operand":"OR","children":[{"key":"sample_kind","type":"IN","system":"","value":["blood-plasma","tissue-ffpe"]}]}]}]},"id":"miabis-s2"}"#;
+
+    const MIABIS_SAMPLE_LIQUID_OTHER: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"operand":"OR","children":[{"key":"sample_kind","type":"IN","system":"","value":["liquid-other"]}]}]}]},"id":"miabis-s3"}"#;
+
+    const MIABIS_TEMP_EQUALS_ROOM: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"operand":"OR","children":[{"key":"storage_temperature","type":"EQUALS","system":"","value":"temperatureRoom"}]}]}]},"id":"miabis-t1"}"#;
+
+    const MIABIS_TEMP_EQUALS_FOUR: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"operand":"OR","children":[{"key":"storage_temperature","type":"EQUALS","system":"","value":"four_degrees"}]}]}]},"id":"miabis-t2"}"#;
+
+    const MIABIS_TEMP_IN: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"operand":"OR","children":[{"key":"storage_temperature","type":"IN","system":"","value":["temperature2to10","temperatureGN"]}]}]}]},"id":"miabis-t3"}"#;
+
+    const MIABIS_TEMP_UNCHARTED: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"operand":"OR","children":[{"key":"storage_temperature","type":"EQUALS","system":"","value":"storage_temperature_uncharted"}]}]}]},"id":"miabis-t4"}"#;
+
+    #[test]
+    fn test_miabis_empty() {
+        let cql = generate_cql(serde_json::from_str(EMPTY).unwrap(), Flavour::Miabis).unwrap();
+        assert!(cql.contains("http://hl7.org/fhir/sid/icd-10"));
+        assert!(cql.contains(
+            "https://fhir.bbmri-eric.eu/CodeSystem/miabis-detailed-samply-type-cs"
+        ));
+    }
+
+    #[test]
+    fn test_miabis_gender() {
+        let cql =
+            generate_cql(serde_json::from_str(MALE_OR_FEMALE).unwrap(), Flavour::Miabis).unwrap();
+        assert!(cql.contains("Patient.gender = 'male'"));
+        assert!(cql.contains("Patient.gender = 'female'"));
+    }
+
+    #[test]
+    fn test_miabis_diagnosis() {
+        let cql =
+            generate_cql(serde_json::from_str(MIABIS_DIAGNOSIS).unwrap(), Flavour::Miabis).unwrap();
+        assert!(cql.contains("'C61'"));
+        assert!(cql.contains("http://hl7.org/fhir/sid/icd-10"));
+        assert!(!cql.contains("http://fhir.de/CodeSystem/dimdi/icd-10-gm"));
+    }
+
+    #[test]
+    fn test_miabis_sample_kind() {
+        // EQUALS: original Lens code is kept alongside the MIABIS workaround code
+        let cql = generate_cql(
+            serde_json::from_str(MIABIS_SAMPLE_EQUALS_WHOLE_BLOOD).unwrap(),
+            Flavour::Miabis,
+        )
+        .unwrap();
+        assert!(cql.contains("'whole-blood'"));
+        assert!(cql.contains("'WholeBlood'"));
+        assert!(cql.contains(
+            "https://fhir.bbmri-eric.eu/CodeSystem/miabis-detailed-samply-type-cs"
+        ));
+    }
+
+    #[test]
+    fn test_miabis_storage_temperature() {
+        // EQUALS: original Lens code is kept alongside the MIABIS workaround code
+        let cql = generate_cql(
+            serde_json::from_str(MIABIS_TEMP_EQUALS_ROOM).unwrap(),
+            Flavour::Miabis,
+        )
+        .unwrap();
+        assert!(cql.contains("'temperatureRoom'"));
+        assert!(cql.contains("'RT'"));
+        assert!(cql.contains("Specimen.processing"));
+        assert!(cql.contains(
+            "https://fhir.bbmri-eric.eu/StructureDefinition/miabis-sample-storage-temperature-extension"
+        ));
+    }
+
+    #[test]
+    fn test_miabis_sample_type_workarounds() {
+        // EQUALS: original Lens code kept, MIABIS code appended
+        let cql = generate_cql(
+            serde_json::from_str(MIABIS_SAMPLE_EQUALS_WHOLE_BLOOD).unwrap(),
+            Flavour::Miabis,
+        )
+        .unwrap();
+        assert!(cql.contains("'whole-blood'"));
+        assert!(cql.contains("'WholeBlood'"));
+
+        // IN: MIABIS codes present (Lens codes not checked — they appear in the
+        // SampleType case expression in template.cql regardless of search criteria)
+        let cql = generate_cql(
+            serde_json::from_str(MIABIS_SAMPLE_IN).unwrap(),
+            Flavour::Miabis,
+        )
+        .unwrap();
+        assert!(cql.contains("'Plasma'"));
+        assert!(cql.contains("'TissueFixed'"));
+
+        // IN: liquid-other maps to two MIABIS codes (1:many)
+        let cql = generate_cql(
+            serde_json::from_str(MIABIS_SAMPLE_LIQUID_OTHER).unwrap(),
+            Flavour::Miabis,
+        )
+        .unwrap();
+        assert!(cql.contains("'LiquidBiopsy'"));
+        assert!(cql.contains("'Sputum'"));
+    }
+
+    #[test]
+    fn test_miabis_storage_temperature_workarounds() {
+        // EQUALS: original Lens code kept, MIABIS code appended
+        let cql = generate_cql(
+            serde_json::from_str(MIABIS_TEMP_EQUALS_ROOM).unwrap(),
+            Flavour::Miabis,
+        )
+        .unwrap();
+        assert!(cql.contains("'temperatureRoom'"));
+        assert!(cql.contains("'RT'"));
+
+        let cql = generate_cql(
+            serde_json::from_str(MIABIS_TEMP_EQUALS_FOUR).unwrap(),
+            Flavour::Miabis,
+        )
+        .unwrap();
+        assert!(cql.contains("'four_degrees'"));
+        assert!(cql.contains("'2to10'"));
+
+        // IN: original Lens codes dropped, only MIABIS codes present
+        let cql = generate_cql(
+            serde_json::from_str(MIABIS_TEMP_IN).unwrap(),
+            Flavour::Miabis,
+        )
+        .unwrap();
+        assert!(!cql.contains("'temperature2to10'"));
+        assert!(cql.contains("'2to10'"));
+        assert!(!cql.contains("'temperatureGN'"));
+        assert!(cql.contains("'LN'"));
+
+        // EQUALS: storage_temperature_uncharted has no MIABIS equivalent;
+        // original code is kept (EQUALS always includes it), no MIABIS codes injected
+        let cql = generate_cql(
+            serde_json::from_str(MIABIS_TEMP_UNCHARTED).unwrap(),
+            Flavour::Miabis,
+        )
+        .unwrap();
+        assert!(cql.contains("'storage_temperature_uncharted'"));
+        for miabis_code in &["'RT'", "'2to10'", "'-18to-35'", "'-60to-85'", "'LN'", "'Other'"] {
+            assert!(!cql.contains(miabis_code));
+        }
+    }
 }
