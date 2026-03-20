@@ -315,8 +315,6 @@ async fn process_task(
     match CONFIG.endpoint_type {
         EndpointType::Blaze => {
             let mut generated_from_ast: bool = false;
-            // Support both old format (base64({"lang":"ast","payload":"b64(ast)"}))
-            // and new Spot 0.2.x format (raw {"ast":{...},"id":"..."} or {"lang":"ast","payload":"b64(ast)"})
             let data = match base64_decode(&task.body) {
                 Ok(d) => d,
                 Err(_) => task.body.as_bytes().to_vec(),
@@ -347,7 +345,6 @@ async fn process_task(
                     )?)?
                 }
                 Err(_) => {
-                    // New Spot 0.2.x format: raw ast::Operation JSON (operand + children, no wrapper or base64)
                     generated_from_ast = true;
                     let cql_flavour = if let Some(cql_flavour) = CONFIG.cql_flavour {
                         cql_flavour

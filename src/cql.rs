@@ -779,7 +779,6 @@ mod test {
 
     #[test]
     fn test_miabis_sample_kind() {
-        // EQUALS: original Lens code is kept alongside the MIABIS workaround code
         let cql = generate_cql(
             serde_json::from_str(MIABIS_SAMPLE_EQUALS_WHOLE_BLOOD).unwrap(),
             Flavour::Miabis,
@@ -794,7 +793,6 @@ mod test {
 
     #[test]
     fn test_miabis_storage_temperature() {
-        // EQUALS: original Lens code is kept alongside the MIABIS workaround code
         let cql = generate_cql(
             serde_json::from_str(MIABIS_TEMP_EQUALS_ROOM).unwrap(),
             Flavour::Miabis,
@@ -810,7 +808,6 @@ mod test {
 
     #[test]
     fn test_miabis_sample_type_workarounds() {
-        // EQUALS: original Lens code kept, MIABIS code appended
         let cql = generate_cql(
             serde_json::from_str(MIABIS_SAMPLE_EQUALS_WHOLE_BLOOD).unwrap(),
             Flavour::Miabis,
@@ -819,8 +816,6 @@ mod test {
         assert!(cql.contains("'whole-blood'"));
         assert!(cql.contains("'WholeBlood'"));
 
-        // IN: MIABIS codes present (Lens codes not checked — they appear in the
-        // SampleType case expression in template.cql regardless of search criteria)
         let cql = generate_cql(
             serde_json::from_str(MIABIS_SAMPLE_IN).unwrap(),
             Flavour::Miabis,
@@ -829,7 +824,6 @@ mod test {
         assert!(cql.contains("'Plasma'"));
         assert!(cql.contains("'TissueFixed'"));
 
-        // IN: liquid-other maps to two MIABIS codes (1:many)
         let cql = generate_cql(
             serde_json::from_str(MIABIS_SAMPLE_LIQUID_OTHER).unwrap(),
             Flavour::Miabis,
@@ -841,7 +835,6 @@ mod test {
 
     #[test]
     fn test_miabis_storage_temperature_workarounds() {
-        // EQUALS: original Lens code kept, MIABIS code appended
         let cql = generate_cql(
             serde_json::from_str(MIABIS_TEMP_EQUALS_ROOM).unwrap(),
             Flavour::Miabis,
@@ -858,7 +851,6 @@ mod test {
         assert!(cql.contains("'four_degrees'"));
         assert!(cql.contains("'2to10'"));
 
-        // IN: original Lens codes dropped, only MIABIS codes present
         let cql = generate_cql(
             serde_json::from_str(MIABIS_TEMP_IN).unwrap(),
             Flavour::Miabis,
@@ -869,8 +861,6 @@ mod test {
         assert!(!cql.contains("'temperatureGN'"));
         assert!(cql.contains("'LN'"));
 
-        // EQUALS: storage_temperature_uncharted has no MIABIS equivalent;
-        // original code is kept (EQUALS always includes it), no MIABIS codes injected
         let cql = generate_cql(
             serde_json::from_str(MIABIS_TEMP_UNCHARTED).unwrap(),
             Flavour::Miabis,
