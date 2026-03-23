@@ -315,12 +315,9 @@ async fn process_task(
     match CONFIG.endpoint_type {
         EndpointType::Blaze => {
             let mut generated_from_ast: bool = false;
-            let data = match base64_decode(&task.body) {
-                Ok(d) => d,
-                Err(_) => task.body.as_bytes().to_vec(),
-            };
-            let query: CqlQuery = match serde_json::from_slice::<Language>(&data) {
-                Ok(Language::Cql(cql_query)) => {
+            let data = base64_decode(&task.body)?;
+            let query: CqlQuery = match serde_json::from_slice::<Language>(&data)? {
+                Language::Cql(cql_query) => {
                     if CONFIG
                         .cql_projects_enabled
                         .as_ref()
@@ -331,7 +328,7 @@ async fn process_task(
                         return Err(FocusError::CqlLangNotEnabled);
                     }
                 }
-                Ok(Language::Ast(ast_query)) => {
+                Language::Ast(ast_query) => {
                     generated_from_ast = true;
                     let cql_flavour = if let Some(cql_flavour) = CONFIG.cql_flavour {
                         //same FEs query blazes with different FHIR profiles
@@ -343,17 +340,6 @@ async fn process_task(
                         parse_blaze_query_payload_ast(&ast_query.payload)?,
                         cql_flavour,
                     )?)?
-                }
-                Err(_) => {
-                    generated_from_ast = true;
-                    let cql_flavour = if let Some(cql_flavour) = CONFIG.cql_flavour {
-                        cql_flavour
-                    } else {
-                        metadata.project.parse()?
-                    };
-                    let operation: ast::Operation = serde_json::from_slice(&data)?;
-                    let wrapped = ast::Ast { ast: operation, id: task.id.to_string() };
-                    serde_json::from_str(&cql::generate_body(wrapped, cql_flavour)?)?
                 }
             };
             run_cql_query(
