@@ -12,8 +12,8 @@
         "type": {
             "coding": [
                 {
-                    "code": "logic-library",
-                    "system": "http://terminology.hl7.org/CodeSystem/library-type"
+                    "system": "http://terminology.hl7.org/CodeSystem/library-type",
+                    "code": "logic-library"
                 }
             ]
         },
@@ -30,14 +30,14 @@
                         "code": {
                             "coding": [
                                 {
-                                    "code": "initial-population",
-                                    "system": "http://terminology.hl7.org/CodeSystem/measure-population"
+                                    "system": "http://terminology.hl7.org/CodeSystem/measure-population",
+                                    "code": "initial-population"
                                 }
                             ]
                         },
                         "criteria": {
-                            "expression": "InInitialPopulation",
-                            "language": "text/cql-identifier"
+                            "language": "text/cql-identifier",
+                            "expression": "InInitialPopulation"
                         }
                     }
                 ],
@@ -47,8 +47,8 @@
                             "text": "gender"
                         },
                         "criteria": {
-                            "expression": "Gender",
-                            "language": "text/cql"
+                            "language": "text/cql",
+                            "expression": "Gender"
                         }
                     },
                     {
@@ -56,17 +56,17 @@
                             "text": "75186-7"
                         },
                         "criteria": {
-                            "expression": "Deceased",
-                            "language": "text/cql"
+                            "language": "text/cql",
+                            "expression": "Deceased"
                         }
                     },
                     {
                         "code": {
-                            "text": "Age"
+                            "text": "age_at_diagnosis"
                         },
                         "criteria": {
-                            "expression": "AgeClass",
-                            "language": "text/cql"
+                            "language": "text/cql",
+                            "expression": "AgeClass"
                         }
                     }
                 ]
@@ -86,14 +86,14 @@
                         "code": {
                             "coding": [
                                 {
-                                    "code": "initial-population",
-                                    "system": "http://terminology.hl7.org/CodeSystem/measure-population"
+                                    "system": "http://terminology.hl7.org/CodeSystem/measure-population",
+                                    "code": "initial-population"
                                 }
                             ]
                         },
                         "criteria": {
-                            "expression": "Diagnosis",
-                            "language": "text/cql-identifier"
+                            "language": "text/cql-identifier",
+                            "expression": "Diagnosis"
                         }
                     }
                 ],
@@ -103,8 +103,8 @@
                             "text": "diagnosis"
                         },
                         "criteria": {
-                            "expression": "DiagnosisCode",
-                            "language": "text/cql-identifier"
+                            "language": "text/cql-identifier",
+                            "expression": "DiagnosisCode"
                         }
                     }
                 ]
@@ -124,14 +124,14 @@
                         "code": {
                             "coding": [
                                 {
-                                    "code": "initial-population",
-                                    "system": "http://terminology.hl7.org/CodeSystem/measure-population"
+                                    "system": "http://terminology.hl7.org/CodeSystem/measure-population",
+                                    "code": "initial-population"
                                 }
                             ]
                         },
                         "criteria": {
-                            "expression": "Specimen",
-                            "language": "text/cql-identifier"
+                            "language": "text/cql-identifier",
+                            "expression": "Specimen"
                         }
                     }
                 ],
@@ -141,8 +141,8 @@
                             "text": "sample_kind"
                         },
                         "criteria": {
-                            "expression": "SampleType",
-                            "language": "text/cql"
+                            "language": "text/cql",
+                            "expression": "SampleType"
                         }
                     }
                 ]
@@ -162,14 +162,14 @@
                         "code": {
                             "coding": [
                                 {
-                                    "code": "initial-population",
-                                    "system": "http://terminology.hl7.org/CodeSystem/measure-population"
+                                    "system": "http://terminology.hl7.org/CodeSystem/measure-population",
+                                    "code": "initial-population"
                                 }
                             ]
                         },
                         "criteria": {
-                            "expression": "Procedure",
-                            "language": "text/cql-identifier"
+                            "language": "text/cql-identifier",
+                            "expression": "Procedure"
                         }
                     }
                 ],
@@ -179,8 +179,8 @@
                             "text": "ProcedureType"
                         },
                         "criteria": {
-                            "expression": "ProcedureType",
-                            "language": "text/cql"
+                            "language": "text/cql",
+                            "expression": "ProcedureType"
                         }
                     }
                 ]
@@ -200,14 +200,14 @@
                         "code": {
                             "coding": [
                                 {
-                                    "code": "initial-population",
-                                    "system": "http://terminology.hl7.org/CodeSystem/measure-population"
+                                    "system": "http://terminology.hl7.org/CodeSystem/measure-population",
+                                    "code": "initial-population"
                                 }
                             ]
                         },
                         "criteria": {
-                            "expression": "MedicationStatement",
-                            "language": "text/cql-identifier"
+                            "language": "text/cql-identifier",
+                            "expression": "MedicationStatement"
                         }
                     }
                 ],
@@ -217,8 +217,8 @@
                             "text": "MedicationType"
                         },
                         "criteria": {
-                            "expression": "ProcedureType",
-                            "language": "text/cql"
+                            "language": "text/cql",
+                            "expression": "ProcedureType"
                         }
                     }
                 ]
@@ -229,8 +229,8 @@
         "scoring": {
             "coding": [
                 {
-                    "code": "cohort",
-                    "system": "http://terminology.hl7.org/CodeSystem/measure-scoring"
+                    "system": "http://terminology.hl7.org/CodeSystem/measure-scoring",
+                    "code": "cohort"
                 }
             ]
         },
