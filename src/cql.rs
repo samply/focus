@@ -313,8 +313,12 @@ pub fn process(
                                         string_array_with_workarounds
                                             .push((*additional_value).into());
                                     }
+                                } else if *cql_flavour == Flavour::Miabis {
+                                    //for codes with no mappings in MIABIS the result will be empty
+                                    string_array_with_workarounds.push(value);
                                 }
                             }
+
                             let mut condition_humongous_string = "(".to_string();
                             let mut filter_humongous_string = "(".to_string();
 
@@ -355,13 +359,21 @@ pub fn process(
                 ast::ConditionType::Equals => match condition.value {
                     ast::ConditionValue::String(string) => {
                         let operator_str = " or ";
-                        let mut string_array_with_workarounds = vec![string.clone()];
+                        let mut string_array_with_workarounds = if *cql_flavour == Flavour::Miabis {
+                            //empty, codes get replaced
+                            Default::default()
+                        } else {
+                            vec![string.clone()]
+                        };
                         if let Some(additional_values) =
                             cql_flavour.get_code_workarounds().get(string.as_str())
                         {
                             for additional_value in additional_values {
                                 string_array_with_workarounds.push((*additional_value).into());
                             }
+                        } else if *cql_flavour == Flavour::Miabis {
+                            //for codes with no mappings in MIABIS the result will be empty
+                            string_array_with_workarounds.push(string);
                         }
                         let mut condition_humongous_string = "(".to_string();
                         let mut filter_humongous_string = "(".to_string();
@@ -755,23 +767,29 @@ mod test {
     fn test_miabis_empty() {
         let cql = generate_cql(serde_json::from_str(EMPTY).unwrap(), Flavour::Miabis).unwrap();
         assert!(cql.contains("http://hl7.org/fhir/sid/icd-10"));
-        assert!(cql.contains(
-            "https://fhir.bbmri-eric.eu/CodeSystem/miabis-detailed-samply-type-cs"
-        ));
+        assert!(
+            cql.contains("https://fhir.bbmri-eric.eu/CodeSystem/miabis-detailed-samply-type-cs")
+        );
     }
 
     #[test]
     fn test_miabis_gender() {
-        let cql =
-            generate_cql(serde_json::from_str(MALE_OR_FEMALE).unwrap(), Flavour::Miabis).unwrap();
+        let cql = generate_cql(
+            serde_json::from_str(MALE_OR_FEMALE).unwrap(),
+            Flavour::Miabis,
+        )
+        .unwrap();
         assert!(cql.contains("Patient.gender = 'male'"));
         assert!(cql.contains("Patient.gender = 'female'"));
     }
 
     #[test]
     fn test_miabis_diagnosis() {
-        let cql =
-            generate_cql(serde_json::from_str(MIABIS_DIAGNOSIS).unwrap(), Flavour::Miabis).unwrap();
+        let cql = generate_cql(
+            serde_json::from_str(MIABIS_DIAGNOSIS).unwrap(),
+            Flavour::Miabis,
+        )
+        .unwrap();
         assert!(cql.contains("'C61'"));
         assert!(cql.contains("http://hl7.org/fhir/sid/icd-10"));
         assert!(!cql.contains("http://fhir.de/CodeSystem/dimdi/icd-10-gm"));
@@ -784,10 +802,11 @@ mod test {
             Flavour::Miabis,
         )
         .unwrap();
-        assert!(cql.contains("'WholeBlood'"));
-        assert!(cql.contains(
-            "https://fhir.bbmri-eric.eu/CodeSystem/miabis-detailed-samply-type-cs"
-        ));
+        assert!(cql.contains(r#"(system = 'https://fhir.bbmri-eric.eu/CodeSystem/miabis-detailed-samply-type-cs').code contains 'WholeBlood')"#));
+        assert!(!cql.contains(r#"(system = 'https://fhir.bbmri-eric.eu/CodeSystem/miabis-detailed-samply-type-cs').code contains 'whole-blood')"#));
+        assert!(
+            cql.contains("https://fhir.bbmri-eric.eu/CodeSystem/miabis-detailed-samply-type-cs")
+        );
     }
 
     #[test]
@@ -797,8 +816,8 @@ mod test {
             Flavour::Miabis,
         )
         .unwrap();
-        assert!(cql.contains("'temperatureRoom'"));
-        assert!(cql.contains("'RT'"));
+        assert!(!cql.contains("'temperatureRoom'"));
+        assert!(cql.contains(r#"(E.value as CodeableConcept).coding.code contains 'RT')"#));
         assert!(cql.contains("S.processing"));
         assert!(cql.contains(
             "https://fhir.bbmri-eric.eu/StructureDefinition/miabis-sample-storage-temperature-extension"
@@ -812,23 +831,27 @@ mod test {
             Flavour::Miabis,
         )
         .unwrap();
-        assert!(cql.contains("'WholeBlood'"));
+        assert!(cql.contains(r#"(system = 'https://fhir.bbmri-eric.eu/CodeSystem/miabis-detailed-samply-type-cs').code contains 'WholeBlood')"#));
+        assert!(!cql.contains(r#"(system = 'https://fhir.bbmri-eric.eu/CodeSystem/miabis-detailed-samply-type-cs').code contains 'whole-blood')"#));
 
         let cql = generate_cql(
             serde_json::from_str(MIABIS_SAMPLE_IN).unwrap(),
             Flavour::Miabis,
         )
         .unwrap();
-        assert!(cql.contains("'Plasma'"));
-        assert!(cql.contains("'TissueFixed'"));
+        assert!(cql.contains(r#"(system = 'https://fhir.bbmri-eric.eu/CodeSystem/miabis-detailed-samply-type-cs').code contains 'Plasma')"#));
+        assert!(!cql.contains(r#"(system = 'https://fhir.bbmri-eric.eu/CodeSystem/miabis-detailed-samply-type-cs').code contains 'blood-plasma')"#));
+        assert!(cql.contains(r#"(system = 'https://fhir.bbmri-eric.eu/CodeSystem/miabis-detailed-samply-type-cs').code contains 'TissueFixed')"#));
+        assert!(!cql.contains(r#"(system = 'https://fhir.bbmri-eric.eu/CodeSystem/miabis-detailed-samply-type-cs').code contains 'tissue-ffpe')"#));
 
         let cql = generate_cql(
             serde_json::from_str(MIABIS_SAMPLE_LIQUID_OTHER).unwrap(),
             Flavour::Miabis,
         )
         .unwrap();
-        assert!(cql.contains("'LiquidBiopsy'"));
-        assert!(cql.contains("'Sputum'"));
+        assert!(cql.contains(r#"(system = 'https://fhir.bbmri-eric.eu/CodeSystem/miabis-detailed-samply-type-cs').code contains 'LiquidBiopsy')"#));
+        assert!(cql.contains(r#"(system = 'https://fhir.bbmri-eric.eu/CodeSystem/miabis-detailed-samply-type-cs').code contains 'Sputum')"#));
+        assert!(!cql.contains(r#"(system = 'https://fhir.bbmri-eric.eu/CodeSystem/miabis-detailed-samply-type-cs').code contains 'liquid-other')"#));
     }
 
     #[test]
@@ -838,7 +861,7 @@ mod test {
             Flavour::Miabis,
         )
         .unwrap();
-        assert!(cql.contains("'temperatureRoom'"));
+        assert!(!cql.contains("'temperatureRoom'"));
         assert!(cql.contains("'RT'"));
 
         let cql = generate_cql(
@@ -846,7 +869,7 @@ mod test {
             Flavour::Miabis,
         )
         .unwrap();
-        assert!(cql.contains("'four_degrees'"));
+        assert!(!cql.contains("'four_degrees'"));
         assert!(cql.contains("'2to10'"));
 
         let cql = generate_cql(
@@ -864,8 +887,15 @@ mod test {
             Flavour::Miabis,
         )
         .unwrap();
-        assert!(cql.contains("'storage_temperature_uncharted'"));
-        for miabis_code in &["'RT'", "'2to10'", "'-18to-35'", "'-60to-85'", "'LN'", "'Other'"] {
+        assert!(cql.contains("coding.code contains 'storage_temperature_uncharted'"));
+        for miabis_code in &[
+            "'RT'",
+            "'2to10'",
+            "'-18to-35'",
+            "'-60to-85'",
+            "'LN'",
+            "'Other'",
+        ] {
             assert!(!cql.contains(miabis_code));
         }
     }
