@@ -1,6 +1,6 @@
 use crate::ast;
 use crate::errors::FocusError;
-use crate::projects::{CriterionRole, Project};
+use crate::flavours::{CriterionRole, Flavour};
 
 use base64::{prelude::BASE64_STANDARD as BASE64, Engine as _};
 use chrono::offset::Utc;
@@ -9,7 +9,7 @@ use indexmap::set::IndexSet;
 use tracing::info;
 use uuid::Uuid;
 
-pub fn generate_body(ast: ast::Ast, project: Project) -> Result<String, FocusError> {
+pub fn generate_body(ast: ast::Ast, project: Flavour) -> Result<String, FocusError> {
     Ok(project
         .get_body()
         .replace(
@@ -26,21 +26,21 @@ pub fn generate_body(ast: ast::Ast, project: Project) -> Result<String, FocusErr
         ))
 }
 
-fn generate_cql(ast: ast::Ast, project: Project) -> Result<String, FocusError> {
+fn generate_cql(ast: ast::Ast, cql_flavour: Flavour) -> Result<String, FocusError> {
     let mut retrieval_criteria: String = String::new(); // main selection criteria (Patient)
 
     let mut filter_criteria: String = String::new(); // criteria for filtering specimens
 
     let mut lists: String = String::new(); // needed code lists, defined
 
-    let mut cql = project.get_cql_template().to_string();
+    let mut cql = cql_flavour.get_cql_template().to_string();
 
     let operator_str = match ast.ast.operand {
         ast::Operand::And => " and ",
         ast::Operand::Or => " or ",
     };
 
-    let mut mandatory_codes = project.get_mandatory_code_lists().clone();
+    let mut mandatory_codes = cql_flavour.get_mandatory_code_lists().clone();
 
     for (index, grandchild) in ast.ast.children.iter().enumerate() {
         process(
@@ -48,7 +48,7 @@ fn generate_cql(ast: ast::Ast, project: Project) -> Result<String, FocusError> {
             &mut retrieval_criteria,
             &mut filter_criteria,
             &mut mandatory_codes,
-            &project,
+            &cql_flavour,
         )?;
 
         // Only concatenate operator if it's not the last element
@@ -61,7 +61,10 @@ fn generate_cql(ast: ast::Ast, project: Project) -> Result<String, FocusError> {
         lists += format!(
             "codesystem {}: '{}'\n",
             code_system,
-            project.get_code_lists().get(code_system).unwrap_or(&(""))
+            cql_flavour
+                .get_code_lists()
+                .get(code_system)
+                .unwrap_or(&(""))
         )
         .as_str();
     }
@@ -99,7 +102,7 @@ pub fn process(
     retrieval_criteria: &mut String,
     filter_criteria: &mut String,
     code_systems: &mut IndexSet<&str>,
-    project: &Project,
+    cql_flavour: &Flavour,
 ) -> Result<(), FocusError> {
     let mut retrieval_cond: String = "(".to_string();
     let mut filter_cond: String = String::new();
@@ -108,7 +111,7 @@ pub fn process(
         ast::Child::Condition(condition) => {
             let condition_key_trans = condition.key.as_str();
 
-            let condition_snippet = project
+            let condition_snippet = cql_flavour
                 .get_cql_snippets()
                 .get(&(condition_key_trans, CriterionRole::Query));
 
@@ -120,11 +123,11 @@ pub fn process(
             let mut condition_string = (*snippet).to_string();
             let mut filter_string: String = String::new();
 
-            let filter_snippet = project
+            let filter_snippet = cql_flavour
                 .get_cql_snippets()
                 .get(&(condition_key_trans, CriterionRole::Filter));
 
-            let code_lists_option = project
+            let code_lists_option = cql_flavour
                 .get_criterion_code_lists()
                 .get(&(condition_key_trans));
             if let Some(code_lists_vec) = code_lists_option {
@@ -137,7 +140,7 @@ pub fn process(
 
             if condition_string.contains("{{K}}") {
                 //observation loinc code, those only apply to query criteria, we don't filter specimens by observations
-                let observation_code_option = project
+                let observation_code_option = cql_flavour
                     .get_observation_loinc_codes()
                     .get(&condition_key_trans);
 
@@ -294,17 +297,28 @@ pub fn process(
 
                     match condition.value {
                         ast::ConditionValue::StringArray(string_array) => {
-                            let mut string_array_with_workarounds = string_array.clone();
+                            let mut string_array_with_workarounds =
+                                if *cql_flavour == Flavour::Miabis {
+                                    //empty, codes get replaced
+                                    Default::default()
+                                } else {
+                                    string_array.clone()
+                                };
+
                             for value in string_array {
                                 if let Some(additional_values) =
-                                    project.get_sample_type_workarounds().get(value.as_str())
+                                    cql_flavour.get_code_workarounds().get(value.as_str())
                                 {
                                     for additional_value in additional_values {
                                         string_array_with_workarounds
                                             .push((*additional_value).into());
                                     }
+                                } else if *cql_flavour == Flavour::Miabis {
+                                    //for codes with no mappings in MIABIS the result will be empty
+                                    string_array_with_workarounds.push(value);
                                 }
                             }
+
                             let mut condition_humongous_string = "(".to_string();
                             let mut filter_humongous_string = "(".to_string();
 
@@ -345,13 +359,21 @@ pub fn process(
                 ast::ConditionType::Equals => match condition.value {
                     ast::ConditionValue::String(string) => {
                         let operator_str = " or ";
-                        let mut string_array_with_workarounds = vec![string.clone()];
+                        let mut string_array_with_workarounds = if *cql_flavour == Flavour::Miabis {
+                            //empty, codes get replaced
+                            Default::default()
+                        } else {
+                            vec![string.clone()]
+                        };
                         if let Some(additional_values) =
-                            project.get_sample_type_workarounds().get(string.as_str())
+                            cql_flavour.get_code_workarounds().get(string.as_str())
                         {
                             for additional_value in additional_values {
                                 string_array_with_workarounds.push((*additional_value).into());
                             }
+                        } else if *cql_flavour == Flavour::Miabis {
+                            //for codes with no mappings in MIABIS the result will be empty
+                            string_array_with_workarounds.push(string);
                         }
                         let mut condition_humongous_string = "(".to_string();
                         let mut filter_humongous_string = "(".to_string();
@@ -413,7 +435,7 @@ pub fn process(
                     &mut retrieval_cond,
                     &mut filter_cond,
                     code_systems,
-                    project,
+                    cql_flavour,
                 )?;
 
                 // Only concatenate operator if it's not the last element
@@ -531,7 +553,7 @@ mod test {
     #[test]
     fn test_bbmri_quote() {
         pretty_assertions::assert_eq!(
-            generate_cql(serde_json::from_str(QUOTE).unwrap(), Project::Bbmri).unwrap(),
+            generate_cql(serde_json::from_str(QUOTE).unwrap(), Flavour::Bbmri).unwrap(),
             include_str!("../resources/test/result_quote.cql").to_string()
         );
     }
@@ -541,7 +563,7 @@ mod test {
         pretty_assertions::assert_eq!(
             generate_cql(
                 serde_json::from_str(MALE_OR_FEMALE).unwrap(),
-                Project::Bbmri
+                Flavour::Bbmri
             )
             .unwrap(),
             include_str!("../resources/test/result_male_or_female.cql").to_string()
@@ -550,7 +572,7 @@ mod test {
         pretty_assertions::assert_eq!(
             generate_cql(
                 serde_json::from_str(AGE_AT_DIAGNOSIS_30_TO_70).unwrap(),
-                Project::Bbmri
+                Flavour::Bbmri
             )
             .unwrap(),
             include_str!("../resources/test/result_age_at_diagnosis_30_to_70.cql").to_string()
@@ -559,69 +581,69 @@ mod test {
         pretty_assertions::assert_eq!(
             generate_cql(
                 serde_json::from_str(AGE_AT_DIAGNOSIS_LOWER_THAN_70).unwrap(),
-                Project::Bbmri
+                Flavour::Bbmri
             )
             .unwrap(),
             include_str!("../resources/test/result_age_at_diagnosis_lower_than_70.cql").to_string()
         );
 
         pretty_assertions::assert_eq!(
-            generate_cql(serde_json::from_str(C61_AND_MALE).unwrap(), Project::Bbmri).unwrap(),
+            generate_cql(serde_json::from_str(C61_AND_MALE).unwrap(), Flavour::Bbmri).unwrap(),
             include_str!("../resources/test/result_c61_and_male.cql").to_string()
         );
 
         pretty_assertions::assert_eq!(
-            generate_cql(serde_json::from_str(ALL_GBN).unwrap(), Project::Bbmri).unwrap(),
+            generate_cql(serde_json::from_str(ALL_GBN).unwrap(), Flavour::Bbmri).unwrap(),
             include_str!("../resources/test/result_all_gbn.cql").to_string()
         );
 
         pretty_assertions::assert_eq!(
-            generate_cql(serde_json::from_str(SOME_GBN).unwrap(), Project::Bbmri).unwrap(),
+            generate_cql(serde_json::from_str(SOME_GBN).unwrap(), Flavour::Bbmri).unwrap(),
             include_str!("../resources/test/result_some_gbn.cql").to_string()
         );
 
         pretty_assertions::assert_eq!(
-            generate_cql(serde_json::from_str(LENS2).unwrap(), Project::Bbmri).unwrap(),
+            generate_cql(serde_json::from_str(LENS2).unwrap(), Flavour::Bbmri).unwrap(),
             include_str!("../resources/test/result_lens2.cql").to_string()
         );
 
         pretty_assertions::assert_eq!(
-            generate_cql(serde_json::from_str(EMPTY).unwrap(), Project::Bbmri).unwrap(),
+            generate_cql(serde_json::from_str(EMPTY).unwrap(), Flavour::Bbmri).unwrap(),
             include_str!("../resources/test/result_empty.cql").to_string()
         );
 
         pretty_assertions::assert_eq!(
-            generate_cql(serde_json::from_str(EMPTY_OR).unwrap(), Project::Bbmri).unwrap(),
+            generate_cql(serde_json::from_str(EMPTY_OR).unwrap(), Flavour::Bbmri).unwrap(),
             include_str!("../resources/test/result_empty.cql").to_string()
         );
 
         pretty_assertions::assert_eq!(
-            generate_cql(serde_json::from_str(LESS).unwrap(), Project::Bbmri).unwrap(),
+            generate_cql(serde_json::from_str(LESS).unwrap(), Flavour::Bbmri).unwrap(),
             include_str!("../resources/test/result_less.cql").to_string()
         );
 
         pretty_assertions::assert_eq!(
-            generate_cql(serde_json::from_str(GREATER).unwrap(), Project::Bbmri).unwrap(),
+            generate_cql(serde_json::from_str(GREATER).unwrap(), Flavour::Bbmri).unwrap(),
             include_str!("../resources/test/result_greater.cql").to_string()
         );
 
         pretty_assertions::assert_eq!(
-            generate_cql(serde_json::from_str(AFTER).unwrap(), Project::Bbmri).unwrap(),
+            generate_cql(serde_json::from_str(AFTER).unwrap(), Flavour::Bbmri).unwrap(),
             include_str!("../resources/test/result_after.cql").to_string()
         );
 
         pretty_assertions::assert_eq!(
-            generate_cql(serde_json::from_str(BEFORE).unwrap(), Project::Bbmri).unwrap(),
+            generate_cql(serde_json::from_str(BEFORE).unwrap(), Flavour::Bbmri).unwrap(),
             include_str!("../resources/test/result_before.cql").to_string()
         );
 
         pretty_assertions::assert_eq!(
-            generate_cql(serde_json::from_str(VAFAN).unwrap(), Project::Bbmri).unwrap(),
+            generate_cql(serde_json::from_str(VAFAN).unwrap(), Flavour::Bbmri).unwrap(),
             include_str!("../resources/test/result_empty.cql").to_string()
         );
 
         pretty_assertions::assert_eq!(
-            generate_cql(serde_json::from_str(CURRENT).unwrap(), Project::Bbmri).unwrap(),
+            generate_cql(serde_json::from_str(CURRENT).unwrap(), Flavour::Bbmri).unwrap(),
             include_str!("../resources/test/result_current.cql").to_string()
         );
     }
@@ -641,42 +663,42 @@ mod test {
     #[test]
     fn test_dktk() {
         pretty_assertions::assert_eq!(
-            generate_cql(serde_json::from_str(DIAGNOSIS_C30).unwrap(), Project::Dktk).unwrap(),
+            generate_cql(serde_json::from_str(DIAGNOSIS_C30).unwrap(), Flavour::Dktk).unwrap(),
             include_str!("../resources/test/result_diagnosis_c30.cql").to_string()
         );
 
         pretty_assertions::assert_eq!(
             generate_cql(
                 serde_json::from_str(YEAR_OF_DIAGNOSIS_2000_TO_2010).unwrap(),
-                Project::Dktk
+                Flavour::Dktk
             )
             .unwrap(),
             include_str!("../resources/test/result_year_of_diagnosis_2000_to_2010.cql").to_string()
         );
 
         pretty_assertions::assert_eq!(
-            generate_cql(serde_json::from_str(BODY_SITE_LEFT).unwrap(), Project::Dktk).unwrap(),
+            generate_cql(serde_json::from_str(BODY_SITE_LEFT).unwrap(), Flavour::Dktk).unwrap(),
             include_str!("../resources/test/result_body_site_left.cql").to_string()
         );
 
         pretty_assertions::assert_eq!(
             generate_cql(
                 serde_json::from_str(GRADING_LOW_GRADE).unwrap(),
-                Project::Dktk
+                Flavour::Dktk
             )
             .unwrap(),
             include_str!("../resources/test/result_grading_low_grade.cql").to_string()
         );
 
         pretty_assertions::assert_eq!(
-            generate_cql(serde_json::from_str(TNM_T_2).unwrap(), Project::Dktk).unwrap(),
+            generate_cql(serde_json::from_str(TNM_T_2).unwrap(), Flavour::Dktk).unwrap(),
             include_str!("../resources/test/result_tnm_t_2.cql").to_string()
         );
 
         pretty_assertions::assert_eq!(
             generate_cql(
                 serde_json::from_str(SAMPLE_KIND_FFPE).unwrap(),
-                Project::Dktk
+                Flavour::Dktk
             )
             .unwrap(),
             include_str!("../resources/test/result_sample_kind_ffpe.cql").to_string()
@@ -696,7 +718,7 @@ mod test {
     #[test]
     fn test_cce_empty() {
         let generated_cql =
-            generate_cql(serde_json::from_str(EMPTY).unwrap(), Project::Cce).unwrap();
+            generate_cql(serde_json::from_str(EMPTY).unwrap(), Flavour::Cce).unwrap();
         pretty_assertions::assert_eq!(generated_cql.contains(CCE_VITAL_STATUS_URL), true);
         pretty_assertions::assert_eq!(generated_cql.contains(CCE_SAMPLE_MATERIAL_TYPE_URL), true);
         pretty_assertions::assert_eq!(generated_cql.contains(CCE_SYST_THERAPY_TYPE_URL), true);
@@ -711,7 +733,7 @@ mod test {
     fn test_cce_male() {
         let expected = r#"Patient.gender = 'male'"#;
         let generated_cql =
-            generate_cql(serde_json::from_str(CCE_MALE).unwrap(), Project::Cce).unwrap();
+            generate_cql(serde_json::from_str(CCE_MALE).unwrap(), Flavour::Cce).unwrap();
         pretty_assertions::assert_eq!(generated_cql.contains(expected), true);
     }
 
@@ -724,4 +746,157 @@ mod test {
     //     // pretty_assertions::assert_eq!(generated_cql.contains(expected), true);
     //     pretty_assertions::assert_eq!(false, true);
     // }
+
+    const MIABIS_DIAGNOSIS: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"operand":"OR","children":[{"key":"diagnosis","type":"EQUALS","system":"","value":"C61"}]}]}]},"id":"miabis-d1"}"#;
+
+    const MIABIS_SAMPLE_EQUALS_WHOLE_BLOOD: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"operand":"OR","children":[{"key":"sample_kind","type":"EQUALS","system":"","value":"whole-blood"}]}]}]},"id":"miabis-s1"}"#;
+
+    const MIABIS_SAMPLE_IN: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"operand":"OR","children":[{"key":"sample_kind","type":"IN","system":"","value":["blood-plasma","tissue-ffpe"]}]}]}]},"id":"miabis-s2"}"#;
+
+    const MIABIS_SAMPLE_LIQUID_OTHER: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"operand":"OR","children":[{"key":"sample_kind","type":"IN","system":"","value":["liquid-other"]}]}]}]},"id":"miabis-s3"}"#;
+
+    const MIABIS_TEMP_EQUALS_ROOM: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"operand":"OR","children":[{"key":"storage_temperature","type":"EQUALS","system":"","value":"temperatureRoom"}]}]}]},"id":"miabis-t1"}"#;
+
+    const MIABIS_TEMP_EQUALS_FOUR: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"operand":"OR","children":[{"key":"storage_temperature","type":"EQUALS","system":"","value":"four_degrees"}]}]}]},"id":"miabis-t2"}"#;
+
+    const MIABIS_TEMP_IN: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"operand":"OR","children":[{"key":"storage_temperature","type":"IN","system":"","value":["temperature2to10","temperatureGN"]}]}]}]},"id":"miabis-t3"}"#;
+
+    const MIABIS_TEMP_UNCHARTED: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"operand":"OR","children":[{"key":"storage_temperature","type":"EQUALS","system":"","value":"storage_temperature_uncharted"}]}]}]},"id":"miabis-t4"}"#;
+
+    #[test]
+    fn test_miabis_empty() {
+        let cql = generate_cql(serde_json::from_str(EMPTY).unwrap(), Flavour::Miabis).unwrap();
+        assert!(cql.contains("http://hl7.org/fhir/sid/icd-10"));
+        assert!(
+            cql.contains("https://fhir.bbmri-eric.eu/CodeSystem/miabis-detailed-samply-type-cs")
+        );
+    }
+
+    #[test]
+    fn test_miabis_gender() {
+        let cql = generate_cql(
+            serde_json::from_str(MALE_OR_FEMALE).unwrap(),
+            Flavour::Miabis,
+        )
+        .unwrap();
+        assert!(cql.contains("Patient.gender = 'male'"));
+        assert!(cql.contains("Patient.gender = 'female'"));
+    }
+
+    #[test]
+    fn test_miabis_diagnosis() {
+        let cql = generate_cql(
+            serde_json::from_str(MIABIS_DIAGNOSIS).unwrap(),
+            Flavour::Miabis,
+        )
+        .unwrap();
+        assert!(cql.contains("'C61'"));
+        assert!(cql.contains("http://hl7.org/fhir/sid/icd-10"));
+        assert!(!cql.contains("http://fhir.de/CodeSystem/dimdi/icd-10-gm"));
+    }
+
+    #[test]
+    fn test_miabis_sample_kind() {
+        let cql = generate_cql(
+            serde_json::from_str(MIABIS_SAMPLE_EQUALS_WHOLE_BLOOD).unwrap(),
+            Flavour::Miabis,
+        )
+        .unwrap();
+        assert!(cql.contains(r#"(system = 'https://fhir.bbmri-eric.eu/CodeSystem/miabis-detailed-samply-type-cs').code contains 'WholeBlood')"#));
+        assert!(!cql.contains(r#"(system = 'https://fhir.bbmri-eric.eu/CodeSystem/miabis-detailed-samply-type-cs').code contains 'whole-blood')"#));
+        assert!(
+            cql.contains("https://fhir.bbmri-eric.eu/CodeSystem/miabis-detailed-samply-type-cs")
+        );
+    }
+
+    #[test]
+    fn test_miabis_storage_temperature() {
+        let cql = generate_cql(
+            serde_json::from_str(MIABIS_TEMP_EQUALS_ROOM).unwrap(),
+            Flavour::Miabis,
+        )
+        .unwrap();
+        assert!(!cql.contains("'temperatureRoom'"));
+        assert!(cql.contains(r#"(E.value as CodeableConcept).coding.code contains 'RT')"#));
+        assert!(cql.contains("S.processing"));
+        assert!(cql.contains(
+            "https://fhir.bbmri-eric.eu/StructureDefinition/miabis-sample-storage-temperature-extension"
+        ));
+    }
+
+    #[test]
+    fn test_miabis_sample_type_workarounds() {
+        let cql = generate_cql(
+            serde_json::from_str(MIABIS_SAMPLE_EQUALS_WHOLE_BLOOD).unwrap(),
+            Flavour::Miabis,
+        )
+        .unwrap();
+        assert!(cql.contains(r#"(system = 'https://fhir.bbmri-eric.eu/CodeSystem/miabis-detailed-samply-type-cs').code contains 'WholeBlood')"#));
+        assert!(!cql.contains(r#"(system = 'https://fhir.bbmri-eric.eu/CodeSystem/miabis-detailed-samply-type-cs').code contains 'whole-blood')"#));
+
+        let cql = generate_cql(
+            serde_json::from_str(MIABIS_SAMPLE_IN).unwrap(),
+            Flavour::Miabis,
+        )
+        .unwrap();
+        assert!(cql.contains(r#"(system = 'https://fhir.bbmri-eric.eu/CodeSystem/miabis-detailed-samply-type-cs').code contains 'Plasma')"#));
+        assert!(!cql.contains(r#"(system = 'https://fhir.bbmri-eric.eu/CodeSystem/miabis-detailed-samply-type-cs').code contains 'blood-plasma')"#));
+        assert!(cql.contains(r#"(system = 'https://fhir.bbmri-eric.eu/CodeSystem/miabis-detailed-samply-type-cs').code contains 'TissueFixed')"#));
+        assert!(!cql.contains(r#"(system = 'https://fhir.bbmri-eric.eu/CodeSystem/miabis-detailed-samply-type-cs').code contains 'tissue-ffpe')"#));
+
+        let cql = generate_cql(
+            serde_json::from_str(MIABIS_SAMPLE_LIQUID_OTHER).unwrap(),
+            Flavour::Miabis,
+        )
+        .unwrap();
+        assert!(cql.contains(r#"(system = 'https://fhir.bbmri-eric.eu/CodeSystem/miabis-detailed-samply-type-cs').code contains 'LiquidBiopsy')"#));
+        assert!(cql.contains(r#"(system = 'https://fhir.bbmri-eric.eu/CodeSystem/miabis-detailed-samply-type-cs').code contains 'Sputum')"#));
+        assert!(!cql.contains(r#"(system = 'https://fhir.bbmri-eric.eu/CodeSystem/miabis-detailed-samply-type-cs').code contains 'liquid-other')"#));
+    }
+
+    #[test]
+    fn test_miabis_storage_temperature_workarounds() {
+        let cql = generate_cql(
+            serde_json::from_str(MIABIS_TEMP_EQUALS_ROOM).unwrap(),
+            Flavour::Miabis,
+        )
+        .unwrap();
+        assert!(!cql.contains("'temperatureRoom'"));
+        assert!(cql.contains("'RT'"));
+
+        let cql = generate_cql(
+            serde_json::from_str(MIABIS_TEMP_EQUALS_FOUR).unwrap(),
+            Flavour::Miabis,
+        )
+        .unwrap();
+        assert!(!cql.contains("'four_degrees'"));
+        assert!(cql.contains("'2to10'"));
+
+        let cql = generate_cql(
+            serde_json::from_str(MIABIS_TEMP_IN).unwrap(),
+            Flavour::Miabis,
+        )
+        .unwrap();
+        assert!(!cql.contains("'temperature2to10'"));
+        assert!(cql.contains("'2to10'"));
+        assert!(!cql.contains("'temperatureGN'"));
+        assert!(cql.contains("'LN'"));
+
+        let cql = generate_cql(
+            serde_json::from_str(MIABIS_TEMP_UNCHARTED).unwrap(),
+            Flavour::Miabis,
+        )
+        .unwrap();
+        assert!(cql.contains("coding.code contains 'storage_temperature_uncharted'"));
+        for miabis_code in &[
+            "'RT'",
+            "'2to10'",
+            "'-18to-35'",
+            "'-60to-85'",
+            "'LN'",
+            "'Other'",
+        ] {
+            assert!(!cql.contains(miabis_code));
+        }
+    }
 }
