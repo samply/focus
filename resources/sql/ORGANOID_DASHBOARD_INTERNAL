@@ -55,7 +55,7 @@ neomatch_visit_1a AS (
         (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_TNM_C-N') AS tnm_cn,
         (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_TNM_C-M') AS tnm_cm,
         (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_NEOADJ_CTX') AS neoadj_ctx,
-        (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_DIAGNOSIS_ICD-O-3') AS diagnosis_icd_o_3,
+        (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_DIAGNOSIS_ICD-O-3') AS diagnosis_icd_o_3
     FROM observation
     WHERE resource->'method'->'coding'->0->>'code' = 'PROFILE_SIOP_NEOMATCH_VISIT-1A_PATIENTDATA'
 ),
