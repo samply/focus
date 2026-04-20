@@ -54,7 +54,8 @@ neomatch_visit_1a AS (
         (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_TNM_C-T') AS tnm_ct,
         (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_TNM_C-N') AS tnm_cn,
         (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_TNM_C-M') AS tnm_cm,
-        (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_NEOADJ_CTX') AS neoadj_ctx
+        (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_NEOADJ_CTX') AS neoadj_ctx,
+        (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_DIAGNOSIS_ICD-O-3') AS diagnosis_icd_o_3
     FROM observation
     WHERE resource->'method'->'coding'->0->>'code' = 'PROFILE_SIOP_NEOMATCH_VISIT-1A_PATIENTDATA'
 ),
@@ -92,6 +93,8 @@ SELECT
         WHEN metpredict_visit_1.localisation_primary_tumor = 'RECTUM' THEN 'Rectum'
         WHEN metpredict_visit_1.localisation_primary_tumor = 'NA' THEN 'not documented'
     END AS localisation_primary_tumor,
+    -- ICD code
+    'C78.7' AS icd_code,
     -- sample type
     'Metastasis: resection' AS sample_type,
     -- neoadjuvant therapy for primary tumor
@@ -191,6 +194,8 @@ SELECT
         WHEN neomatch_visit_2b.sample_localisation = 'OTH' THEN neomatch_visit_2b.sample_localisation_other
         WHEN neomatch_visit_2b.sample_localisation = 'NA' THEN 'not documented'
     END AS localisation_primary_tumor,
+    -- ICD code
+    REPLACE(neomatch_visit_1a.diagnosis_icd_o_3, '-', '.') AS icd_code,
     -- sample type
     'Primary tumor: ' ||
     CASE
