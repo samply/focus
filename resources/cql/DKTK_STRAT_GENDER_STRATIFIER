@@ -1,2 +1,0 @@
-define Gender:
-if (Patient.gender is null) then 'unknown' else Patient.gender

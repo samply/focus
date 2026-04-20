@@ -1,4 +1,0 @@
-define Custodian:
- First(from Specimen.extension E
- where E.url = 'https://fhir.bbmri.de/StructureDefinition/Custodian'
- return (E.value as Reference).identifier.value)
