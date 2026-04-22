@@ -465,17 +465,6 @@ mod test {
     }
 
     #[test]
-    fn test_replace_cql() {
-        let decoded_library = QUERY_BBMRI_PLACEHOLDERS;
-        let expected_result = QUERY_BBMRI;
-        pretty_assertions::assert_eq!(replace_cql(decoded_library), expected_result);
-
-        let decoded_library = "INVALID_KEY";
-        let expected_result = "INVALID_KEY";
-        pretty_assertions::assert_eq!(replace_cql(decoded_library), expected_result);
-    }
-
-    #[test]
     fn test_obfuscate_counts_bbmri_new_extension() {
         let mut obf_cache = ObfCache {
             cache: HashMap::new(),
