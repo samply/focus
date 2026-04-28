@@ -1,3 +1,48 @@
+# Samply.Focus v0.23.0 2026-04-13
+
+## Major changes
+
+* rand upgraded v0.9.0, breaking changes in statrs, laplace-rs
+* laplace-rs upgraded to v0.7.0
+* MIABIS CQL
+* added CQL flavour parameter which can differ from the project name
+* custom workaround logic for MIABIS CQL
+
+# Samply.Focus v0.22.0 2026-03-13
+
+## Major changes
+
+* EUCAIM CDM SQL querying for the new schema
+
+
+# Samply.Focus v0.21.0 2026-03-09
+
+## Major changes
+
+* EUCAIM Beacon querying
+
+
+# Samply.Focus v0.20.1 2026-01-15
+
+## Minor changes
+
+* BETWEEN operator supported with only one boundary defined in the date range
+
+
+# Samply.Focus v0.20.0 2026-01-13
+
+## Major changes
+
+* Optional obfuscation using limited Laplace distribution and rounding to the floor(number of digits /2) significant digits
+* Exporter uses DKTK CQL generation
+
+## Minor changes
+
+* Workaround for multiple ORed empty criteria fields
+* BETWEEN operator suported with only one boundary defined in the numeric range
+* Fixed double serialization in EUCAIM SQL
+
+
 # Samply.Focus v0.19.0 2025-11-03
 
 ## Major changes
@@ -8,11 +53,13 @@
 
 * Fix DKTK mol markers this time for real
 
+
 # Samply.Focus v0.18.1 2025-10-17
 
 ## Minor changes
 
 * Fixed mol marker measure for DKTK CQL generation
+
 
 # Samply.Focus v0.18.0 2025-10-16
 
@@ -25,6 +72,7 @@
 
 * First version of CCE CQL generation
 
+
 # Samply.Focus v0.17.0 2025-09-30
 
 ## Breaking changes
@@ -35,13 +83,16 @@
 
 * Use a default EUCAIM provider logo if none in config
 
+
 # Samply.Focus v0.16.0 2025-09-26
 
 * Add DKTK CQL generation: https://github.com/samply/focus/pull/266
 
+
 # Samply.Focus v0.15.3 2025-09-22
 
 * Security fix: Reject unknown stratifiers in obfuscation
+
 
 # Samply.Focus v0.15.2 2025-09-19
 
@@ -55,10 +106,12 @@
 * Add DHKI age stratifier
 * Security fix: Disallow CQL as input for BBMRI queries; only allow AST queries
 
+
 # Samply.Focus v0.15.1 2025-08-14
 
 ## Minor changes
 * Fixes for EXLIQUID query: https://github.com/samply/focus/pull/254
+
 
 # Samply.Focus v0.15 2025-06-30
 
@@ -71,6 +124,7 @@
 * Rename BBMRI stratifier "Age" to "donor_age": https://github.com/samply/focus/pull/247
 * Changes to EXLIQUID query: https://github.com/samply/focus/pull/251
 
+
 # Samply.Focus v0.14.1 2025-06-10
 
 ## Minor changes
@@ -82,6 +136,7 @@
 ## Minor changes
 * Update SQL queries for organoid dashboard
 
+
 # Samply.Focus v0.13.1 2025-04-22
 
 ## Bugfixes
@@ -90,6 +145,7 @@
 ## Minor changes
 * remove exliquid query with aliquotes
 * add exliquid query for samples with status available
+
 
 # Samply.Focus v0.13.0 2025-04-17
 

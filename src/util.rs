@@ -1,9 +1,9 @@
+use crate::errors::FocusError;
 use crate::mr;
-use crate::{config::CONFIG, errors::FocusError};
 use base64::engine::general_purpose;
 use base64::Engine as _;
 use laplace_rs::{get_from_cache_or_privatize, Bin, ObfCache, ObfuscateBelow10Mode};
-use rand::thread_rng;
+use rand::rng;
 use serde_json::Value;
 use std::collections::HashMap;
 use tracing::warn;
@@ -272,7 +272,7 @@ fn obfuscate_population(
     domain_limit: Option<f64>,
     bbmri_rounding: bool,
 ) -> Result<(), FocusError> {
-    let mut rng = thread_rng();
+    let mut rng = rng();
     for pop in val {
         let obfuscated = get_from_cache_or_privatize(
             pop.count,
@@ -462,17 +462,6 @@ mod test {
         for (decoded_library, expected_result) in REPLACE_MAP.iter() {
             pretty_assertions::assert_eq!(replace_cql(*decoded_library).as_str(), *expected_result);
         }
-    }
-
-    #[test]
-    fn test_replace_cql() {
-        let decoded_library = QUERY_BBMRI_PLACEHOLDERS;
-        let expected_result = QUERY_BBMRI;
-        pretty_assertions::assert_eq!(replace_cql(decoded_library), expected_result);
-
-        let decoded_library = "INVALID_KEY";
-        let expected_result = "INVALID_KEY";
-        pretty_assertions::assert_eq!(replace_cql(decoded_library), expected_result);
     }
 
     #[test]

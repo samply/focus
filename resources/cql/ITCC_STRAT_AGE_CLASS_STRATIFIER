@@ -1,2 +1,0 @@
-define function DiagnosisAge(condition FHIR.Condition):
-condition.onset.value

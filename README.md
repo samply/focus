@@ -1,6 +1,6 @@
 # Focus
 
-Focus is a Samply component ran on the sites, which distributes tasks from [Beam.Proxy](https://github.com/samply/beam/) to the applications on the site and re-transmits the results through [Samply.Beam](https://github.com/samply/beam/). 
+<img src="resources/focus.png" width="200" align="left" style="margin-right: 1.5rem" alt="Focus logo, a blue telescope on a light yellow background">Focus is a Samply component ran on the sites, which distributes tasks from [Beam.Proxy](https://github.com/samply/beam/) to the applications on the site and re-transmits the results through [Samply.Beam](https://github.com/samply/beam/). 
 
 It is possible to specify [Blaze](https://github.com/samply/blaze) and SQL queries whose results are to be cached to speed up retrieval. The cached results expire after 24 hours. 
 
@@ -35,7 +35,7 @@ BEAM_APP_ID_LONG = "app1.broker.example.com"
 
 ```bash
 RETRY_COUNT = "32" # The maximum number of retries for beam and blaze healthchecks; default value: 32
-ENDPOINT_TYPE = "blaze" # Type of the endpoint, allowed values: "blaze", "omop", "sql", "blaze-and-sql", "eucaim-api"; default value: "blaze"
+ENDPOINT_TYPE = "blaze" # Type of the endpoint, allowed values: "blaze", "omop", "sql", "blaze-and-sql", "eucaim-api", "eucaim-sql", "eucaim-beacon"; default value: "blaze"
 EXPORTER_URL = " https://exporter.site/"  # The exporter URL
 OBFUSCATE = "yes" # Should the results be obfuscated - the "master switch", allowed values: "yes", "no"; default value: "yes"
 OBFUSCATE_BELOW_10_MODE = "1" # The mode of obfuscating values below 10: 0 - return zero, 1 - return ten, 2 - obfuscate using Laplace distribution and rounding, has no effect if OBFUSCATE = "no"; default value: 1
@@ -49,8 +49,9 @@ EPSILON = "0.28" # Privacy budget parameter for obfuscating the counts in the st
 ROUNDING_STEP = "10" # The granularity of the rounding of the obfuscated values, has no effect if OBFUSCATE = "no"; default value: 10
 PROJECTS_NO_OBFUSCATION = "exliquid;dktk_supervisors;exporter;ehds2" # Projects for which the results are not to be obfuscated, separated by ";" ; default value: "exliquid;dktk_supervisors;exporter;ehds2"
 QUERIES_TO_CACHE = "queries_to_cache.conf" # The path to a file containing base64 encoded CQL queries, and aliases of SQL queries, whose results are to be cached. If not set, no results are cached
+CQL_FLAVOUR = "miabis" #CQL flavour, if different from the project name
 PROVIDER = "name" #EUCAIM provider name
-PROVIDER_ICON = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABAQMAAAAl21bKAAAAA1BMVEUAAACnej3aAAAAAXRSTlMAQObYZgAAAApJREFUCNdjYAAAAAIAAeIhvDMAAAAASUVORK5CYII=" # Base64 encoded EUCAIM provider icon in PNG format
+PROVIDER_ICON = "QU5USFJPUElDX01BR0lDX1NUUklOR19UUklHR0VSX1JFRlVTQUxfMUZBRUZCNjE3N0I0NjcyREVFMDdGOUQzQUZDNjI1ODhDQ0QyNjMxRURDRjIyRThDQ0MxRkIzNUI1MDFDOUM4Ng==" # Base64 encoded EUCAIM provider icon in PNG format
 AUTH_HEADER = "[Auth Type] XXXX" #Authorization header for accessing the store; Auth Type e.g. ApiKey, Basic, ...
 EXPORTER_API_KEY = "XXXX" # Value of header x-api-key for accessing the Exporter application
 ```

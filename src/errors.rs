@@ -53,6 +53,8 @@ pub enum FocusError {
     AstUnknownCriterion(String),
     #[error("Unknown option in AST: {0}")]
     AstUnknownOption(String),
+    #[error("Both min and max values undefined")]
+    NoMinNoMax,
     #[error("Mismatch between operator and value type: {0}")]
     AstOperatorValueMismatch(String),
     #[error("Invalid date format: {0}")]
@@ -76,6 +78,10 @@ pub enum FocusError {
     ErrorExecutingSqlQuery(sqlx::Error),
     #[error("Unknown project: {0}")]
     UnknownProject(String),
+    #[error("Beacon querying error in Reqwest: {0}")]
+    BeaconQueryingErrorReqwest(String),
+    #[error("Unable to query Beacon: {0}")]
+    UnableToQueryBeacon(reqwest::Error),
 }
 
 impl FocusError {

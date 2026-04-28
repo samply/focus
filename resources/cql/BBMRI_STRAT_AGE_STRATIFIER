@@ -1,2 +1,0 @@
-define AgeClass:
-     (AgeInYears() div 10) * 10
