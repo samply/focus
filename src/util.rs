@@ -348,9 +348,6 @@ mod test {
     use super::*;
     use serde_json::json;
 
-    const QUERY_BBMRI_PLACEHOLDERS: &str =
-        include_str!("../resources/test/query_bbmri_placeholders.cql");
-    const QUERY_BBMRI: &str = include_str!("../resources/test/query_bbmri.cql");
     const EXAMPLE_MEASURE_REPORT_BBMRI: &str =
         include_str!("../resources/test/measure_report_bbmri.json");
     const EXAMPLE_MEASURE_REPORT_BBMRI_NEW_EXTENSION: &str =
