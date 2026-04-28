@@ -1,2 +1,0 @@
-define MedicationStatement:
-if InInitialPopulation then [MedicationStatement] else {} as List <MedicationStatement>
