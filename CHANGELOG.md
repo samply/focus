@@ -1,4 +1,4 @@
-# Samply.Focus v0.23.0 2026-04-13
+# Samply.Focus v0.23.0 2026-04-28
 
 ## Major changes
 
