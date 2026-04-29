@@ -9,6 +9,14 @@ context Patient
 define Gender:
 if (Patient.gender is null) then 'unknown' else Patient.gender
 
+define PrimaryDiagnosis:
+First(
+from [Condition] C
+where C.extension.where(url='http://hl7.org/fhir/StructureDefinition/condition-related').empty())
+
+define AgeClass:
+if (PrimaryDiagnosis.onset is null) then 'unknown' else ToString((AgeInYearsAt(FHIRHelpers.ToDateTime(PrimaryDiagnosis.onset)) div 10) * 10)
+
 define PatientDeceased:
 First (from [Observation: Code '75186-7' from loinc] O return O.value.coding.where(system = 'https://simplifier.net/PSCC/ValueSet/Vitalstatus').code.first())
 
@@ -20,9 +28,6 @@ if InInitialPopulation then [Condition] else {} as List<Condition>
 
 define function DiagnosisCode(condition FHIR.Condition):
 condition.code.coding.where(system = 'http://hl7.org/fhir/sid/icd-10').code.first()
-
-define AgeClass:
-if (Diagnosis.onset is null) then 'unknown' else ToString((AgeInYearsAt(FHIRHelpers.ToDateTime(Diagnosis.onset)) div 10) * 10)
 
 define Specimen:
 if InInitialPopulation then [Specimen] else {} as List<Specimen>
