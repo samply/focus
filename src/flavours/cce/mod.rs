@@ -381,7 +381,7 @@ pub static MANDATORY_CODE_LISTS: LazyLock<IndexSet<&'static str>> = LazyLock::ne
     ])
 });
 
-pub static SAMPLE_TYPE_WORKAROUNDS: LazyLock<HashMap<&'static str, Vec<&'static str>>> =
+pub static CODE_WORKAROUNDS: LazyLock<HashMap<&'static str, Vec<&'static str>>> =
     LazyLock::new(|| {
         HashMap::new() // No workarounds for cce
     });

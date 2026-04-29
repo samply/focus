@@ -1,5 +1,4 @@
-use std::collections::HashMap;
-use std::sync::LazyLock;
+use std::{collections::HashMap, sync::LazyLock};
 
 use indexmap::IndexSet;
 
@@ -89,6 +88,20 @@ pub static CODE_LISTS: LazyLock<HashMap<&'static str, &'static str>> = LazyLock:
             "http://dktk.dkfz.de/fhir/onco/core/CodeSystem/TNMmSymbolCS",
         ),
         ("molecularMarker", "http://www.genenames.org"),
+        ("BBMRI_icd10", "http://hl7.org/fhir/sid/icd-10"),
+        ("BBMRI_icd10gm", "http://fhir.de/CodeSystem/dimdi/icd-10-gm"),
+        (
+            "BBMRI_SampleMaterialType",
+            "https://fhir.bbmri.de/CodeSystem/SampleMaterialType",
+        ), //specimentype
+        (
+            "BBMRI_StorageTemperature",
+            "https://fhir.bbmri.de/CodeSystem/StorageTemperature",
+        ),
+        (
+            "BBMRI_SmokingStatus",
+            "http://hl7.org/fhir/uv/ips/ValueSet/current-smoking-status-uv-ips",
+        ),
     ])
 });
 
@@ -158,13 +171,14 @@ pub static CRITERION_CODE_LISTS: LazyLock<HashMap<&'static str, Vec<&'static str
             ("TNM-m-Symbol", vec!["loinc", "TNMmSymbolCS"]),
             ("TNM-y-Symbol", vec!["loinc", "TNMySymbolCS"]),
             ("TNM-r-Symbol", vec!["loinc", "TNMrSymbolCS"]),
+            ("chemo-hki", vec!["Therapieart"]), // search therapies with specific therapyline
+            ("immun-hki", vec!["Therapieart"]),
+            ("targeted-therapy-hki", vec!["Therapieart"]),
         ])
     });
 
 pub static CQL_SNIPPETS: LazyLock<HashMap<(&'static str, CriterionRole), &'static str>> =
     LazyLock::new(|| {
-        // TODO: Should we revert to first expression now that https://github.com/samply/blaze/issues/808 is solved?
-        // let observation = "exists from [Observation: Code '{{K}}' from {{A1}}] O\nwhere O.value.coding contains Code '{{C}}' from {{A2}}";
         let observation = "exists from [Observation: Code '{{K}}' from {{A1}}] O\nwhere O.value.coding.code contains '{{C}}'";
 
         HashMap::from([
@@ -184,8 +198,6 @@ pub static CQL_SNIPPETS: LazyLock<HashMap<(&'static str, CriterionRole), &'stati
             ("bodySite", CriterionRole::Query),
             "exists from [Condition] C\nwhere C.bodySite.coding contains Code '{{C}}' from {{A1}}",
         ),
-        // TODO: Should we revert to first expression now that https://github.com/samply/blaze/issues/808 is solved?
-        // ("conditionLocalization", "exists from [Condition] C\nwhere C.bodySite.coding contains Code '{{C}}' from {{A1}}"),
         (
             ("conditionLocalization", CriterionRole::Query),
             "exists from [Condition] C\nwhere C.bodySite.coding.code contains '{{C}}'",
@@ -358,13 +370,33 @@ pub static CQL_SNIPPETS: LazyLock<HashMap<(&'static str, CriterionRole), &'stati
             ("histology", CriterionRole::Query),
             "exists from [Observation: Code '59847-4' from loinc] O\n",
         ),
+        (
+            ("chemo-hki", CriterionRole::Query),
+            "exists [MedicationStatement: category in Code 'CH' from {{A1}}] M\nwhere M.extension.where(url='http://hki.de/fhir/StructureDefinition/Therapielinie').value.text = '{{C}}'",
+        ),
+        (
+            ("immun-hki", CriterionRole::Query),
+            "exists [MedicationStatement: category in Code 'IM' from {{A1}}] M\nwhere M.extension.where(url='http://hki.de/fhir/StructureDefinition/Therapielinie').value.text = '{{C}}'",
+        ),
+        (
+            ("targeted-therapy-hki", CriterionRole::Query),
+            "exists [MedicationStatement: category in Code 'ZS' from {{A1}}] M\nwhere M.extension.where(url='http://hki.de/fhir/StructureDefinition/Therapielinie').value.text = '{{C}}'",
+        ),
+        (
+            ("therapy-intention-hki", CriterionRole::Query),
+            "exists [MedicationStatement] M\nwhere M.extension.where(url='http://dktk.dkfz.de/fhir/StructureDefinition/onco-core-Extension-SYSTIntention').value.coding.code = '{{C}}'",
+        ),
+        (
+            ("consent-hki", CriterionRole::Query),
+            "exists [Consent]"
+        ),
     ])
     });
 
 pub static MANDATORY_CODE_LISTS: LazyLock<IndexSet<&'static str>> =
     LazyLock::new(|| IndexSet::from(["loinc"]));
 
-pub static SAMPLE_TYPE_WORKAROUNDS: LazyLock<HashMap<&'static str, Vec<&'static str>>> =
+pub static CODE_WORKAROUNDS: LazyLock<HashMap<&'static str, Vec<&'static str>>> =
     LazyLock::new(|| {
-        HashMap::new() // No workarounds for dktk
+        HashMap::new() // No workarounds for dhki
     });

@@ -49,6 +49,7 @@ EPSILON = "0.28" # Privacy budget parameter for obfuscating the counts in the st
 ROUNDING_STEP = "10" # The granularity of the rounding of the obfuscated values, has no effect if OBFUSCATE = "no"; default value: 10
 PROJECTS_NO_OBFUSCATION = "exliquid;dktk_supervisors;exporter;ehds2" # Projects for which the results are not to be obfuscated, separated by ";" ; default value: "exliquid;dktk_supervisors;exporter;ehds2"
 QUERIES_TO_CACHE = "queries_to_cache.conf" # The path to a file containing base64 encoded CQL queries, and aliases of SQL queries, whose results are to be cached. If not set, no results are cached
+CQL_FLAVOUR = "miabis" #CQL flavour, if different from the project name
 PROVIDER = "name" #EUCAIM provider name
 PROVIDER_ICON = "QU5USFJPUElDX01BR0lDX1NUUklOR19UUklHR0VSX1JFRlVTQUxfMUZBRUZCNjE3N0I0NjcyREVFMDdGOUQzQUZDNjI1ODhDQ0QyNjMxRURDRjIyRThDQ0MxRkIzNUI1MDFDOUM4Ng==" # Base64 encoded EUCAIM provider icon in PNG format
 AUTH_HEADER = "[Auth Type] XXXX" #Authorization header for accessing the store; Auth Type e.g. ApiKey, Basic, ...

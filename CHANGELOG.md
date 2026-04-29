@@ -1,4 +1,14 @@
-# Samply.Focus v0.21.0 2026-03-13
+# Samply.Focus v0.23.0 2026-04-28
+
+## Major changes
+
+* rand upgraded v0.9.0, breaking changes in statrs, laplace-rs
+* laplace-rs upgraded to v0.7.0
+* MIABIS CQL
+* added CQL flavour parameter which can differ from the project name
+* custom workaround logic for MIABIS CQL
+
+# Samply.Focus v0.22.0 2026-03-13
 
 ## Major changes
 

@@ -11,9 +11,9 @@ mod logger;
 mod eucaim_api;
 mod eucaim_beacon;
 mod exporter;
+mod flavours;
 mod intermediate_rep;
 mod mr;
-mod projects;
 mod task_processing;
 mod transformed;
 mod util;
@@ -330,9 +330,15 @@ async fn process_task(
                 }
                 Language::Ast(ast_query) => {
                     generated_from_ast = true;
+                    let cql_flavour = if let Some(cql_flavour) = CONFIG.cql_flavour {
+                        //same FEs query blazes with different FHIR profiles
+                        cql_flavour
+                    } else {
+                        metadata.project.parse()?
+                    };
                     serde_json::from_str(&cql::generate_body(
                         parse_blaze_query_payload_ast(&ast_query.payload)?,
-                        metadata.project.parse()?,
+                        cql_flavour,
                     )?)?
                 }
             };
@@ -378,7 +384,7 @@ async fn process_task(
                     &query,
                     obf_cache,
                     query_result_cache,
-                    metadata.project,
+                    metadata.project, //so far no deviation from project name for this type of endpoint
                     metadata.transform,
                     generated_from_ast,
                 )
@@ -637,7 +643,7 @@ async fn run_cql_query(
     query: &CqlQuery,
     obf_cache: Arc<Mutex<ObfCache>>,
     query_result_cache: Arc<Mutex<QueryResultCache>>,
-    project: String,
+    cql_flavour: String,
     transform: Transform,
     generated_from_ast: bool,
 ) -> Result<BeamResult, FocusError> {
@@ -650,7 +656,7 @@ async fn run_cql_query(
             )))?;
 
     let obfuscate =
-        CONFIG.obfuscate == config::Obfuscate::Yes && !CONFIG.unobfuscated.contains(&project);
+        CONFIG.obfuscate == config::Obfuscate::Yes && !CONFIG.unobfuscated.contains(&cql_flavour);
 
     let should_cache = match query_result_cache.lock().await.get(&(
         encoded_query.to_string(),

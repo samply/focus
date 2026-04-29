@@ -1,4 +1,0 @@
-define PrimaryDiagnosis:
-First(
-from [Condition] C
-where C.extension.where(url='http://hl7.org/fhir/StructureDefinition/condition-related').empty())

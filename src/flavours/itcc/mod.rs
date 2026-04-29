@@ -1,4 +1,5 @@
-use std::{collections::HashMap, sync::LazyLock};
+use std::collections::HashMap;
+use std::sync::LazyLock;
 
 use indexmap::IndexSet;
 
@@ -8,10 +9,16 @@ pub static CODE_LISTS: LazyLock<HashMap<&'static str, &'static str>> = LazyLock:
     HashMap::from([
         ("icd10", "http://fhir.de/CodeSystem/bfarm/icd-10-gm"),
         ("loinc", "http://loinc.org"),
+        ("snomed", "http://snomed.info/sct"),
         (
             "gradingcs",
             "http://dktk.dkfz.de/fhir/onco/core/CodeSystem/GradingCS",
         ),
+        ("gradingcsnngm", "urn:oid:2.16.840.1.113883.15.16"),
+        ("tnmtnngm", "urn:oid:2.16.840.1.113883.15.16"),
+        ("tnmnnngm", "urn:oid:2.16.840.1.113883.15.16"),
+        ("tnmmnngm", "urn:oid:2.16.840.1.113883.15.16"),
+        ("tnmrynngm", "urn:oid:2.16.840.1.113883.15.16"),
         ("ops", "http://fhir.de/CodeSystem/bfarm/ops"),
         ("morph", "urn:oid:2.16.840.1.113883.6.43.1"),
         ("lokalisation_icd_o_3", "urn:oid:2.16.840.1.113883.6.43.1"),
@@ -20,12 +27,20 @@ pub static CODE_LISTS: LazyLock<HashMap<&'static str, &'static str>> = LazyLock:
             "http://dktk.dkfz.de/fhir/onco/core/CodeSystem/SeitenlokalisationCS",
         ),
         (
-            "Therapieart",
-            "http://dktk.dkfz.de/fhir/onco/core/CodeSystem/SYSTTherapieartCS",
+            "bodySiteNNGM",
+            "http://terminology.hl7.org/CodeSystem/icd-o-3",
         ),
         (
-            "specimentype",
-            "https://fhir.bbmri.de/CodeSystem/SampleMaterialType",
+            "uicc8nNGM",
+            "http://uk-koeln.de/fhir/CodeSystem/nNGM/uiccStagingV8",
+        ),
+        (
+            "uicc7nNGM",
+            "http://uk-koeln.de/fhir/CodeSystem/nNGM/uiccStagingV7",
+        ),
+        (
+            "Therapieart",
+            "http://dktk.dkfz.de/fhir/onco/core/CodeSystem/SYSTTherapieartCS",
         ),
         (
             "uiccstadiumcs",
@@ -54,6 +69,18 @@ pub static CODE_LISTS: LazyLock<HashMap<&'static str, &'static str>> = LazyLock:
         (
             "vitalstatuscs",
             "http://dktk.dkfz.de/fhir/onco/core/CodeSystem/VitalstatusCS",
+        ),
+        (
+            "vitalstatuscsnngm",
+            "http://uk-koeln.de/fhir/nNGM/Vitalstatus",
+        ),
+        (
+            "raucherstatuscsnngm",
+            "http://uk-koeln.de/fhir/StructureDefinition/Observation/nNGM/raucherstatus",
+        ),
+        (
+            "ecogcsnngm",
+            "http://uk-koeln.de/fhir/StructureDefinition/Observation/nNGM/ecog",
         ),
         (
             "jnucs",
@@ -88,19 +115,21 @@ pub static CODE_LISTS: LazyLock<HashMap<&'static str, &'static str>> = LazyLock:
             "http://dktk.dkfz.de/fhir/onco/core/CodeSystem/TNMmSymbolCS",
         ),
         ("molecularMarker", "http://www.genenames.org"),
-        ("BBMRI_icd10", "http://hl7.org/fhir/sid/icd-10"),
-        ("BBMRI_icd10gm", "http://fhir.de/CodeSystem/dimdi/icd-10-gm"),
         (
-            "BBMRI_SampleMaterialType",
-            "https://fhir.bbmri.de/CodeSystem/SampleMaterialType",
-        ), //specimentype
-        (
-            "BBMRI_StorageTemperature",
-            "https://fhir.bbmri.de/CodeSystem/StorageTemperature",
+            "vitalstatusitcc",
+            "http://fhir.itcc.org/CodeSystem/VitalStatus",
         ),
         (
-            "BBMRI_SmokingStatus",
-            "http://hl7.org/fhir/uv/ips/ValueSet/current-smoking-status-uv-ips",
+            "observationDiseaseExtent",
+            "http://fhir.itcc.org/CodeSystem/DiseaseExtent",
+        ),
+        (
+            "sampletypeitcc",
+            "http://fhir.itcc.org/CodeSystem/SampleType",
+        ),
+        (
+            "mutationtypeitcc",
+            "http://itcc.dkfz.de/fhir/itcc/CodeSystem/MutationTypeCS",
         ),
     ])
 });
@@ -115,7 +144,7 @@ pub static OBSERVATION_LOINC_CODES: LazyLock<HashMap<&'static str, &'static str>
             ("lymphNodeRecurrence", "LA4370-8"),
             ("distantMetastases", "LA4226-2"),
             ("vitalStatus", "75186-7"),
-            ("observationMolecularMarkerName", "48018-6"),
+            ("molecular_marker", "48018-6"),
             ("observationMolecularMarkerAminoacidchange", "48005-3"),
             ("observationMolecularMarkerDNAchange", "81290-9"),
             ("observationMolecularMarkerSeqRefNCBI", "81248-7"),
@@ -136,10 +165,6 @@ pub static CRITERION_CODE_LISTS: LazyLock<HashMap<&'static str, Vec<&'static str
             ("medicationStatement", vec!["Therapieart"]),
             ("morphology", vec!["loinc", "morph"]),
             ("sample_kind", vec!["specimentype"]),
-            (
-                "observationMolecularMarkerName",
-                vec!["loinc", "molecularMarker"],
-            ),
             ("observationMolecularMarkerAminoacidchange", vec!["loinc"]),
             ("observationMolecularMarkerDNAchange", vec!["loinc"]),
             ("observationMolecularMarkerSeqRefNCBI", vec!["loinc"]),
@@ -164,21 +189,28 @@ pub static CRITERION_CODE_LISTS: LazyLock<HashMap<&'static str, Vec<&'static str
                 "distantMetastases",
                 vec!["loinc", "verlauftumorstatusfernmetastasencs"],
             ),
-            ("vitalStatus", vec!["loinc", "vitalstatuscs"]),
+            ("vitalStatus", vec!["loinc", "vitalstatusitcc"]),
+            ("vital_status", vec!["loinc", "vitalstatusitcc"]),
+            (
+                "disease_is_extend",
+                vec!["loinc", "observationDiseaseExtent"],
+            ),
+            ("type_sample_criteria", vec!["loinc", "sampletypeitcc"]),
+            ("molecular_marker", vec!["loinc", "molecularMarker"]),
+            ("mutation_type", vec!["loinc", "mutationtypeitcc"]),
             ("TNM-T", vec!["loinc", "TNMTCS"]),
             ("TNM-N", vec!["loinc", "TNMNCS"]),
             ("TNM-M", vec!["loinc", "TNMMCS"]),
             ("TNM-m-Symbol", vec!["loinc", "TNMmSymbolCS"]),
             ("TNM-y-Symbol", vec!["loinc", "TNMySymbolCS"]),
             ("TNM-r-Symbol", vec!["loinc", "TNMrSymbolCS"]),
-            ("chemo-hki", vec!["Therapieart"]), // search therapies with specific therapyline
-            ("immun-hki", vec!["Therapieart"]),
-            ("targeted-therapy-hki", vec!["Therapieart"]),
         ])
     });
 
 pub static CQL_SNIPPETS: LazyLock<HashMap<(&'static str, CriterionRole), &'static str>> =
     LazyLock::new(|| {
+        // TODO: Should we revert to first expression now that https://github.com/samply/blaze/issues/808 is solved?
+        // let observation = "exists from [Observation: Code '{{K}}' from {{A1}}] O\nwhere O.value.coding contains Code '{{C}}' from {{A2}}";
         let observation = "exists from [Observation: Code '{{K}}' from {{A1}}] O\nwhere O.value.coding.code contains '{{C}}'";
 
         HashMap::from([
@@ -198,6 +230,8 @@ pub static CQL_SNIPPETS: LazyLock<HashMap<(&'static str, CriterionRole), &'stati
             ("bodySite", CriterionRole::Query),
             "exists from [Condition] C\nwhere C.bodySite.coding contains Code '{{C}}' from {{A1}}",
         ),
+        // TODO: Should we revert to first expression now that https://github.com/samply/blaze/issues/808 is solved?
+        // ("conditionLocalization", "exists from [Condition] C\nwhere C.bodySite.coding contains Code '{{C}}' from {{A1}}"),
         (
             ("conditionLocalization", CriterionRole::Query),
             "exists from [Condition] C\nwhere C.bodySite.coding.code contains '{{C}}'",
@@ -279,6 +313,22 @@ pub static CQL_SNIPPETS: LazyLock<HashMap<(&'static str, CriterionRole), &'stati
             observation,
         ),
         (
+            ("vital_status", CriterionRole::Query),
+             "exists from [Observation: Code '75186-7' from {{A1}}] O\nwhere (O.value as CodeableConcept).coding.code = '{{C}}'",
+        ),
+        (
+            ("disease_is_extend", CriterionRole::Query),
+             "exists from [Observation: Code '21908-9' from {{A1}}] O\nwhere (O.value as CodeableConcept).coding.code in {{C}}",
+        ),
+        (
+            ("type_sample_criteria", CriterionRole::Query),
+             "exists from [Specimen] S\nwhere S.type.coding.code = '{{C}}'",
+        ),
+        (
+            ("mutation_type", CriterionRole::Query),
+             "exists from [Observation: Code '69548-6' from {{A1}}] O\nwhere (O.value as CodeableConcept).coding.code in {{C}}",
+        ),
+        (
             ("metastases_present", CriterionRole::Query),
             "exists from [Observation: Code '21907-1' from {{A1}}] O\nwhere O.value.coding.code contains '{{C}}'",
         ),
@@ -287,7 +337,7 @@ pub static CQL_SNIPPETS: LazyLock<HashMap<(&'static str, CriterionRole), &'stati
             "exists from [Observation: Code '21907-1' from {{A1}}] O\nwhere O.bodySite.coding.code contains '{{C}}'",
         ),
         (
-            ("observationMolecularMarkerName", CriterionRole::Query),
+            ("molecular_marker", CriterionRole::Query),
             "exists from [Observation: Code '69548-6' from {{A1}}] O\nwhere O.component.where(code.coding contains Code '{{K}}' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}",
         ),
         (
@@ -370,33 +420,13 @@ pub static CQL_SNIPPETS: LazyLock<HashMap<(&'static str, CriterionRole), &'stati
             ("histology", CriterionRole::Query),
             "exists from [Observation: Code '59847-4' from loinc] O\n",
         ),
-        (
-            ("chemo-hki", CriterionRole::Query),
-            "exists [MedicationStatement: category in Code 'CH' from {{A1}}] M\nwhere M.extension.where(url='http://hki.de/fhir/StructureDefinition/Therapielinie').value.text = '{{C}}'",
-        ),
-        (
-            ("immun-hki", CriterionRole::Query),
-            "exists [MedicationStatement: category in Code 'IM' from {{A1}}] M\nwhere M.extension.where(url='http://hki.de/fhir/StructureDefinition/Therapielinie').value.text = '{{C}}'",
-        ),
-        (
-            ("targeted-therapy-hki", CriterionRole::Query),
-            "exists [MedicationStatement: category in Code 'ZS' from {{A1}}] M\nwhere M.extension.where(url='http://hki.de/fhir/StructureDefinition/Therapielinie').value.text = '{{C}}'",
-        ),
-        (
-            ("therapy-intention-hki", CriterionRole::Query),
-            "exists [MedicationStatement] M\nwhere M.extension.where(url='http://dktk.dkfz.de/fhir/StructureDefinition/onco-core-Extension-SYSTIntention').value.coding.code = '{{C}}'",
-        ),
-        (
-            ("consent-hki", CriterionRole::Query),
-            "exists [Consent]"
-        ),
     ])
     });
 
 pub static MANDATORY_CODE_LISTS: LazyLock<IndexSet<&'static str>> =
     LazyLock::new(|| IndexSet::from(["loinc"]));
 
-pub static SAMPLE_TYPE_WORKAROUNDS: LazyLock<HashMap<&'static str, Vec<&'static str>>> =
+pub static CODE_WORKAROUNDS: LazyLock<HashMap<&'static str, Vec<&'static str>>> =
     LazyLock::new(|| {
-        HashMap::new() // No workarounds for dhki
+        HashMap::new() // No workarounds for dktk
     });
