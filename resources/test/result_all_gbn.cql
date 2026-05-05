@@ -83,7 +83,7 @@ Coalesce(
 )
 
 define InInitialPopulation:
-((((Patient.gender = 'male') or (Patient.gender = 'other'))) and ((((((exists[Condition: Code 'C25' from icd10]) or (exists[Condition: Code 'C25' from icd10gm]) or (exists[Condition: Code 'C25' from icd10gmnew])))))) or (((((exists[Condition: Code 'C56' from icd10]) or (exists[Condition: Code 'C56' from icd10gm]) or (exists[Condition: Code 'C56' from icd10gmnew]))))))) and (exists from [Condition] C
+((((Patient.gender = 'male') or (Patient.gender = 'other'))) and ((((((exists[Condition: Code 'C25' from icd10]) or (exists[Condition: Code 'C25' from icd10gm]) or (exists[Condition: Code 'C25' from icd10gmnew]))))) or (((((exists[Condition: Code 'C56' from icd10]) or (exists[Condition: Code 'C56' from icd10gm]) or (exists[Condition: Code 'C56' from icd10gmnew])))))) and (exists from [Condition] C
 where AgeInYearsAt(FHIRHelpers.ToDateTime(C.onset)) between Ceiling(10) and Ceiling(100)) and (exists from [Condition] C
 where FHIRHelpers.ToDateTime(C.onset) between @2023-09-30 and @2023-10-29) and (exists from [Observation: Code '39156-5' from loinc] O
 where ((O.value as Quantity) < 10 'kg/m2' and (O.value as Quantity) > 100 'kg/m2')) and (exists from [Observation: Code '29463-7' from loinc] O

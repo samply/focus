@@ -80,4 +80,4 @@ Coalesce(
 )
 
 define InInitialPopulation:
-((((((((exists[Condition: Code 'C61' from icd10]) or (exists[Condition: Code 'C61' from icd10gm]) or (exists[Condition: Code 'C61' from icd10gmnew]))))))) and ((((Patient.gender = 'male'))))))
+((((((((exists[Condition: Code 'C61' from icd10]) or (exists[Condition: Code 'C61' from icd10gm]) or (exists[Condition: Code 'C61' from icd10gmnew])))))) and ((((Patient.gender = 'male'))))))
