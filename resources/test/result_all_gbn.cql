@@ -76,18 +76,14 @@ define Diagnosis:
 if InInitialPopulation then [Condition] else {} as List<Condition>
 
 define function DiagnosisCode(condition FHIR.Condition):
-condition.code.coding.where(system = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm').code.first()
-
-define function DiagnosisCode(condition FHIR.Condition, specimen FHIR.Specimen):
 Coalesce(
   condition.code.coding.where(system = 'http://hl7.org/fhir/sid/icd-10').code.first(),
   condition.code.coding.where(system = 'http://fhir.de/CodeSystem/dimdi/icd-10-gm').code.first(),
-  condition.code.coding.where(system = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm').code.first(),
-  specimen.extension.where(url='https://fhir.bbmri.de/StructureDefinition/SampleDiagnosis').value.coding.code.first()
-  )
+  condition.code.coding.where(system = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm').code.first()
+)
 
 define InInitialPopulation:
-((((Patient.gender = 'male') or (Patient.gender = 'other'))) and ((((((exists[Condition: Code 'C25' from icd10]) or (exists[Condition: Code 'C25' from icd10gm]) or (exists[Condition: Code 'C25' from icd10gmnew])) or (exists from [Specimen] S where (S.extension.where(url='https://fhir.bbmri.de/StructureDefinition/SampleDiagnosis').value.coding.code contains 'C25'))))) or (((((exists[Condition: Code 'C56' from icd10]) or (exists[Condition: Code 'C56' from icd10gm]) or (exists[Condition: Code 'C56' from icd10gmnew])) or (exists from [Specimen] S where (S.extension.where(url='https://fhir.bbmri.de/StructureDefinition/SampleDiagnosis').value.coding.code contains 'C56')))))) and (exists from [Condition] C
+((((Patient.gender = 'male') or (Patient.gender = 'other'))) and ((((((exists[Condition: Code 'C25' from icd10]) or (exists[Condition: Code 'C25' from icd10gm]) or (exists[Condition: Code 'C25' from icd10gmnew])))))) or (((((exists[Condition: Code 'C56' from icd10]) or (exists[Condition: Code 'C56' from icd10gm]) or (exists[Condition: Code 'C56' from icd10gmnew]))))))) and (exists from [Condition] C
 where AgeInYearsAt(FHIRHelpers.ToDateTime(C.onset)) between Ceiling(10) and Ceiling(100)) and (exists from [Condition] C
 where FHIRHelpers.ToDateTime(C.onset) between @2023-09-30 and @2023-10-29) and (exists from [Observation: Code '39156-5' from loinc] O
 where ((O.value as Quantity) < 10 'kg/m2' and (O.value as Quantity) > 100 'kg/m2')) and (exists from [Observation: Code '29463-7' from loinc] O
