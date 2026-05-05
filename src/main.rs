@@ -8,8 +8,10 @@ mod errors;
 mod graceful_shutdown;
 mod logger;
 
+mod db;
 mod eucaim_api;
 mod eucaim_beacon;
+mod eucaim_sql;
 mod exporter;
 mod flavours;
 mod intermediate_rep;
@@ -17,8 +19,6 @@ mod mr;
 mod task_processing;
 mod transformed;
 mod util;
-mod db;
-mod eucaim_sql;
 use sqlx::Row;
 
 use base64::engine::general_purpose;
