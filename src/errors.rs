@@ -73,7 +73,6 @@ pub enum FocusError {
     QueryNotAllowed(String),
     #[error("CQL lang not enabled")]
     CqlLangNotEnabled,
-    #[cfg(feature = "query-sql")]
     #[error("Error executing SQL query: {0}")]
     ErrorExecutingSqlQuery(sqlx::Error),
     #[error("Unknown project: {0}")]
