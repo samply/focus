@@ -76,18 +76,14 @@ define Diagnosis:
 if InInitialPopulation then [Condition] else {} as List<Condition>
 
 define function DiagnosisCode(condition FHIR.Condition):
-condition.code.coding.where(system = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm').code.first()
-
-define function DiagnosisCode(condition FHIR.Condition, specimen FHIR.Specimen):
 Coalesce(
   condition.code.coding.where(system = 'http://hl7.org/fhir/sid/icd-10').code.first(),
   condition.code.coding.where(system = 'http://fhir.de/CodeSystem/dimdi/icd-10-gm').code.first(),
-  condition.code.coding.where(system = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm').code.first(),
-  specimen.extension.where(url='https://fhir.bbmri.de/StructureDefinition/SampleDiagnosis').value.coding.code.first()
-  )
+  condition.code.coding.where(system = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm').code.first()
+)
 
 define InInitialPopulation:
-((((Patient.gender = 'other') or (Patient.gender = 'male'))) and (((((exists[Condition: Code 'C24' from icd10]) or (exists[Condition: Code 'C24' from icd10gm]) or (exists[Condition: Code 'C24' from icd10gmnew])) or (exists from [Specimen] S where (S.extension.where(url='https://fhir.bbmri.de/StructureDefinition/SampleDiagnosis').value.coding.code contains 'C24'))))) and (exists from [Condition] C
+((((Patient.gender = 'other') or (Patient.gender = 'male'))) and (((((exists[Condition: Code 'C24' from icd10]) or (exists[Condition: Code 'C24' from icd10gm]) or (exists[Condition: Code 'C24' from icd10gmnew]))))) and (exists from [Condition] C
 where AgeInYearsAt(FHIRHelpers.ToDateTime(C.onset)) between Ceiling(1) and Ceiling(11)) and (exists from [Condition] C
 where FHIRHelpers.ToDateTime(C.onset) between @2023-10-29 and @2023-10-30) and (exists from [Observation: Code '39156-5' from loinc] O
 where ((O.value as Quantity) < 1 'kg/m2' and (O.value as Quantity) > 111 'kg/m2')) and (exists from [Observation: Code '29463-7' from loinc] O

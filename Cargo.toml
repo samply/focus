@@ -1,6 +1,6 @@
 [package]
 name = "focus"
-version = "0.23.0"
+version = "0.24.0"
 edition = "2021"
 license = "Apache-2.0"
 
@@ -31,6 +31,7 @@ rand = { default-features = false, version = "0.9.0" }
 futures-util = { version = "0.3", default-features = false, features = ["std"] }
 tryhard = "0.5"
 
+
 # Logging
 tracing = { version = "0.1.37", default-features = false }
 tracing-subscriber = { version = "0.3.11", default-features = false, features = [
@@ -58,17 +59,13 @@ sqlx = { version = "0.8.2", features = [
   "chrono",
   "rust_decimal",
   "uuid",
-], optional = true }
+]}
 kurtbuilds_sqlx_serde = { version = "0.3.2", features = [
   "json",
   "decimal",
   "chrono",
   "uuid",
-], optional = true }
-
-[features]
-default = ["query-sql"]
-query-sql = ["dep:sqlx", "dep:kurtbuilds_sqlx_serde"]
+]}
 
 [dev-dependencies]
 pretty_assertions = "1.4.0"

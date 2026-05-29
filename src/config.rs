@@ -24,11 +24,8 @@ pub enum EndpointType {
     Omop,      // endpoint is URL of a query mediator translating AST to provider specific SQL
     EucaimApi, // endpoint is URL of custom API for querying EUCAIM provider
     EucaimBeacon,
-    #[cfg(feature = "query-sql")]
     EucaimSql,
-    #[cfg(feature = "query-sql")]
     BlazeAndSql,
-    #[cfg(feature = "query-sql")]
     Sql,
 }
 
@@ -39,11 +36,8 @@ impl fmt::Display for EndpointType {
             EndpointType::Omop => write!(f, "omop"),
             EndpointType::EucaimApi => write!(f, "eucaim_api"),
             EndpointType::EucaimBeacon => write!(f, "eucaim_beacon"),
-            #[cfg(feature = "query-sql")]
             EndpointType::EucaimSql => write!(f, "eucaim_sql"),
-            #[cfg(feature = "query-sql")]
             EndpointType::BlazeAndSql => write!(f, "blaze_and_sql"),
-            #[cfg(feature = "query-sql")]
             EndpointType::Sql => write!(f, "sql"),
         }
     }
@@ -190,12 +184,10 @@ struct CliArgs {
     exporter_api_key: Option<String>,
 
     /// Postgres connection string
-    #[cfg(feature = "query-sql")]
     #[clap(long, env, value_parser)]
     postgres_connection_string: Option<String>,
 
     /// Max number of attempts to connect to the database
-    #[cfg(feature = "query-sql")]
     #[clap(long, env, value_parser, default_value = "8")]
     max_db_attempts: u32,
 }
@@ -229,9 +221,7 @@ pub(crate) struct Config {
     pub provider_icon: Option<String>,
     pub auth_header: Option<String>,
     pub exporter_api_key: Option<String>,
-    #[cfg(feature = "query-sql")]
     pub postgres_connection_string: Option<String>,
-    #[cfg(feature = "query-sql")]
     pub max_db_attempts: u32,
 }
 
@@ -256,7 +246,6 @@ impl Config {
             api_key: cli_args.api_key,
             retry_count: cli_args.retry_count,
             endpoint_url: match cli_args.endpoint_type{
-                #[cfg(feature = "query-sql")]
                 EndpointType::Sql|EndpointType::EucaimSql => {Url::parse("http://localhost").unwrap()} // dummy value, never used, only Postgres connection string is used in those cases
                 _ => {
                     cli_args.endpoint_url.unwrap_or_else(|| cli_args.blaze_url.expect("Look, mate, you need to set endpoint-url or blaze-url, can't work without, sry"))
@@ -284,9 +273,7 @@ impl Config {
             provider_icon: cli_args.provider_icon,
             auth_header: cli_args.auth_header,
             exporter_api_key: cli_args.exporter_api_key,
-            #[cfg(feature = "query-sql")]
             postgres_connection_string: cli_args.postgres_connection_string,
-            #[cfg(feature = "query-sql")]
             max_db_attempts: cli_args.max_db_attempts,
             client,
         };

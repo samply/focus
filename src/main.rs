@@ -8,8 +8,10 @@ mod errors;
 mod graceful_shutdown;
 mod logger;
 
+mod db;
 mod eucaim_api;
 mod eucaim_beacon;
+mod eucaim_sql;
 mod exporter;
 mod flavours;
 mod intermediate_rep;
@@ -17,14 +19,6 @@ mod mr;
 mod task_processing;
 mod transformed;
 mod util;
-
-#[cfg(feature = "query-sql")]
-mod db;
-
-#[cfg(feature = "query-sql")]
-mod eucaim_sql;
-
-#[cfg(feature = "query-sql")]
 use sqlx::Row;
 
 use base64::engine::general_purpose;
@@ -198,18 +192,8 @@ pub async fn main() -> ExitCode {
     }
 }
 
-#[cfg(not(feature = "query-sql"))]
-type DbPool = ();
-
-#[cfg(feature = "query-sql")]
 type DbPool = sqlx::PgPool;
 
-#[cfg(not(feature = "query-sql"))]
-async fn get_db_pool() -> Result<Option<DbPool>, ExitCode> {
-    Ok(None)
-}
-
-#[cfg(feature = "query-sql")]
 async fn get_db_pool() -> Result<Option<DbPool>, ExitCode> {
     use tracing::info;
 
@@ -242,11 +226,8 @@ async fn main_loop() -> ExitCode {
         EndpointType::Omop | EndpointType::EucaimApi | EndpointType::EucaimBeacon => {
             || async { true }.boxed()
         } // TODO health check
-        #[cfg(feature = "query-sql")]
         EndpointType::EucaimSql => || async { true }.boxed(),
-        #[cfg(feature = "query-sql")]
         EndpointType::BlazeAndSql => || blaze::check_availability().boxed(),
-        #[cfg(feature = "query-sql")]
         EndpointType::Sql => || async { true }.boxed(),
     };
     let mut failures = 0;
@@ -353,7 +334,6 @@ async fn process_task(
             )
             .await
         }
-        #[cfg(feature = "query-sql")]
         EndpointType::BlazeAndSql => {
             let mut generated_from_ast: bool = false;
             let data = base64_decode(&task.body)?;
@@ -400,7 +380,6 @@ async fn process_task(
                 }
             }
         }
-        #[cfg(feature = "query-sql")]
         EndpointType::Sql => {
             let data = base64_decode(&task.body)?;
             let query_maybe: Result<db::SqlQuery, serde_json::Error> =
@@ -465,7 +444,6 @@ async fn process_task(
 
             Ok(run_eucaim_api_query(task, ast).await?)
         }
-        #[cfg(feature = "query-sql")]
         EndpointType::EucaimSql => {
             let decoded = util::base64_decode(&task.body)?;
             let intermediate_rep_query: intermediate_rep::IntermediateRepQuery =
@@ -504,7 +482,6 @@ async fn process_task(
     }
 }
 
-#[cfg(feature = "query-sql")]
 async fn run_eucaim_sql_query(
     task: &TaskRequest<String>,
     pool: sqlx::Pool<sqlx::Postgres>,
@@ -591,7 +568,6 @@ async fn run_eucaim_sql_query(
     }
 }
 
-#[cfg(feature = "query-sql")]
 async fn run_sql_key_query(
     task: &TaskRequest<String>,
     pool: sqlx::Pool<sqlx::Postgres>,

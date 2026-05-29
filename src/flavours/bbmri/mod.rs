@@ -57,7 +57,7 @@ pub static CQL_SNIPPETS: LazyLock<HashMap<(&'static str, CriterionRole), &'stati
         (("gender", CriterionRole::Query), "Patient.gender = '{{C}}'"),
         (
             ("diagnosis", CriterionRole::Query),
-            "((exists[Condition: Code '{{C}}' from {{A1}}]) or (exists[Condition: Code '{{C}}' from {{A2}}]) or (exists[Condition: Code '{{C}}' from {{A3}}])) or (exists from [Specimen] S where (S.extension.where(url='https://fhir.bbmri.de/StructureDefinition/SampleDiagnosis').value.coding.code contains '{{C}}'))",
+            "((exists[Condition: Code '{{C}}' from {{A1}}]) or (exists[Condition: Code '{{C}}' from {{A2}}]) or (exists[Condition: Code '{{C}}' from {{A3}}]))",
         ),
         (("diagnosis_old", CriterionRole::Query), " exists [Condition: Code '{{C}}' from {{A1}}]"),
         (
