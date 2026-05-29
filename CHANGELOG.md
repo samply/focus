@@ -1,3 +1,9 @@
+# Samply.Focus v0.24.0 2026-05-29
+
+## Major changes
+
+* BBMRI: stop checking diagnosis in Specimen
+
 # Samply.Focus v0.23.0 2026-04-28
 
 ## Major changes
