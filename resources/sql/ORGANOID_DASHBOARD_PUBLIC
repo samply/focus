@@ -39,9 +39,9 @@ neomatch_visit_1a AS (
 patients AS (
     SELECT DISTINCT ON (patient_pseudonym) *
     FROM (
-        SELECT patient_pseudonym, age_at_study_enrollment::int, gender FROM metpredict_visit_1
+        SELECT patient_pseudonym, age_at_study_enrollment::numeric::int, gender FROM metpredict_visit_1
         UNION ALL
-        SELECT patient_pseudonym, age_at_study_enrollment::int, gender FROM neomatch_visit_1a
+        SELECT patient_pseudonym, age_at_study_enrollment::numeric::int, gender FROM neomatch_visit_1a
     )
 )
 
