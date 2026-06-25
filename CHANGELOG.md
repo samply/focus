@@ -1,3 +1,9 @@
+# Samply.Focus v0.24.1 2026-06-25
+
+## Minor changes
+
+* EUCAIM SQL: change `age_at_study_enrollment` type to `numeric::int` in patient selection
+
 # Samply.Focus v0.24.0 2026-05-29
 
 ## Major changes
