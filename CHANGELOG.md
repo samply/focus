@@ -3,7 +3,7 @@
 ## Minor
 
 * log SQL query errors
-* change age_at_study_enrollment type to numeric::int in patient selection (#360)
+* change age_at_study_enrollment type to numeric::int in patient selection
 
 # Samply.Focus v0.24.0 2026-05-29
 
