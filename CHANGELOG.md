@@ -1,3 +1,11 @@
+# Samply.Focus v0.24.1 2026-06-25
+
+## Minor changes
+
+* Switch FHIR healthcheck to use health endpoint
+* Log SQL errors
+* Fix Organoid Dashboard query
+
 # Samply.Focus v0.24.0 2026-05-29
 
 ## Major changes
