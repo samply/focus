@@ -562,6 +562,7 @@ async fn run_eucaim_sql_query(
             BASE64.encode(&response_json),
         ))
     } else {
+        error!("Eucaim SQL query failed: {}", result.unwrap_err());
         Err(FocusError::QueryResultBad(
             "Query executed but result not readable".into(),
         ))
@@ -608,6 +609,7 @@ async fn run_sql_key_query(
             BASE64.encode(serde_json::to_string(&rows_json)?),
         ))
     } else {
+        error!("SQL key query failed: {}", result.unwrap_err());
         Err(FocusError::QueryResultBad(
             "Query executed but result not readable".into(),
         ))
