@@ -22,9 +22,9 @@ pub static CRITERION_SNIPPET: Lazy<HashMap<&str, &str>> = Lazy::new(|| {
     let mut map: HashMap<&'static str, &'static str> = HashMap::new();
     map.insert("SNOMEDCT263495000", " (patient.patient_birth_sex = '?') ");
     map.insert("SNOMEDCT439401001", " (EXISTS (SELECT * FROM cancer_condition WHERE cancer_condition.patient_id = patient.patient_id AND cancer_condition_code = '?')) ");
-    map.insert("RID10311", " FALSE ");
+    map.insert("RID10311", " EXISTS (SELECT FROM image_series WHERE series_modality = '?' AND image_series.study_id = image_study.study_id) ");
     map.insert("SNOMEDCT123037004", " EXISTS (SELECT FROM image_series WHERE series_body_site_code = '?' AND image_series.study_id = image_study.study_id) ");
-    map.insert("C25392", " FALSE ");
+    map.insert("C25392", " EXISTS (SELECT FROM image_series WHERE series_manufacturer = '?' AND image_series.study_id = image_study.study_id) ");
 
     map
 });
@@ -40,20 +40,20 @@ pub static CRITERION: Lazy<HashMap<&str, &str>> = Lazy::new(|| {
     map.insert("SNOMEDCT363358000", "CLIN1000065"); // lung cancer
     map.insert("SNOMEDCT363484005", "CLIN1000087"); // pelvis cancer
     map.insert("SNOMEDCT399068003", "CLIN1000075"); // prostate cancer
-    map.insert("RID10312", "MR"); // Modalities are integers in the DB! Search impossible until clarified!
-    map.insert("RID10337", "PET"); // Modalities are integers in the DB! Search impossible until clarified!
-    map.insert("RID10334", "SPECT"); // Modalities are integers in the DB! Search impossible until clarified!
-    map.insert("RID10321", "CT"); // Modalities are integers in the DB! Search impossible until clarified!
+    map.insert("RID10312", "IMG1000038"); // MR
+    map.insert("RID10337", "IMG1004451"); // PET
+    map.insert("RID10334", "IMG1004450"); // SPECT
+    map.insert("RID10321", "IMG1000026"); // CT
     map.insert("SNOMEDCT76752008", "BP1000136");
     map.insert("SNOMEDCT71854001", "BP1000257");
     map.insert("SNOMEDCT39607008", "BP1000113");
     map.insert("SNOMEDCT12921003", "BP1000092");
     map.insert("SNOMEDCT41216001", "BP1000021");
-    map.insert("C200140", "Siemens"); // can't find it in concepts
-    map.insert("birnlex_3066", "Siemens"); // can't find it in concepts
-    map.insert("birnlex_12833", "General%20Electric"); // can't find it in concepts
-    map.insert("birnlex_3065", "Philips"); // can't find it in concepts
-    map.insert("birnlex_3067", "Toshiba"); // can't find it in concepts
+    map.insert("C200140", "IMG1000044"); // Siemens
+    map.insert("birnlex_3066", "IMG1000044"); // Siemens
+    map.insert("birnlex_12833", "IMG1000047"); // GE
+    map.insert("birnlex_3065", "IMG1000046"); // Philips
+    map.insert("birnlex_3067", "IMG1000045"); // Toshiba
 
     map
 });
@@ -195,7 +195,7 @@ mod test {
 
     const JUST_RIGHT: &str = r#"{"ast":{"children":[{"children":[{"children":[{"key":"SNOMEDCT263495000","system":"","type":"EQUALS","value":"SNOMEDCT248153007"}],"operand":"OR"},{"children":[{"key":"SNOMEDCT439401001","system":"urn:snomed-org/sct","type":"EQUALS","value":"SNOMEDCT399068003"}],"operand":"OR"},{"children":[{"key":"RID10311","system":"urn:oid:2.16.840.1.113883.6.256","type":"EQUALS","value":"RID10312"}],"operand":"OR"},{"children":[{"key":"SNOMEDCT123037004","system":"urn:snomed-org/sct","type":"EQUALS","value":"SNOMEDCT76752008"}],"operand":"OR"},{"children":[{"key":"C25392","system":"http://bioontology.org/projects/ontologies/birnlex","type":"EQUALS","value":"birnlex_3065"}],"operand":"OR"}],"operand":"AND"}],"operand":"OR"},"id":"66b8bbf4-ded2-4f94-87ab-3a3ca2f4edc0__search__66b8bbf4-ded2-4f94-87ab-3a3ca2f4edc0"}"#;
 
-    const JUST_RIGHT_SQL_TEMP: &str = r#"SELECT dataset.dataset_id id, dataset.dataset_title name, dataset.dataset_description description, COUNT(patient.*)::int4 subjects_count, COALESCE(SUM ((SELECT COUNT(image_study.*) FROM procedure JOIN image_study ON procedure.procedure_id = image_study.procedure_id JOIN cancer_condition on procedure.cancer_condition_id = cancer_condition.cancer_condition_id WHERE TRUE  AND ( FALSE  AND  EXISTS (SELECT FROM image_series WHERE series_body_site_code = 'BP1000136' AND image_series.study_id = image_study.study_id)  AND  FALSE ) GROUP BY cancer_condition.patient_id HAVING cancer_condition.patient_id = patient.patient_id)), 0)::int4 studies_count FROM dataset JOIN patient ON patient.dataset_id = dataset.dataset_id WHERE TRUE  AND ( (patient.patient_birth_sex = 'COM1000180')  AND  (EXISTS (SELECT * FROM cancer_condition WHERE cancer_condition.patient_id = patient.patient_id AND cancer_condition_code = 'CLIN1000075')) ) GROUP BY patient.dataset_id, dataset.dataset_id, dataset.dataset_title, dataset.dataset_description;"#;
+    const JUST_RIGHT_SQL: &str = r#"SELECT dataset.dataset_id id, dataset.dataset_title name, dataset.dataset_description description, COUNT(patient.*)::int4 subjects_count, COALESCE(SUM ((SELECT COUNT(image_study.*) FROM procedure JOIN image_study ON procedure.procedure_id = image_study.procedure_id JOIN cancer_condition on procedure.cancer_condition_id = cancer_condition.cancer_condition_id WHERE TRUE  AND ( EXISTS (SELECT FROM image_series WHERE series_modality = 'IMG1000038' AND image_series.study_id = image_study.study_id)  AND  EXISTS (SELECT FROM image_series WHERE series_body_site_code = 'BP1000136' AND image_series.study_id = image_study.study_id)  AND  EXISTS (SELECT FROM image_series WHERE series_manufacturer = 'IMG1000046' AND image_series.study_id = image_study.study_id) ) GROUP BY cancer_condition.patient_id HAVING cancer_condition.patient_id = patient.patient_id)), 0)::int4 studies_count FROM dataset JOIN patient ON patient.dataset_id = dataset.dataset_id WHERE TRUE  AND ( (patient.patient_birth_sex = 'COM1000180')  AND  (EXISTS (SELECT * FROM cancer_condition WHERE cancer_condition.patient_id = patient.patient_id AND cancer_condition_code = 'CLIN1000075')) ) GROUP BY patient.dataset_id, dataset.dataset_id, dataset.dataset_title, dataset.dataset_description;"#;
 
     const TOO_MUCH: &str = r#"{"ast":{"children":[{"children":[{"children":[{"key":"SNOMEDCT263495000","system":"","type":"EQUALS","value":"SNOMEDCT248153007"},{"key":"SNOMEDCT263495000","system":"","type":"EQUALS","value":"SNOMEDCT248152002"}],"operand":"OR"},{"children":[{"key":"SNOMEDCT439401001","system":"urn:snomed-org/sct","type":"EQUALS","value":"SNOMEDCT399068003"},{"key":"SNOMEDCT439401001","system":"urn:snomed-org/sct","type":"EQUALS","value":"SNOMEDCT254837009"}],"operand":"OR"},{"children":[{"key":"RID10311","system":"urn:oid:2.16.840.1.113883.6.256","type":"EQUALS","value":"RID10312"},{"key":"RID10311","system":"urn:oid:2.16.840.1.113883.6.256","type":"EQUALS","value":"RID10337"}],"operand":"OR"},{"children":[{"key":"SNOMEDCT123037004","system":"urn:snomed-org/sct","type":"EQUALS","value":"SNOMEDCT76752008"},{"key":"SNOMEDCT123037004","system":"urn:snomed-org/sct","type":"EQUALS","value":"SNOMEDCT41216001"}],"operand":"OR"},{"children":[{"key":"C25392","system":"http://bioontology.org/projects/ontologies/birnlex","type":"EQUALS","value":"birnlex_3065"},{"key":"C25392","system":"http://bioontology.org/projects/ontologies/birnlex","type":"EQUALS","value":"birnlex_3067"}],"operand":"OR"}],"operand":"AND"}],"operand":"OR"},"id":"c57e075c-19de-4c5a-ba9c-b8f697a98dfc__search__c57e075c-19de-4c5a-ba9c-b8f697a98dfc"}"#;
 
@@ -208,7 +208,7 @@ mod test {
     #[test]
     fn test_build_sql_just_right() {
         let sql = build_eucaim_sql_query(serde_json::from_str(JUST_RIGHT).unwrap()).unwrap();
-        pretty_assertions::assert_eq!(sql, JUST_RIGHT_SQL_TEMP);
+        pretty_assertions::assert_eq!(sql, JUST_RIGHT_SQL);
     }
 
     #[test]
