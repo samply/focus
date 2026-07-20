@@ -1,3 +1,10 @@
+# Samply.Focus v0.24.2 2026-07-20
+
+## Minor
+
+* Make Organoid Public Dashboard query work in postgresql 15
+* Bump laplace-rs to v0.7.1, rand to 0.10 and reqwest to 0.13
+
 # Samply.Focus v0.24.1 2026-06-24
 
 ## Minor

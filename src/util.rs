@@ -3,7 +3,6 @@ use crate::mr;
 use base64::engine::general_purpose;
 use base64::Engine as _;
 use laplace_rs::{get_from_cache_or_privatize, Bin, ObfCache, ObfuscateBelow10Mode};
-use rand::rng;
 use serde_json::Value;
 use std::collections::HashMap;
 use tracing::warn;
@@ -272,7 +271,7 @@ fn obfuscate_population(
     domain_limit: Option<f64>,
     bbmri_rounding: bool,
 ) -> Result<(), FocusError> {
-    let mut rng = rng();
+    let mut rng = rand::rng();
     for pop in val {
         let obfuscated = get_from_cache_or_privatize(
             pop.count,

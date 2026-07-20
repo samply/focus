@@ -42,7 +42,7 @@ patients AS (
         SELECT patient_pseudonym, age_at_study_enrollment::numeric::int, gender FROM metpredict_visit_1
         UNION ALL
         SELECT patient_pseudonym, age_at_study_enrollment::numeric::int, gender FROM neomatch_visit_1a
-    )
+    ) AS combined
 )
 
 SELECT
@@ -83,20 +83,20 @@ SELECT
     -- organoids from unknown site
     (SELECT COUNT(*) FROM neomatch_visit_2b WHERE sample_collection = 'OTH' OR sample_collection = 'NA') AS organoids_from_unknown_site,
     -- MetPredict patients with 1 organoid
-    (SELECT COUNT(*) FROM (SELECT 1 FROM metpredict_visit_2b GROUP BY patient_pseudonym HAVING COUNT(*) = 1)) AS metpredict_patients_with_1_organoids,
+    (SELECT COUNT(*) FROM (SELECT 1 FROM metpredict_visit_2b GROUP BY patient_pseudonym HAVING COUNT(*) = 1) AS t) AS metpredict_patients_with_1_organoids,
     -- MetPredict patients with 2 organoids
-    (SELECT COUNT(*) FROM (SELECT 1 FROM metpredict_visit_2b GROUP BY patient_pseudonym HAVING COUNT(*) = 2)) AS metpredict_patients_with_2_organoids,
+    (SELECT COUNT(*) FROM (SELECT 1 FROM metpredict_visit_2b GROUP BY patient_pseudonym HAVING COUNT(*) = 2) AS t) AS metpredict_patients_with_2_organoids,
     -- MetPredict patients with 3 organoids
-    (SELECT COUNT(*) FROM (SELECT 1 FROM metpredict_visit_2b GROUP BY patient_pseudonym HAVING COUNT(*) = 3)) AS metpredict_patients_with_3_organoids,
+    (SELECT COUNT(*) FROM (SELECT 1 FROM metpredict_visit_2b GROUP BY patient_pseudonym HAVING COUNT(*) = 3) AS t) AS metpredict_patients_with_3_organoids,
     -- MetPredict patients with 4 organoids
-    (SELECT COUNT(*) FROM (SELECT 1 FROM metpredict_visit_2b GROUP BY patient_pseudonym HAVING COUNT(*) = 4)) AS metpredict_patients_with_4_organoids,
+    (SELECT COUNT(*) FROM (SELECT 1 FROM metpredict_visit_2b GROUP BY patient_pseudonym HAVING COUNT(*) = 4) AS t) AS metpredict_patients_with_4_organoids,
     -- MetPredict patients with 5 organoids
-    (SELECT COUNT(*) FROM (SELECT 1 FROM metpredict_visit_2b GROUP BY patient_pseudonym HAVING COUNT(*) = 5)) AS metpredict_patients_with_5_organoids,
+    (SELECT COUNT(*) FROM (SELECT 1 FROM metpredict_visit_2b GROUP BY patient_pseudonym HAVING COUNT(*) = 5) AS t) AS metpredict_patients_with_5_organoids,
     -- MetPredict patients with >5 organoids
-    (SELECT COUNT(*) FROM (SELECT 1 FROM metpredict_visit_2b GROUP BY patient_pseudonym HAVING COUNT(*) > 5)) AS metpredict_patients_with_gt_5_organoids,
+    (SELECT COUNT(*) FROM (SELECT 1 FROM metpredict_visit_2b GROUP BY patient_pseudonym HAVING COUNT(*) > 5) AS t) AS metpredict_patients_with_gt_5_organoids,
     -- NeoMatch patients with organoids from untreated primary tumor only
-    (SELECT COUNT(*) FROM (SELECT 1 FROM neomatch_visit_2b GROUP BY patient_pseudonym HAVING BOOL_OR(sample_collection = 'EUS') AND BOOL_AND(sample_collection != 'OP'))) AS neomatch_patients_with_untreated_organoids,
+    (SELECT COUNT(*) FROM (SELECT 1 FROM neomatch_visit_2b GROUP BY patient_pseudonym HAVING BOOL_OR(sample_collection = 'EUS') AND BOOL_AND(sample_collection != 'OP')) AS t) AS neomatch_patients_with_untreated_organoids,
     -- NeoMatch patients with organoids from treated primary tumor only
-    (SELECT COUNT(*) FROM (SELECT 1 FROM neomatch_visit_2b GROUP BY patient_pseudonym HAVING BOOL_OR(sample_collection = 'OP') AND BOOL_AND(sample_collection != 'EUS'))) AS neomatch_patients_with_treated_organoids,
+    (SELECT COUNT(*) FROM (SELECT 1 FROM neomatch_visit_2b GROUP BY patient_pseudonym HAVING BOOL_OR(sample_collection = 'OP') AND BOOL_AND(sample_collection != 'EUS')) AS t) AS neomatch_patients_with_treated_organoids,
     -- NeoMatch patients with organoids from untreated primary tumor and organoids from treated primary tumor
-    (SELECT COUNT(*) FROM (SELECT 1 FROM neomatch_visit_2b GROUP BY patient_pseudonym HAVING BOOL_OR(sample_collection = 'EUS') AND BOOL_OR(sample_collection = 'OP'))) AS neomatch_patients_with_matched_organoids;
+    (SELECT COUNT(*) FROM (SELECT 1 FROM neomatch_visit_2b GROUP BY patient_pseudonym HAVING BOOL_OR(sample_collection = 'EUS') AND BOOL_OR(sample_collection = 'OP')) AS t) AS neomatch_patients_with_matched_organoids;
