@@ -1,73 +1,116 @@
+-- Patient pseudonyms are not documented consistently across sites: some use spaces or underscores
+-- instead of hyphens and some append the timepoint (-T1) or even the timepoint and the sample
+-- (-T1-M1) to the patient pseudonym. Without normalizing them the same patient appears several
+-- times and a VISIT-2B can not be matched to its VISIT-1. Therefore every pseudonym is normalized
+-- with the following expression:
+--
+--     regexp_replace(regexp_replace(regexp_replace(btrim(<pseudonym>), '[\s_]+', '-', 'g'), '-M[0-9]+$', '', 'i'), '-T[0-9]+$', '', 'i')
+--
 WITH metpredict_visit_2b AS (
     -- Each VISIT-2B has up to 6 samples (M01, M02, M03, M04, M05, M06).
-    -- Usually there should be one VISIT-2B per patient, but if there are more, we select up to 6 samples from each.
-    SELECT 
-        -- resource->'subject'->>'reference' AS patient_reference,
-        (SELECT value->>'valueString'                               FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_PATIENT_PSEUDONYM') AS patient_pseudonym,
-        (SELECT value->>'valueDateTime'                             FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_DATE_OF_VISITE') AS date_of_visite,
-        (SELECT value->>'valueString'                               FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_SAMPLE_' || sample_key || '_PSEUDONYM') AS sample_pseudonym
-        -- (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_SAMPLE_' || sample_key || '_LN2') AS sample_ln2
-    FROM observation
-    CROSS JOIN unnest(ARRAY['M01', 'M02', 'M03', 'M04', 'M05', 'M06']) AS sample_key
-    WHERE resource->'method'->'coding'->0->>'code' = 'PROFILE_SIOP_METPREDICT_VISIT-2B_SAMPLE_COLLECTION'
-        AND EXISTS (SELECT 1 FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_SAMPLE_' || sample_key || '_PSEUDONYM')
+    -- There can be more than one VISIT-2B per patient and the same sample is sometimes documented
+    -- in several of them, so we keep only one row per patient and sample pseudonym and prefer the
+    -- one with the earliest visit date.
+    SELECT DISTINCT ON (patient_pseudonym, sample_pseudonym) *
+    FROM (
+        SELECT
+            regexp_replace(regexp_replace(regexp_replace(btrim(
+                (SELECT value->>'valueString' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_PATIENT_PSEUDONYM')
+            ), '[\s_]+', '-', 'g'), '-M[0-9]+$', '', 'i'), '-T[0-9]+$', '', 'i') AS patient_pseudonym,
+            (SELECT value->>'valueDateTime' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_DATE_OF_VISITE') AS date_of_visite,
+            btrim(
+                (SELECT value->>'valueString' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_SAMPLE_' || sample_key || '_PSEUDONYM')
+            ) AS sample_pseudonym
+            -- (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_SAMPLE_' || sample_key || '_LN2') AS sample_ln2
+        FROM observation
+        CROSS JOIN unnest(ARRAY['M01', 'M02', 'M03', 'M04', 'M05', 'M06']) AS sample_key
+        WHERE resource->'method'->'coding'->0->>'code' = 'PROFILE_SIOP_METPREDICT_VISIT-2B_SAMPLE_COLLECTION'
+    ) AS samples
+    -- Skip samples that have no usable pseudonym. Sites document e.g. "keine" (German for "none")
+    -- when no organoid was collected, which would otherwise be listed as an organoid.
+    WHERE sample_pseudonym IS NOT NULL
+        AND lower(sample_pseudonym) NOT IN ('', '-', '--', '/', 'keine', 'kein', 'keiner', 'nein', 'none', 'na', 'n/a', 'unbekannt', 'entfällt')
+    ORDER BY patient_pseudonym, sample_pseudonym, date_of_visite
 ),
 metpredict_visit_1 AS (
     -- There should be exactly one VISIT-1 per patient, if there are more we select the first one.
-    SELECT DISTINCT ON (patient_pseudonym)
-        (SELECT value->>'valueString' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_PATIENT_PSEUDONYM') AS patient_pseudonym,
-        (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_LOCALISATION_PRIMARY_TUMOR') AS localisation_primary_tumor,
-        (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_LOCALISATION_PRIMARY_TUMOR_COLON') AS localisation_primary_tumor_colon,
-        (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_TNM_C-T') AS tnm_ct,
-        (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_TNM_C-N') AS tnm_cn,
-        -- (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_NEOADJ_T_RECTAL_CARCINOMA') AS neoadj_t_rectal_carcinoma,
-        (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_NEOADJ_RCTX_RT_LONG_COURSE') AS neoadj_rctx_rt_long_course,
-        (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_NEOADJ_RTX_RT_SHORT_COURSE') AS neoadj_rtx_rt_short_course,
-        (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_NEOADJ_TNT') AS neoadj_tnt,
-        (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_NEOADJ_RCTX_CT_REGIMEN') AS neoadj_rctx_ct_regimen,
-        (SELECT value->>'valueString'                               FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_NEOADJ_RCTX_CT_REGIMEN_OTHER') AS neoadj_rctx_ct_regimen_other,
-        (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_NEOADJ_TNT_CT_REGIMEN') AS neoadj_tnt_ct_regimen,
-        (SELECT value->>'valueString'                               FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_NEOADJ_TNT_CT_REGIMEN_OTHER') AS neoadj_tnt_ct_regimen_other,
-        (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_NEOADJ_CTX_MET') AS neoadj_ctx_met,
-        (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_NEOADJ_CTX_REGIMEN_METPREDICT') AS neoadj_ctx_regimen_metpredict,
-        (SELECT value->>'valueString'                               FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_NEOADJ_CTX_REGIMEN_OTHER') AS neoadj_ctx_regimen_other,
-        (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_NEOADJ_CTX_ANTIBODIES') AS neoadj_ctx_antibodies
-    FROM observation
-    WHERE resource->'method'->'coding'->0->>'code' = 'PROFILE_SIOP_METPREDICT_VISIT-1_PATIENTDATA'
+    SELECT DISTINCT ON (patient_pseudonym) *
+    FROM (
+        SELECT
+            regexp_replace(regexp_replace(regexp_replace(btrim(
+                (SELECT value->>'valueString' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_PATIENT_PSEUDONYM')
+            ), '[\s_]+', '-', 'g'), '-M[0-9]+$', '', 'i'), '-T[0-9]+$', '', 'i') AS patient_pseudonym,
+            (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_LOCALISATION_PRIMARY_TUMOR') AS localisation_primary_tumor,
+            (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_LOCALISATION_PRIMARY_TUMOR_COLON') AS localisation_primary_tumor_colon,
+            (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_TNM_C-T') AS tnm_ct,
+            (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_TNM_C-N') AS tnm_cn,
+            -- (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_NEOADJ_T_RECTAL_CARCINOMA') AS neoadj_t_rectal_carcinoma,
+            (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_NEOADJ_RCTX_RT_LONG_COURSE') AS neoadj_rctx_rt_long_course,
+            (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_NEOADJ_RTX_RT_SHORT_COURSE') AS neoadj_rtx_rt_short_course,
+            (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_NEOADJ_TNT') AS neoadj_tnt,
+            (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_NEOADJ_RCTX_CT_REGIMEN') AS neoadj_rctx_ct_regimen,
+            (SELECT value->>'valueString'                               FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_NEOADJ_RCTX_CT_REGIMEN_OTHER') AS neoadj_rctx_ct_regimen_other,
+            (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_NEOADJ_TNT_CT_REGIMEN') AS neoadj_tnt_ct_regimen,
+            (SELECT value->>'valueString'                               FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_NEOADJ_TNT_CT_REGIMEN_OTHER') AS neoadj_tnt_ct_regimen_other,
+            (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_NEOADJ_CTX_MET') AS neoadj_ctx_met,
+            (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_NEOADJ_CTX_REGIMEN_METPREDICT') AS neoadj_ctx_regimen_metpredict,
+            (SELECT value->>'valueString'                               FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_NEOADJ_CTX_REGIMEN_OTHER') AS neoadj_ctx_regimen_other,
+            (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_NEOADJ_CTX_ANTIBODIES') AS neoadj_ctx_antibodies
+        FROM observation
+        WHERE resource->'method'->'coding'->0->>'code' = 'PROFILE_SIOP_METPREDICT_VISIT-1_PATIENTDATA'
+    ) AS visits
 ),
 neomatch_visit_2b AS (
-    -- Each VISIT-2B has only one sample.
-    SELECT
-        (SELECT value->>'valueString'                               FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_PATIENT_PSEUDONYM') AS patient_pseudonym,
-        (SELECT value->>'valueDateTime'                             FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_DATE_OF_VISITE') AS date_of_visite,
-        (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_SAMPLE_LOCALISATION') AS sample_localisation,
-        (SELECT value->>'valueString'                               FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_SAMPLE_LOCALISATION_OTHER') AS sample_localisation_other,
-        (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_SAMPLE_COLLECTION') AS sample_collection,
-        (SELECT value->>'valueString'                               FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_SAMPLE_COLLECTION_OTHER') AS sample_collection_other
-    FROM observation
-    WHERE resource->'method'->'coding'->0->>'code' = 'PROFILE_SIOP_NEOMATCH_VISIT-2B_SAMPLE_COLLECTION'
+    -- Each VISIT-2B has only one sample. Its pseudonym is derived from the patient pseudonym and
+    -- the collection method, so two VISIT-2Bs of a patient with the same collection method can not
+    -- be told apart and are listed as one organoid. We prefer the one with the earliest visit date.
+    SELECT DISTINCT ON (patient_pseudonym, sample_collection) *
+    FROM (
+        SELECT
+            regexp_replace(regexp_replace(regexp_replace(btrim(
+                (SELECT value->>'valueString' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_PATIENT_PSEUDONYM')
+            ), '[\s_]+', '-', 'g'), '-M[0-9]+$', '', 'i'), '-T[0-9]+$', '', 'i') AS patient_pseudonym,
+            (SELECT value->>'valueDateTime'                             FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_DATE_OF_VISITE') AS date_of_visite,
+            (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_SAMPLE_LOCALISATION') AS sample_localisation,
+            (SELECT value->>'valueString'                               FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_SAMPLE_LOCALISATION_OTHER') AS sample_localisation_other,
+            (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_SAMPLE_COLLECTION') AS sample_collection,
+            (SELECT value->>'valueString'                               FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_SAMPLE_COLLECTION_OTHER') AS sample_collection_other
+        FROM observation
+        WHERE resource->'method'->'coding'->0->>'code' = 'PROFILE_SIOP_NEOMATCH_VISIT-2B_SAMPLE_COLLECTION'
+    ) AS samples
+    ORDER BY patient_pseudonym, sample_collection, date_of_visite
 ),
 neomatch_visit_1a AS (
     -- There should be exactly one VISIT-1A per patient, if there are more we select the first one.
-    SELECT DISTINCT ON (patient_pseudonym)
-        (SELECT value->>'valueString'                               FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_PATIENT_PSEUDONYM') AS patient_pseudonym,
-        (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_TNM_C-T') AS tnm_ct,
-        (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_TNM_C-N') AS tnm_cn,
-        (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_TNM_C-M') AS tnm_cm,
-        (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_NEOADJ_CTX') AS neoadj_ctx,
-        (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_DIAGNOSIS_ICD-O-3') AS diagnosis_icd_o_3
-    FROM observation
-    WHERE resource->'method'->'coding'->0->>'code' = 'PROFILE_SIOP_NEOMATCH_VISIT-1A_PATIENTDATA'
+    SELECT DISTINCT ON (patient_pseudonym) *
+    FROM (
+        SELECT
+            regexp_replace(regexp_replace(regexp_replace(btrim(
+                (SELECT value->>'valueString' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_PATIENT_PSEUDONYM')
+            ), '[\s_]+', '-', 'g'), '-M[0-9]+$', '', 'i'), '-T[0-9]+$', '', 'i') AS patient_pseudonym,
+            (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_TNM_C-T') AS tnm_ct,
+            (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_TNM_C-N') AS tnm_cn,
+            (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_TNM_C-M') AS tnm_cm,
+            (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_NEOADJ_CTX') AS neoadj_ctx,
+            (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_DIAGNOSIS_ICD-O-3') AS diagnosis_icd_o_3
+        FROM observation
+        WHERE resource->'method'->'coding'->0->>'code' = 'PROFILE_SIOP_NEOMATCH_VISIT-1A_PATIENTDATA'
+    ) AS visits
 ),
 neomatch_visit_1b AS (
     -- There should be exactly one VISIT-1B per patient, if there are more we select the first one.
-    SELECT DISTINCT ON (patient_pseudonym)
-        (SELECT value->>'valueString'                               FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_PATIENT_PSEUDONYM') AS patient_pseudonym,
-        (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_NEOADJ_CTX_REGIMEN_NEOMATCH') AS neoadj_ctx_regimen,
-        (SELECT value->>'valueString'                               FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_NEOADJ_CTX_REGIMEN_OTHER') AS neoadj_ctx_regimen_other,
-        (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_NEOADJ_CTX_ADDITIONAL_RT') AS neoadj_ctx_additional_rt
-    FROM observation
-    WHERE resource->'method'->'coding'->0->>'code' = 'PROFILE_SIOP_NEOMATCH_VISIT-1B_NEOADJUVANT_CTX'
+    SELECT DISTINCT ON (patient_pseudonym) *
+    FROM (
+        SELECT
+            regexp_replace(regexp_replace(regexp_replace(btrim(
+                (SELECT value->>'valueString' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_PATIENT_PSEUDONYM')
+            ), '[\s_]+', '-', 'g'), '-M[0-9]+$', '', 'i'), '-T[0-9]+$', '', 'i') AS patient_pseudonym,
+            (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_NEOADJ_CTX_REGIMEN_NEOMATCH') AS neoadj_ctx_regimen,
+            (SELECT value->>'valueString'                               FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_NEOADJ_CTX_REGIMEN_OTHER') AS neoadj_ctx_regimen_other,
+            (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_NEOADJ_CTX_ADDITIONAL_RT') AS neoadj_ctx_additional_rt
+        FROM observation
+        WHERE resource->'method'->'coding'->0->>'code' = 'PROFILE_SIOP_NEOMATCH_VISIT-1B_NEOADJUVANT_CTX'
+    ) AS visits
 )
 
 SELECT
