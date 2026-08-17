@@ -1,61 +1,116 @@
+-- Patient pseudonyms are not documented consistently across sites: some use spaces or underscores
+-- instead of hyphens and some append the timepoint (-T1) or even the timepoint and the sample
+-- (-T1-M1) to the patient pseudonym. Without normalizing them the same patient is counted several
+-- times and a VISIT-2B can not be matched to its VISIT-1. Therefore every pseudonym is normalized
+-- with the following expression:
+--
+--     regexp_replace(regexp_replace(regexp_replace(btrim(<pseudonym>), '[\s_]+', '-', 'g'), '-M[0-9]+$', '', 'i'), '-T[0-9]+$', '', 'i')
+--
 WITH metpredict_visit_2b AS (
     -- Each VISIT-2B has up to 6 samples (M01, M02, M03, M04, M05, M06).
-    -- Usually there should be one VISIT-2B per patient, but if there are more, we select up to 6 samples from each.
-    SELECT 
-        -- resource->'subject'->>'reference' AS patient_reference,
-        (SELECT value->>'valueString'                               FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_PATIENT_PSEUDONYM') AS patient_pseudonym
-    FROM observation
-    CROSS JOIN unnest(ARRAY['M01', 'M02', 'M03', 'M04', 'M05', 'M06']) AS sample_key
-    WHERE resource->'method'->'coding'->0->>'code' = 'PROFILE_SIOP_METPREDICT_VISIT-2B_SAMPLE_COLLECTION'
-        AND EXISTS (SELECT 1 FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_SAMPLE_' || sample_key || '_PSEUDONYM')
+    -- There can be more than one VISIT-2B per patient and the same sample is sometimes documented
+    -- in several of them, so we keep only one row per patient and sample pseudonym.
+    SELECT DISTINCT patient_pseudonym, sample_pseudonym
+    FROM (
+        SELECT
+            regexp_replace(regexp_replace(regexp_replace(btrim(
+                (SELECT value->>'valueString' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_PATIENT_PSEUDONYM')
+            ), '[\s_]+', '-', 'g'), '-M[0-9]+$', '', 'i'), '-T[0-9]+$', '', 'i') AS patient_pseudonym,
+            btrim(
+                (SELECT value->>'valueString' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_SAMPLE_' || sample_key || '_PSEUDONYM')
+            ) AS sample_pseudonym
+        FROM observation
+        CROSS JOIN unnest(ARRAY['M01', 'M02', 'M03', 'M04', 'M05', 'M06']) AS sample_key
+        WHERE resource->'method'->'coding'->0->>'code' = 'PROFILE_SIOP_METPREDICT_VISIT-2B_SAMPLE_COLLECTION'
+    ) AS samples
+    -- Skip samples that have no usable pseudonym. Sites document e.g. "keine" (German for "none")
+    -- when no organoid was collected, which would otherwise be counted as an organoid.
+    WHERE sample_pseudonym IS NOT NULL
+        AND lower(sample_pseudonym) NOT IN ('', '-', '--', '/', 'keine', 'kein', 'keiner', 'nein', 'none', 'na', 'n/a', 'unbekannt', 'entfällt')
 ),
 metpredict_visit_1 AS (
     -- There should be exactly one VISIT-1 per patient, if there are more we select the first one.
-    SELECT DISTINCT ON (patient_pseudonym)
-        (SELECT value->>'valueString' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_PATIENT_PSEUDONYM') AS patient_pseudonym,
-        (SELECT value->'valueQuantity'->>'value' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_AGE_STUDY_ENROLLMENT') AS age_at_study_enrollment,
-        (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_GENDER') AS gender
-
-    FROM observation
-    WHERE resource->'method'->'coding'->0->>'code' = 'PROFILE_SIOP_METPREDICT_VISIT-1_PATIENTDATA'
+    SELECT DISTINCT ON (patient_pseudonym) *
+    FROM (
+        SELECT
+            regexp_replace(regexp_replace(regexp_replace(btrim(
+                (SELECT value->>'valueString' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_PATIENT_PSEUDONYM')
+            ), '[\s_]+', '-', 'g'), '-M[0-9]+$', '', 'i'), '-T[0-9]+$', '', 'i') AS patient_pseudonym,
+            (SELECT value->'valueQuantity'->>'value' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_AGE_STUDY_ENROLLMENT') AS age_at_study_enrollment,
+            (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_GENDER') AS gender
+        FROM observation
+        WHERE resource->'method'->'coding'->0->>'code' = 'PROFILE_SIOP_METPREDICT_VISIT-1_PATIENTDATA'
+    ) AS visits
 ),
 neomatch_visit_2b AS (
-    -- Each VISIT-2B has only one sample.
-    SELECT
-        (SELECT value->>'valueString'                               FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_PATIENT_PSEUDONYM') AS patient_pseudonym,
-        (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_SAMPLE_COLLECTION') AS sample_collection
-    FROM observation
-    WHERE resource->'method'->'coding'->0->>'code' = 'PROFILE_SIOP_NEOMATCH_VISIT-2B_SAMPLE_COLLECTION'
+    -- Each VISIT-2B has only one sample. Its pseudonym is derived from the patient pseudonym and
+    -- the collection method, so two VISIT-2Bs of a patient with the same collection method can not
+    -- be told apart and are counted as one organoid.
+    SELECT DISTINCT patient_pseudonym, sample_collection
+    FROM (
+        SELECT
+            regexp_replace(regexp_replace(regexp_replace(btrim(
+                (SELECT value->>'valueString' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_PATIENT_PSEUDONYM')
+            ), '[\s_]+', '-', 'g'), '-M[0-9]+$', '', 'i'), '-T[0-9]+$', '', 'i') AS patient_pseudonym,
+            (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_SAMPLE_COLLECTION') AS sample_collection
+        FROM observation
+        WHERE resource->'method'->'coding'->0->>'code' = 'PROFILE_SIOP_NEOMATCH_VISIT-2B_SAMPLE_COLLECTION'
+    ) AS samples
 ),
 neomatch_visit_1a AS (
     -- There should be exactly one VISIT-1A per patient, if there are more we select the first one.
-    SELECT DISTINCT ON (patient_pseudonym)
-        (SELECT value->>'valueString'                               FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_PATIENT_PSEUDONYM') AS patient_pseudonym,
-        (SELECT value->'valueQuantity'->>'value' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_AGE_STUDY_ENROLLMENT') AS age_at_study_enrollment,
-        (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_GENDER') AS gender
-    FROM observation
-    WHERE resource->'method'->'coding'->0->>'code' = 'PROFILE_SIOP_NEOMATCH_VISIT-1A_PATIENTDATA'
-),
-patients AS (
     SELECT DISTINCT ON (patient_pseudonym) *
     FROM (
-        SELECT patient_pseudonym, age_at_study_enrollment::numeric::int, gender FROM metpredict_visit_1
+        SELECT
+            regexp_replace(regexp_replace(regexp_replace(btrim(
+                (SELECT value->>'valueString' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_PATIENT_PSEUDONYM')
+            ), '[\s_]+', '-', 'g'), '-M[0-9]+$', '', 'i'), '-T[0-9]+$', '', 'i') AS patient_pseudonym,
+            (SELECT value->'valueQuantity'->>'value' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_AGE_STUDY_ENROLLMENT') AS age_at_study_enrollment,
+            (SELECT value->'valueCodeableConcept'->'coding'->0->>'code' FROM jsonb_array_elements(resource->'component') WHERE value->'code'->'coding'->0->>'code' = 'SIOP_GENDER') AS gender
+        FROM observation
+        WHERE resource->'method'->'coding'->0->>'code' = 'PROFILE_SIOP_NEOMATCH_VISIT-1A_PATIENTDATA'
+    ) AS visits
+),
+metpredict_patient_ids AS (
+    -- A patient counts as a MetPredict patient if they have a VISIT-1 or at least one organoid.
+    -- Counting only VISIT-1 would report fewer patients than there are patients with organoids at
+    -- sites that don't deliver VISIT-1 data.
+    SELECT patient_pseudonym FROM metpredict_visit_1
+    UNION
+    SELECT patient_pseudonym FROM metpredict_visit_2b
+),
+neomatch_patient_ids AS (
+    SELECT patient_pseudonym FROM neomatch_visit_1a
+    UNION
+    SELECT patient_pseudonym FROM neomatch_visit_2b
+),
+patients AS (
+    SELECT DISTINCT ON (patient_pseudonym) patient_pseudonym, age_at_study_enrollment, gender
+    FROM (
+        SELECT patient_pseudonym, age_at_study_enrollment::numeric::int AS age_at_study_enrollment, gender, 1 AS priority FROM metpredict_visit_1
         UNION ALL
-        SELECT patient_pseudonym, age_at_study_enrollment::numeric::int, gender FROM neomatch_visit_1a
+        SELECT patient_pseudonym, age_at_study_enrollment::numeric::int, gender, 1 FROM neomatch_visit_1a
+        UNION ALL
+        -- Patients that are only known from a VISIT-2B have neither age nor gender, but they must
+        -- still be counted so that the age and gender charts add up to the number of patients.
+        SELECT patient_pseudonym, NULL::int, NULL::text, 2 FROM metpredict_patient_ids
+        UNION ALL
+        SELECT patient_pseudonym, NULL::int, NULL::text, 2 FROM neomatch_patient_ids
     ) AS combined
+    ORDER BY patient_pseudonym, priority
 )
 
 SELECT
     -- number of MetPredict patients
-    (SELECT COUNT(*) FROM metpredict_visit_1) AS metpredict_patients,
+    (SELECT COUNT(*) FROM metpredict_patient_ids) AS metpredict_patients,
     -- number of NeoMatch patients
-    (SELECT COUNT(*) FROM neomatch_visit_1a) AS neomatch_patients,
+    (SELECT COUNT(*) FROM neomatch_patient_ids) AS neomatch_patients,
     -- number of MetPredict organoids
     (SELECT COUNT(*) FROM metpredict_visit_2b) AS metpredict_organoids,
     -- number of NeoMatch organoids
     (SELECT COUNT(*) FROM neomatch_visit_2b) AS neomatch_organoids,
-    -- number of patients with age at study enrollment <30
-    (SELECT COUNT(*) FROM patients WHERE age_at_study_enrollment < 30) AS patients_age_lt_30,
+    -- number of patients with age at study enrollment <=30
+    (SELECT COUNT(*) FROM patients WHERE age_at_study_enrollment <= 30) AS patients_age_lte_30,
     -- number of patients with age at study enrollment 31-40
     (SELECT COUNT(*) FROM patients WHERE age_at_study_enrollment >= 31 AND age_at_study_enrollment <= 40) AS patients_age_31_40,
     -- number of patients with age at study enrollment 41-50
@@ -72,16 +127,17 @@ SELECT
     (SELECT COUNT(*) FROM patients WHERE gender = 'FEMALE') AS female_patients,
     -- number of diverse patients
     (SELECT COUNT(*) FROM patients WHERE gender = 'DIVERSE') AS diverse_patients,
-    -- number of patients with unknown gender
-    (SELECT COUNT(*) FROM patients WHERE gender = 'NA') AS unknown_gender_patients,
+    -- number of patients with unknown gender, i.e. everything that is not one of the codes above.
+    -- This also covers patients whose gender is not documented at all.
+    (SELECT COUNT(*) FROM patients WHERE gender IS NULL OR gender NOT IN ('MALE', 'FEMALE', 'DIVERSE')) AS unknown_gender_patients,
     -- organoids from metastasis
     (SELECT COUNT(*) FROM metpredict_visit_2b) AS organoids_from_metastasis,
     -- organoids from untreated primary tumor
     (SELECT COUNT(*) FROM neomatch_visit_2b WHERE sample_collection = 'EUS') AS organoids_from_untreated_primary_tumor,
     -- organoids from treated primary tumor
     (SELECT COUNT(*) FROM neomatch_visit_2b WHERE sample_collection = 'OP') AS organoids_from_treated_primary_tumor,
-    -- organoids from unknown site
-    (SELECT COUNT(*) FROM neomatch_visit_2b WHERE sample_collection = 'OTH' OR sample_collection = 'NA') AS organoids_from_unknown_site,
+    -- organoids from unknown site, i.e. everything that is not one of the codes above
+    (SELECT COUNT(*) FROM neomatch_visit_2b WHERE sample_collection IS NULL OR sample_collection NOT IN ('EUS', 'OP')) AS organoids_from_unknown_site,
     -- MetPredict patients with 1 organoid
     (SELECT COUNT(*) FROM (SELECT 1 FROM metpredict_visit_2b GROUP BY patient_pseudonym HAVING COUNT(*) = 1) AS t) AS metpredict_patients_with_1_organoids,
     -- MetPredict patients with 2 organoids
