@@ -1,3 +1,9 @@
+# Samply.Focus v0.24.3 2026-08-17
+
+## Minor
+
+* Make Organoid queries more robust
+
 # Samply.Focus v0.24.2 2026-07-20
 
 ## Minor
