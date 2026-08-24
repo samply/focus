@@ -57,6 +57,10 @@ pub static CODE_LISTS: LazyLock<HashMap<&'static str, &'static str>> = LazyLock:
             "http://dktk.dkfz.de/fhir/onco/core/CodeSystem/VitalstatusCS",
         ),
         (
+            "analysemethodecs",
+            "http://dktk.dkfz.de/fhir/onco/core/CodeSystem/AnalysemethodeCS",
+        ),
+        (
             "jnucs",
             "http://dktk.dkfz.de/fhir/onco/core/CodeSystem/JNUCS",
         ),
@@ -102,6 +106,7 @@ pub static OBSERVATION_LOINC_CODES: LazyLock<HashMap<&'static str, &'static str>
             ("lymphNodeRecurrence", "LA4370-8"),
             ("distantMetastases", "LA4226-2"),
             ("vitalStatus", "75186-7"),
+            ("analysis_method", "55233-1"),
             ("observationMolecularMarkerName", "48018-6"),
             ("observationMolecularMarkerAminoacidchange", "48005-3"),
             ("observationMolecularMarkerDNAchange", "81290-9"),
@@ -152,6 +157,7 @@ pub static CRITERION_CODE_LISTS: LazyLock<HashMap<&'static str, Vec<&'static str
                 vec!["loinc", "verlauftumorstatusfernmetastasencs"],
             ),
             ("vitalStatus", vec!["loinc", "vitalstatuscs"]),
+            ("analysis_method", vec!["loinc", "analysemethodecs"]),
             ("TNM-T", vec!["loinc", "TNMTCS"]),
             ("TNM-N", vec!["loinc", "TNMNCS"]),
             ("TNM-M", vec!["loinc", "TNMMCS"]),
@@ -264,6 +270,10 @@ pub static CQL_SNIPPETS: LazyLock<HashMap<(&'static str, CriterionRole), &'stati
         ),
         (
             ("vitalStatus", CriterionRole::Query),
+            observation,
+        ),
+        (
+            ("analysis_method", CriterionRole::Query),
             observation,
         ),
         (
