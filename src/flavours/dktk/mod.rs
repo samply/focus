@@ -61,6 +61,10 @@ pub static CODE_LISTS: LazyLock<HashMap<&'static str, &'static str>> = LazyLock:
             "http://dktk.dkfz.de/fhir/onco/core/CodeSystem/AnalysemethodeCS",
         ),
         (
+            "variantentypcs",
+            "http://dktk.dkfz.de/fhir/onco/core/CodeSystem/VariantenTypCS",
+        ),
+        (
             "jnucs",
             "http://dktk.dkfz.de/fhir/onco/core/CodeSystem/JNUCS",
         ),
@@ -108,8 +112,9 @@ pub static OBSERVATION_LOINC_CODES: LazyLock<HashMap<&'static str, &'static str>
             ("vitalStatus", "75186-7"),
             ("analysis_method", "55233-1"),
             ("observationMolecularMarkerName", "48018-6"),
+            ("observationMolecularMarkerVariantType", "48019-4"),
             ("observationMolecularMarkerAminoacidchange", "48005-3"),
-            ("observationMolecularMarkerDNAchange", "81290-9"),
+            ("observationMolecularMarkerDNAchange", "48004-6"),
             ("observationMolecularMarkerSeqRefNCBI", "81248-7"),
             ("observationMolecularMarkerEnsemblID", "81249-5"),
         ])
@@ -131,6 +136,10 @@ pub static CRITERION_CODE_LISTS: LazyLock<HashMap<&'static str, Vec<&'static str
             (
                 "observationMolecularMarkerName",
                 vec!["loinc", "molecularMarker"],
+            ),
+            (
+                "observationMolecularMarkerVariantType",
+                vec!["loinc", "variantentypcs"],
             ),
             ("observationMolecularMarkerAminoacidchange", vec!["loinc"]),
             ("observationMolecularMarkerDNAchange", vec!["loinc"]),
@@ -286,6 +295,10 @@ pub static CQL_SNIPPETS: LazyLock<HashMap<(&'static str, CriterionRole), &'stati
         ),
         (
             ("observationMolecularMarkerName", CriterionRole::Query),
+            "exists from [Observation: Code '69548-6' from {{A1}}] O\nwhere O.component.where(code.coding contains Code '{{K}}' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}",
+        ),
+        (
+            ("observationMolecularMarkerVariantType", CriterionRole::Query),
             "exists from [Observation: Code '69548-6' from {{A1}}] O\nwhere O.component.where(code.coding contains Code '{{K}}' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}",
         ),
         (

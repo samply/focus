@@ -660,6 +660,10 @@ mod test {
 
     const ANALYSIS_METHOD_WGS: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"key":"analysis_method","operand":"OR","children":[{"key":"analysis_method","type":"EQUALS","system":"http://dktk.dkfz.de/fhir/onco/core/CodeSystem/AnalysemethodeCS","value":"wgs"}]}]}]},"id":"9d1a8fd6-4b1e-4a2f-9d3e-6c1f0b7a5e21"}"#;
 
+    const VARIANT_TYPE_MISSENSE: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"key":"observationMolecularMarkerVariantType","operand":"OR","children":[{"key":"observationMolecularMarkerVariantType","type":"EQUALS","system":"http://dktk.dkfz.de/fhir/onco/core/CodeSystem/VariantenTypCS","value":"nonsynonymous-snv"}]}]}]},"id":"7c2e5a90-3f4b-4d1a-8e77-2b9c6d0f1a34"}"#;
+
+    const DNA_CHANGE: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"key":"observationMolecularMarkerDNAchange","operand":"OR","children":[{"key":"observationMolecularMarkerDNAchange","type":"EQUALS","system":"","value":"c.2147C>T"}]}]}]},"id":"1f5b8c72-9d3e-4a06-b2c8-5e7f4a1d9b60"}"#;
+
     const SAMPLE_KIND_FFPE: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"key":"sample_kind","operand":"OR","children":[{"key":"Gewebe FFPE","operand":"AND","children":[{"operand":"OR","children":[{"key":"sample_kind","type":"EQUALS","system":"","value":"tumor-tissue-ffpe"},{"key":"histology","type":"EQUALS","system":"","value":"tumor-tissue-ffpe"},{"key":"sample_kind","type":"EQUALS","system":"","value":"tissue-ffpe"},{"key":"sample_kind","type":"EQUALS","system":"","value":"normal-tissue-ffpe"},{"key":"sample_kind","type":"EQUALS","system":"","value":"other-tissue-ffpe"}]}]}]}]}]},"id":"bd5112af-e712-4091-9c94-892c4e667a29"}"#;
 
     #[test]
@@ -704,6 +708,20 @@ mod test {
             )
             .unwrap(),
             include_str!("../resources/test/result_analysis_method_wgs.cql").to_string()
+        );
+
+        pretty_assertions::assert_eq!(
+            generate_cql(
+                serde_json::from_str(VARIANT_TYPE_MISSENSE).unwrap(),
+                Flavour::Dktk
+            )
+            .unwrap(),
+            include_str!("../resources/test/result_variant_type_missense.cql").to_string()
+        );
+
+        pretty_assertions::assert_eq!(
+            generate_cql(serde_json::from_str(DNA_CHANGE).unwrap(), Flavour::Dktk).unwrap(),
+            include_str!("../resources/test/result_dna_change.cql").to_string()
         );
 
         pretty_assertions::assert_eq!(
