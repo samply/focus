@@ -52,6 +52,12 @@ if InInitialPopulation then [Observation: Code '69548-6' from loinc] else {} as 
 define function GeneticVariantCode(observation FHIR.Observation):
 observation.component.where(code.coding contains Code '48018-6' from loinc).value.coding.code.first()
 
+define AnalysisMethod:
+if InInitialPopulation then [Observation: Code '55233-1' from loinc] else {} as List <Observation>
+
+define function AnalysisMethodCode(observation FHIR.Observation):
+observation.value.coding.where(system = 'http://dktk.dkfz.de/fhir/onco/core/CodeSystem/AnalysemethodeCS').code.first()
+
 define InInitialPopulation:
 ((((((((exists [Specimen: Code 'tumor-tissue-ffpe' from specimentype]))) or (((exists from [Observation: Code '59847-4' from loinc] O
 ))) or (((exists [Specimen: Code 'tissue-ffpe' from specimentype]))) or (((exists [Specimen: Code 'normal-tissue-ffpe' from specimentype]))) or (((exists [Specimen: Code 'other-tissue-ffpe' from specimentype]))))))))

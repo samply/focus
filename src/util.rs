@@ -244,6 +244,32 @@ pub fn obfuscate_counts_mr(
                     bbmri_obfuscation,
                 )?;
             }
+            "analysis_methods" => {
+                obfuscate_population(
+                    &mut g.population,
+                    delta_histo,
+                    epsilon,
+                    1,
+                    obf_cache,
+                    obfuscate_zero,
+                    obf_10.clone(),
+                    rounding_step,
+                    None,
+                    bbmri_obfuscation,
+                )?;
+                obfuscate_stratifier(
+                    &mut g.stratifier,
+                    delta_histo,
+                    epsilon,
+                    2,
+                    obf_cache,
+                    obfuscate_zero,
+                    obf_10.clone(),
+                    rounding_step,
+                    None,
+                    bbmri_obfuscation,
+                )?;
+            }
             strat => {
                 warn!("Focus is not aware of {strat} type of stratifier, therefore it will not obfuscate the values.");
                 return Err(FocusError::CQLTemperedWithError(

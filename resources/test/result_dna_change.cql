@@ -3,7 +3,6 @@ using FHIR version '4.0.0'
 include FHIRHelpers version '4.0.0'
 
 codesystem loinc: 'http://loinc.org'
-codesystem TNMTCS: 'http://dktk.dkfz.de/fhir/onco/core/CodeSystem/TNMTCS'
 
 
 context Patient
@@ -59,7 +58,5 @@ define function AnalysisMethodCode(observation FHIR.Observation):
 observation.value.coding.where(system = 'http://dktk.dkfz.de/fhir/onco/core/CodeSystem/AnalysemethodeCS').code.first()
 
 define InInitialPopulation:
-(((((((exists from [Observation: Code '21908-9' from loinc] O where O.component.where(code.coding contains Code '21905-5' from loinc).value.coding contains Code '2' from TNMTCS) or
-(exists from [Observation: Code '21902-2' from loinc] O where O.component.where(code.coding contains Code '21905-5' from loinc).value.coding contains Code '2' from TNMTCS) or
-(exists from [Observation: Code '21908-9' from loinc] O where O.component.where(code.coding contains Code '21899-0' from loinc).value.coding contains Code '2' from TNMTCS) or
-(exists from [Observation: Code '21902-2' from loinc] O where O.component.where(code.coding contains Code '21899-0' from loinc).value.coding contains Code '2' from TNMTCS)))))))
+((((((exists from [Observation: Code '69548-6' from loinc] O
+where O.component.where(code.coding contains Code '48004-6' from loinc).value = 'c.2147C>T'))))))
