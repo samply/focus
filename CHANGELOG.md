@@ -1,3 +1,10 @@
+# Samply.Focus v0.24.4 2026-08-24
+
+## Minor
+
+* DKTK: add support for MASTER Analysemethode
+* DKTK: add Variantentyp query criterion and fix DNA Change query criterion
+
 # Samply.Focus v0.24.3 2026-08-17
 
 ## Minor
