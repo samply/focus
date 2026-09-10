@@ -780,6 +780,10 @@ mod test {
 
     const MIABIS_SAMPLE_EQUALS_WHOLE_BLOOD: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"operand":"OR","children":[{"key":"sample_kind","type":"EQUALS","system":"","value":"whole-blood"}]}]}]},"id":"miabis-s1"}"#;
 
+    const MIABIS_DATE_OF_DIAGNOSIS: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"operand":"OR","children":[{"key":"date_of_diagnosis","type":"BETWEEN","system":"","value":{"min":"2020-01-01","max":"2021-01-01"}}]}]}]},"id":"miabis-dd1"}"#;
+
+    const MIABIS_DIAGNOSIS_AGE_DONOR: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"operand":"OR","children":[{"key":"diagnosis_age_donor","type":"BETWEEN","system":"","value":{"min":30,"max":70}}]}]}]},"id":"miabis-da1"}"#;
+
     const MIABIS_SAMPLE_IN: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"operand":"OR","children":[{"key":"sample_kind","type":"IN","system":"","value":["blood-plasma","tissue-ffpe"]}]}]}]},"id":"miabis-s2"}"#;
 
     const MIABIS_SAMPLE_LIQUID_OTHER: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"operand":"OR","children":[{"key":"sample_kind","type":"IN","system":"","value":["liquid-other"]}]}]}]},"id":"miabis-s3"}"#;
@@ -819,9 +823,53 @@ mod test {
             Flavour::Miabis,
         )
         .unwrap();
-        assert!(cql.contains("'C61'"));
+        assert!(cql.contains(
+            "(exists from [Observation] O where (O.value as CodeableConcept).coding.where(system = 'http://hl7.org/fhir/sid/icd-10').code contains 'C61')"
+        ));
+        assert!(cql.contains("(exists[Condition: Code 'C61' from icd10])"));
         assert!(cql.contains("http://hl7.org/fhir/sid/icd-10"));
         assert!(!cql.contains("http://fhir.de/CodeSystem/dimdi/icd-10-gm"));
+    }
+
+    #[test]
+    fn test_miabis_diagnosis_stratifier_reads_observation() {
+        let cql = generate_cql(
+            serde_json::from_str(MIABIS_DIAGNOSIS).unwrap(),
+            Flavour::Miabis,
+        )
+        .unwrap();
+        assert!(cql.contains("define Diagnosis:\n    if InInitialPopulation then [Observation]"));
+        assert!(cql.contains(
+            "define function DiagnosisCode(observation FHIR.Observation):\n    (observation.value as CodeableConcept)"
+        ));
+    }
+
+    #[test]
+    fn test_miabis_date_of_diagnosis() {
+        let cql = generate_cql(
+            serde_json::from_str(MIABIS_DATE_OF_DIAGNOSIS).unwrap(),
+            Flavour::Miabis,
+        )
+        .unwrap();
+        assert!(
+            cql.contains("(exists from [Observation] O where FHIRHelpers.ToDateTime(O.effective)")
+        );
+        assert!(cql.contains("(exists from [Condition] C where FHIRHelpers.ToDateTime(C.onset)"));
+    }
+
+    #[test]
+    fn test_miabis_diagnosis_age_donor() {
+        let cql = generate_cql(
+            serde_json::from_str(MIABIS_DIAGNOSIS_AGE_DONOR).unwrap(),
+            Flavour::Miabis,
+        )
+        .unwrap();
+        assert!(cql.contains(
+            "(exists from [Observation] O where AgeInYearsAt(FHIRHelpers.ToDateTime(O.effective))"
+        ));
+        assert!(cql.contains(
+            "(exists from [Condition] C where AgeInYearsAt(FHIRHelpers.ToDateTime(C.onset))"
+        ));
     }
 
     #[test]
