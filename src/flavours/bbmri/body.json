@@ -144,9 +144,7 @@
               "expression": "SampleType",
               "language": "text/cql"
             }
-          }
-        ],
-                "stratifier": [
+          },
           {
             "code": {
               "text": "Custodian"
