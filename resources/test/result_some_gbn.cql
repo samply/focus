@@ -82,6 +82,14 @@ Coalesce(
   condition.code.coding.where(system = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm').code.first()
 )
 
+define function Collection (specimen FHIR.Specimen):
+Coalesce(
+    First(from specimen.extension E
+    where E.url = 'https://fhir.bbmri.de/StructureDefinition/Custodian'
+    return (E.value as Reference).identifier.value),
+    null
+)
+
 define InInitialPopulation:
 ((((Patient.gender = 'other') or (Patient.gender = 'male'))) and (((((exists[Condition: Code 'C24' from icd10]) or (exists[Condition: Code 'C24' from icd10gm]) or (exists[Condition: Code 'C24' from icd10gmnew]))))) and (exists from [Condition] C
 where AgeInYearsAt(FHIRHelpers.ToDateTime(C.onset)) between Ceiling(1) and Ceiling(11)) and (exists from [Condition] C

@@ -145,6 +145,17 @@
               "language": "text/cql"
             }
           }
+        ],
+                "stratifier": [
+          {
+            "code": {
+              "text": "Custodian"
+            },
+            "criteria": {
+              "expression": "Collection",
+              "language": "text/cql-identifier"
+            }
+          }
         ]
       }
     ],
