@@ -113,6 +113,7 @@ pub static OBSERVATION_LOINC_CODES: LazyLock<HashMap<&'static str, &'static str>
             ("analysis_method", "55233-1"),
             ("observationMolecularMarkerName", "48018-6"),
             ("observationMolecularMarkerVariantType", "48019-4"),
+            ("observationMolecularMarkerVariantCode", "69548-6"),
             ("observationMolecularMarkerAminoacidchange", "48005-3"),
             ("observationMolecularMarkerDNAchange", "48004-6"),
             ("observationMolecularMarkerSeqRefNCBI", "81248-7"),
@@ -141,6 +142,7 @@ pub static CRITERION_CODE_LISTS: LazyLock<HashMap<&'static str, Vec<&'static str
                 "observationMolecularMarkerVariantType",
                 vec!["loinc", "variantentypcs"],
             ),
+            ("observationMolecularMarkerVariantCode", vec!["loinc"]),
             ("observationMolecularMarkerAminoacidchange", vec!["loinc"]),
             ("observationMolecularMarkerDNAchange", vec!["loinc"]),
             ("observationMolecularMarkerSeqRefNCBI", vec!["loinc"]),
@@ -304,6 +306,12 @@ pub static CQL_SNIPPETS: LazyLock<HashMap<(&'static str, CriterionRole), &'stati
         (
             ("observationMolecularMarkerVariantType", CriterionRole::Query),
             "exists from [Observation: Code '69548-6' from {{A1}}] O\nwhere O.component.where(code.coding contains Code '{{K}}' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}",
+        ),
+        (
+            // The variant code sits directly in the observation's value, not in one
+            // of its components.
+            ("observationMolecularMarkerVariantCode", CriterionRole::Query),
+            observation,
         ),
         (
             ("observationMolecularMarkerAminoacidchange", CriterionRole::Query),
