@@ -294,8 +294,12 @@ pub static CQL_SNIPPETS: LazyLock<HashMap<(&'static str, CriterionRole), &'stati
             "exists from [Observation: Code '21907-1' from {{A1}}] O\nwhere O.bodySite.coding.code contains '{{C}}'",
         ),
         (
+            // Some sites report a gene as "GENE||c.35G>A||p.G12D||Exon 2" instead of
+            // putting the variant into the DNA change and amino acid change
+            // components. Those records are found by the gene alone, hence the
+            // second condition.
             ("observationMolecularMarkerName", CriterionRole::Query),
-            "exists from [Observation: Code '69548-6' from {{A1}}] O\nwhere O.component.where(code.coding contains Code '{{K}}' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}",
+            "exists from [Observation: Code '69548-6' from {{A1}}] O\nwhere O.component.where(code.coding contains Code '{{K}}' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}\nor exists O.component.where(code.coding contains Code '{{K}}' from {{A1}}).value.coding.where(StartsWith(code, '{{C}}|'))",
         ),
         (
             ("observationMolecularMarkerVariantType", CriterionRole::Query),
