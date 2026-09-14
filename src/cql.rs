@@ -666,6 +666,27 @@ mod test {
 
     const SAMPLE_KIND_FFPE: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"key":"sample_kind","operand":"OR","children":[{"key":"Gewebe FFPE","operand":"AND","children":[{"operand":"OR","children":[{"key":"sample_kind","type":"EQUALS","system":"","value":"tumor-tissue-ffpe"},{"key":"histology","type":"EQUALS","system":"","value":"tumor-tissue-ffpe"},{"key":"sample_kind","type":"EQUALS","system":"","value":"tissue-ffpe"},{"key":"sample_kind","type":"EQUALS","system":"","value":"normal-tissue-ffpe"},{"key":"sample_kind","type":"EQUALS","system":"","value":"other-tissue-ffpe"}]}]}]}]}]},"id":"bd5112af-e712-4091-9c94-892c4e667a29"}"#;
 
+    const MOLECULAR_MARKER_TP53: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"key":"observationMolecularMarkerName","operand":"OR","children":[{"key":"observationMolecularMarkerName","type":"EQUALS","system":"","value":"TP53"}]}]}]},"id":"5a7a2b1e-0d3c-4c9e-9a1f-6f2f2a5c8e11"}"#;
+
+    #[test]
+    fn test_dktk_molecular_marker_name_matches_variant_notation() {
+        // Some sites report a gene as "TP53||c.524G>A||p.R175H||Exon 5". Those
+        // records have to be found by searching for the gene alone, while a search
+        // for TP53 must not match a different gene like TP53BP1.
+        let generated_cql = generate_cql(
+            serde_json::from_str(MOLECULAR_MARKER_TP53).unwrap(),
+            Flavour::Dktk,
+        )
+        .unwrap();
+
+        pretty_assertions::assert_eq!(
+            generated_cql.contains(
+                "value.coding contains Code 'TP53' from molecularMarker\nor exists O.component.where(code.coding contains Code '48018-6' from loinc).value.coding.where(StartsWith(code, 'TP53|'))"
+            ),
+            true
+        );
+    }
+
     #[test]
     fn test_dktk() {
         pretty_assertions::assert_eq!(
