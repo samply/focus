@@ -45,13 +45,13 @@ define Specimen:
     if InInitialPopulation then [Specimen] S {{filter_criteria}} else {} as List<Specimen>
 
 define Diagnosis:
-    if InInitialPopulation then [Condition] else {} as List<Condition>
+    if InInitialPopulation then [Observation] else {} as List<Observation>
 
-define function DiagnosisCode(condition FHIR.Condition, specimen FHIR.Specimen):
-    condition.code.coding.where(system = 'http://hl7.org/fhir/sid/icd-10').code.first()
+define function DiagnosisCode(observation FHIR.Observation, specimen FHIR.Specimen):
+    (observation.value as CodeableConcept).coding.where(system = 'http://hl7.org/fhir/sid/icd-10').code.first()
 
-define function DiagnosisCode(condition FHIR.Condition):
-    condition.code.coding.where(system = 'http://hl7.org/fhir/sid/icd-10').code.first()
+define function DiagnosisCode(observation FHIR.Observation):
+    (observation.value as CodeableConcept).coding.where(system = 'http://hl7.org/fhir/sid/icd-10').code.first()
 
 define InInitialPopulation:
 {{retrieval_criteria}}

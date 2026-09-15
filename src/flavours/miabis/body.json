@@ -78,7 +78,7 @@
         "extension": [
           {
             "url": "http://hl7.org/fhir/us/cqfmeasures/StructureDefinition/cqfm-populationBasis",
-            "valueCode": "Condition"
+            "valueCode": "Observation"
           }
         ],
         "population": [
