@@ -94,7 +94,13 @@ struct CliArgs {
     endpoint_type: EndpointType,
 
     /// Comma separated list of enabled projects that allow cql queries
-    #[clap(long, env, value_parser, value_delimiter = ',')]
+    #[clap(
+        long,
+        env,
+        value_parser,
+        value_delimiter = ',',
+        default_value = "lens3"
+    )]
     cql_projects_enabled: Option<Vec<String>>,
 
     /// Should the results be obfuscated
@@ -150,7 +156,7 @@ struct CliArgs {
         long,
         env,
         value_parser,
-        default_value = "exliquid;dktk_supervisors;exporter;ehds2"
+        default_value = "exliquid;dktk_supervisors;exporter;ehds2;lens3"
     )]
     projects_no_obfuscation: String,
 
