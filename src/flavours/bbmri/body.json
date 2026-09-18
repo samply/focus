@@ -62,6 +62,15 @@
           },
           {
             "code": {
+              "text": "age_at_diagnosis"
+            },
+            "criteria": {
+              "expression": "AgeAtDiagnosis",
+              "language": "text/cql"
+            }
+          },
+          {
+            "code": {
               "text": "Custodian"
             },
             "criteria": {
@@ -143,6 +152,15 @@
             "criteria": {
               "expression": "SampleType",
               "language": "text/cql"
+            }
+          },
+          {
+            "code": {
+              "text": "Custodian"
+            },
+            "criteria": {
+              "expression": "Collection",
+              "language": "text/cql-identifier"
             }
           }
         ]
