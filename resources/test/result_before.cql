@@ -9,10 +9,18 @@ codesystem SampleMaterialType: 'https://fhir.bbmri.de/CodeSystem/SampleMaterialT
 context Patient
 
 define AgeClass:
-if (Patient.birthDate is null) then 'unknown' else ToString((AgeInYears() div 10) * 10)
+    if (Patient.birthDate is null) then 'unknown' else ToString((AgeInYears() div 10) * 10)
+
+define PrimaryDiagnosis:
+    First(
+    from [Condition] C
+    where C.extension.where(url='http://hl7.org/fhir/StructureDefinition/condition-related').empty())
+
+define AgeAtDiagnosis:
+    if (PrimaryDiagnosis.onset is null) then 'unknown' else ToString((AgeInYearsAt(FHIRHelpers.ToDateTime(PrimaryDiagnosis.onset)) div 10) * 10)
 
 define Gender:
-if (Patient.gender is null) then 'unknown' else Patient.gender
+    if (Patient.gender is null) then 'unknown' else Patient.gender
 
 define Custodian:
     First(from Specimen.extension E

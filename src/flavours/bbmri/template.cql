@@ -7,7 +7,7 @@ include FHIRHelpers version '4.0.0'
 context Patient
 
 define AgeClass:
-if (Patient.birthDate is null) then 'unknown' else ToString((AgeInYears() div 10) * 10)
+    if (Patient.birthDate is null) then 'unknown' else ToString((AgeInYears() div 10) * 10)
 
 define PrimaryDiagnosis:
     First(
@@ -18,7 +18,7 @@ define AgeAtDiagnosis:
     if (PrimaryDiagnosis.onset is null) then 'unknown' else ToString((AgeInYearsAt(FHIRHelpers.ToDateTime(PrimaryDiagnosis.onset)) div 10) * 10)
 
 define Gender:
-if (Patient.gender is null) then 'unknown' else Patient.gender
+    if (Patient.gender is null) then 'unknown' else Patient.gender
 
 define Custodian:
     First(from Specimen.extension E
