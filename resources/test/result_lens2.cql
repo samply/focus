@@ -80,5 +80,13 @@ Coalesce(
   condition.code.coding.where(system = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm').code.first()
 )
 
+define function Collection (specimen FHIR.Specimen):
+Coalesce(
+    First(from specimen.extension E
+    where E.url = 'https://fhir.bbmri.de/StructureDefinition/Custodian'
+    return (E.value as Reference).identifier.value),
+    null
+)
+
 define InInitialPopulation:
 ((((((Patient.gender = 'male'))) or (((Patient.gender = 'female')))) and ((((((exists[Condition: Code 'C41' from icd10]) or (exists[Condition: Code 'C41' from icd10gm]) or (exists[Condition: Code 'C41' from icd10gmnew]))))) or (((((exists[Condition: Code 'C50' from icd10]) or (exists[Condition: Code 'C50' from icd10gm]) or (exists[Condition: Code 'C50' from icd10gmnew])))))) and (((( exists [Specimen: Code 'tissue-frozen' from SampleMaterialType]) or ( exists [Specimen: Code 'tumor-tissue-frozen' from SampleMaterialType]) or ( exists [Specimen: Code 'normal-tissue-frozen' from SampleMaterialType]) or ( exists [Specimen: Code 'other-tissue-frozen' from SampleMaterialType]))) or ((( exists [Specimen: Code 'blood-serum' from SampleMaterialType]) or ( exists [Specimen: Code 'serum' from SampleMaterialType]))))) or (((((Patient.gender = 'male')))) and ((((((exists[Condition: Code 'C41' from icd10]) or (exists[Condition: Code 'C41' from icd10gm]) or (exists[Condition: Code 'C41' from icd10gmnew]))))) or (((((exists[Condition: Code 'C50' from icd10]) or (exists[Condition: Code 'C50' from icd10gm]) or (exists[Condition: Code 'C50' from icd10gmnew])))))) and (((( exists [Specimen: Code 'liquid-other' from SampleMaterialType]) or ( exists [Specimen: Code 'liquid' from SampleMaterialType]))) or ((( exists [Specimen: Code 'rna' from SampleMaterialType]))) or ((( exists [Specimen: Code 'urine' from SampleMaterialType])))) and ((((exists from [Specimen] S where (S.extension.where(url='https://fhir.bbmri.de/StructureDefinition/StorageTemperature').value.coding contains Code 'temperatureRoom' from StorageTemperature) ))) or (((exists from [Specimen] S where (S.extension.where(url='https://fhir.bbmri.de/StructureDefinition/StorageTemperature').value.coding contains Code 'four_degrees' from StorageTemperature) ))))))
