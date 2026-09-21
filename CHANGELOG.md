@@ -1,3 +1,12 @@
+# Samply.Focus v0.25.0 2026-09-21
+
+## Minor
+
+* Age at the time of sampling stratifier
+* Custodian stratifier in the specimen group
+* Return mulecular marker variant code
+* Better gene name matching
+
 # Samply.Focus v0.24.4 2026-08-24
 
 ## Minor
