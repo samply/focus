@@ -31,17 +31,15 @@ pub struct AstQuery {
 pub async fn check_availability() -> bool {
     debug!("Checking Blaze availability...");
 
-    let resp = match CONFIG
-        .client
-        .get(format!(
-            "{}health",
-            (CONFIG.endpoint_url.to_string().split("fhir"))
-                .next()
-                .expect("Missing \"fhir\" in Blaze url base")
-        ))
-        .send()
-        .await
-    {
+    let mut health_url = CONFIG.endpoint_url.clone();
+    let base_path = health_url
+        .path()
+        .rsplit_once("fhir")
+        .map(|(before, _)| before.to_string())
+        .expect("Missing \"fhir\" in Blaze url path");
+    health_url.set_path(&format!("{base_path}health"));
+
+    let resp = match CONFIG.client.get(health_url).send().await {
         Ok(response) => response,
         Err(e) => {
             warn!("Error making Blaze request: {:?}", e);
