@@ -1,3 +1,10 @@
+# Samply.Focus v0.25.1 2026-09-22
+
+## Major
+
+* Fix bug with blaze URL when domain contains "fhir"
+
+
 # Samply.Focus v0.25.0 2026-09-21
 
 ## Major
