@@ -35,9 +35,9 @@ pub async fn check_availability() -> bool {
         .client
         .get(format!(
             "{}health",
-            (CONFIG.endpoint_url.to_string().split("fhir"))
-                .next()
+            (CONFIG.endpoint_url.to_string().rsplit_once("fhir"))
                 .expect("Missing \"fhir\" in Blaze url base")
+                .0
         ))
         .send()
         .await
