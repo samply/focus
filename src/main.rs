@@ -7,7 +7,7 @@ mod cql;
 mod errors;
 mod graceful_shutdown;
 mod logger;
-
+mod organization;
 mod db;
 mod eucaim_api;
 mod eucaim_beacon;
@@ -27,6 +27,7 @@ use beam_lib::{TaskRequest, TaskResult};
 use futures_util::future::BoxFuture;
 use futures_util::FutureExt;
 use laplace_rs::ObfCache;
+use organization::OrganizationCache;
 use tokio::sync::Mutex;
 
 use crate::blaze::parse_blaze_query_payload_ast;
@@ -45,6 +46,7 @@ use std::{process::exit, time::Duration};
 
 use serde::{Deserialize, Serialize};
 use tracing::{debug, error, trace, warn};
+
 
 // result cache
 type SearchQuery = String;
@@ -250,10 +252,21 @@ async fn main_loop() -> ExitCode {
     let obf_cache = Arc::new(Mutex::new(ObfCache {
         cache: Default::default(),
     }));
+    let organization_cache = Arc::new(Mutex::new(OrganizationCache {
+        cache: Default::default(),
+    }));
     task_processing::process_tasks(move |task| {
         let obf_cache = obf_cache.clone();
+        let organization_cache = organization_cache.clone();
         let query_result_cache = query_result_cache.clone();
-        process_task(task, obf_cache, query_result_cache, db_pool.clone()).boxed_local()
+        process_task(
+            task,
+            obf_cache,
+            organization_cache,
+            query_result_cache,
+            db_pool.clone(),
+        )
+        .boxed_local()
     })
     .await;
     ExitCode::FAILURE
@@ -262,6 +275,7 @@ async fn main_loop() -> ExitCode {
 async fn process_task(
     task: &BeamTask,
     obf_cache: Arc<Mutex<ObfCache>>,
+    organization_cache: Arc<Mutex<OrganizationCache>>,
     query_result_cache: Arc<Mutex<QueryResultCache>>,
     db_pool: Option<DbPool>,
 ) -> Result<BeamResult, FocusError> {
@@ -327,6 +341,7 @@ async fn process_task(
                 task,
                 &query,
                 obf_cache,
+                organization_cache,
                 query_result_cache,
                 metadata.project,
                 metadata.transform,
@@ -363,6 +378,7 @@ async fn process_task(
                     task,
                     &query,
                     obf_cache,
+                    organization_cache,
                     query_result_cache,
                     metadata.project, //so far no deviation from project name for this type of endpoint
                     metadata.transform,
@@ -620,6 +636,7 @@ async fn run_cql_query(
     task: &BeamTask,
     query: &CqlQuery,
     obf_cache: Arc<Mutex<ObfCache>>,
+    organization_cache: Arc<Mutex<OrganizationCache>>,
     query_result_cache: Arc<Mutex<QueryResultCache>>,
     cql_flavour: String,
     transform: Transform,
@@ -685,9 +702,13 @@ async fn run_cql_query(
         false => cql_result,
     };
 
+    // Organization FHIR IDs need to be replaced with Organization directory IDs before transformation because transformation does not have to be turned on for every project using blaze
+
+    let cql_result_org: String = organization::replace_org_fhir_ids_with_org_directory_ids(&cql_result_new, organization_cache.lock().await.deref_mut());
+
     let result_string = match transform {
         Transform::Lens => {
-            let result_mr: mr::MeasureReport = serde_json::from_str(&cql_result_new)?;
+            let result_mr: mr::MeasureReport = serde_json::from_str(&cql_result_org)?;
             let result_json = mr::transform_lens(result_mr)?;
             serde_json::to_string(&result_json)
                 .map_err(|e| FocusError::SerializationError(e.to_string()))?

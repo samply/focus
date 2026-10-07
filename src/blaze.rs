@@ -152,3 +152,8 @@ pub fn parse_blaze_query_payload_ast(ast_query: &str) -> Result<ast::Ast, FocusE
     let decoded = util::base64_decode(ast_query)?;
     Ok(serde_json::from_slice(&decoded)?)
 }
+
+pub fn get_organization_directory_id(fhir_id: String) -> String {
+    fhir_id
+
+}
