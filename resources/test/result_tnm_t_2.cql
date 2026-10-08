@@ -58,6 +58,21 @@ if InInitialPopulation then [Observation: Code '55233-1' from loinc] else {} as 
 define function AnalysisMethodCode(observation FHIR.Observation):
 observation.value.coding.where(system = 'http://dktk.dkfz.de/fhir/onco/core/CodeSystem/AnalysemethodeCS').code.first()
 
+define function HasAnalysisMethod(method String):
+exists (AnalysisMethod O where AnalysisMethodCode(O) = method)
+
+define AnalysisMethodWesRnaseq:
+HasAnalysisMethod('wes') and HasAnalysisMethod('rnaseq')
+
+define AnalysisMethodWesRnaseqCode:
+'wes+rnaseq'
+
+define AnalysisMethodWgsRnaseq:
+HasAnalysisMethod('wgs') and HasAnalysisMethod('rnaseq')
+
+define AnalysisMethodWgsRnaseqCode:
+'wgs+rnaseq'
+
 define InInitialPopulation:
 (((((((exists from [Observation: Code '21908-9' from loinc] O where O.component.where(code.coding contains Code '21905-5' from loinc).value.coding contains Code '2' from TNMTCS) or
 (exists from [Observation: Code '21902-2' from loinc] O where O.component.where(code.coding contains Code '21905-5' from loinc).value.coding contains Code '2' from TNMTCS) or

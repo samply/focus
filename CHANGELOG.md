@@ -1,3 +1,15 @@
+# Samply.Focus v0.26.0 2026-10-08
+
+## Major
+
+* DKTK: WES + RNA-Seq and WGS + RNA-Seq analysis method combinations
+
+## Minor
+
+* BBMRI: rename the Custodian stratifier in the specimen group to "Custodian-specimen"
+* MIABIS: query diagnoses on Observation resources
+
+
 # Samply.Focus v0.25.1 2026-09-22
 
 ## Major
