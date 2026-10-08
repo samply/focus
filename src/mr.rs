@@ -1,4 +1,7 @@
-use crate::{errors::FocusError, transformed::Transformed};
+use crate::{
+    errors::FocusError,
+    transformed::{Facets, Transformed},
+};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -106,16 +109,14 @@ pub fn transform_lens(measure_report: MeasureReport) -> Result<Transformed, Focu
             .totals
             .insert(g.code.text.clone(), g.population[0].count);
         for s in &g.stratifier {
+            let mut facets = Facets::new();
+
             let facets_key = s
                 .code
                 .first()
                 .ok_or_else(|| FocusError::ParsingError("Missing facet key".into()))?
                 .text
                 .clone();
-            // Stratifiers with the same name in different groups are merged,
-            // e.g. the analysis method combinations are separate groups but
-            // are reported as strata of the "analysis_method" stratifier.
-            let facets = transformed.stratifiers.entry(facets_key).or_default();
             if let Some(strata) = &s.stratum {
                 for stratum in strata {
                     let stratum_key = stratum.value.text.clone();
@@ -128,6 +129,7 @@ pub fn transform_lens(measure_report: MeasureReport) -> Result<Transformed, Focu
                     facets.insert(stratum_key, value);
                 }
             }
+            transformed.stratifiers.insert(facets_key, facets);
         }
     }
     Ok(transformed)
@@ -188,72 +190,5 @@ mod test {
         let stratifiers_json = serde_json::to_string(&stratifiers).expect("Should be JSON");
 
         pretty_assertions::assert_eq!(STRATIFIER_GROUPS_DKTK, stratifiers_json);
-    }
-
-    fn population(count: u64) -> Population {
-        Population {
-            code: PopulationCode {
-                coding: vec![Coding {
-                    code: "initial-population".into(),
-                    system: "http://terminology.hl7.org/CodeSystem/measure-population".into(),
-                }],
-            },
-            count,
-            subject_results: None,
-        }
-    }
-
-    fn group(name: &str, count: u64, strata: &[(&str, u64)]) -> Group {
-        Group {
-            code: Code { text: name.into() },
-            population: vec![population(count)],
-            stratifier: vec![Stratifier {
-                code: vec![Code {
-                    text: "analysis_method".into(),
-                }],
-                stratum: Some(
-                    strata
-                        .iter()
-                        .map(|(text, count)| Stratum {
-                            population: vec![population(*count)],
-                            value: StratumValue {
-                                text: (*text).into(),
-                            },
-                        })
-                        .collect(),
-                ),
-            }],
-        }
-    }
-
-    #[test]
-    fn test_merge_stratifiers_with_same_name() {
-        let measure_report = MeasureReport {
-            date: "2026-10-01".into(),
-            extension: vec![],
-            group: vec![
-                group("analysis_methods", 30, &[("wes", 10), ("rnaseq", 20)]),
-                group("analysis_method_wes_rnaseq", 5, &[("wes+rnaseq", 5)]),
-                group("analysis_method_wgs_rnaseq", 0, &[]),
-            ],
-            id: None,
-            measure: "urn:uuid:test".into(),
-            meta: None,
-            period: Period {
-                end: "2030".into(),
-                start: "2000".into(),
-            },
-            resource_type: "MeasureReport".into(),
-            status: "complete".into(),
-            type_: "summary".into(),
-        };
-
-        let transformed = transform_lens(measure_report).expect("transform failed");
-
-        let facets = &transformed.stratifiers["analysis_method"];
-        pretty_assertions::assert_eq!(facets.len(), 3);
-        pretty_assertions::assert_eq!(facets["wes"], 10);
-        pretty_assertions::assert_eq!(facets["rnaseq"], 20);
-        pretty_assertions::assert_eq!(facets["wes+rnaseq"], 5);
     }
 }

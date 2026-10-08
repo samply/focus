@@ -342,7 +342,7 @@
         "stratifier": [
           {
             "code": {
-              "text": "analysis_method"
+              "text": "analysis_method_wes_rnaseq"
             },
             "criteria": {
               "language": "text/cql-identifier",
@@ -374,7 +374,7 @@
         "stratifier": [
           {
             "code": {
-              "text": "analysis_method"
+              "text": "analysis_method_wgs_rnaseq"
             },
             "criteria": {
               "language": "text/cql-identifier",
