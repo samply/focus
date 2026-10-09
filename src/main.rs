@@ -4,18 +4,18 @@ mod beam;
 mod blaze;
 mod config;
 mod cql;
-mod errors;
-mod graceful_shutdown;
-mod logger;
-mod organization;
 mod db;
+mod errors;
 mod eucaim_api;
 mod eucaim_beacon;
 mod eucaim_sql;
 mod exporter;
 mod flavours;
+mod graceful_shutdown;
 mod intermediate_rep;
+mod logger;
 mod mr;
+mod organization;
 mod task_processing;
 mod transformed;
 mod util;
@@ -46,7 +46,6 @@ use std::{process::exit, time::Duration};
 
 use serde::{Deserialize, Serialize};
 use tracing::{debug, error, trace, warn};
-
 
 // result cache
 type SearchQuery = String;
@@ -703,17 +702,22 @@ async fn run_cql_query(
     };
 
     // Organization FHIR IDs need to be replaced with Organization directory IDs before transformation because transformation does not have to be turned on for every project using blaze
+    let result_mr: mr::MeasureReport = serde_json::from_str(&cql_result_new)?;
 
-    let cql_result_org: String = organization::replace_org_fhir_ids_with_org_directory_ids(&cql_result_new, organization_cache.lock().await.deref_mut());
+    let mr_result_org = organization::replace_org_fhir_ids_with_org_directory_ids(
+        result_mr,
+        organization_cache.lock().await.deref_mut(),
+    )
+    .await?;
 
     let result_string = match transform {
         Transform::Lens => {
-            let result_mr: mr::MeasureReport = serde_json::from_str(&cql_result_org)?;
-            let result_json = mr::transform_lens(result_mr)?;
+            let result_json = mr::transform_lens(mr_result_org)?;
             serde_json::to_string(&result_json)
                 .map_err(|e| FocusError::SerializationError(e.to_string()))?
         }
-        Transform::None => cql_result_new,
+        Transform::None => serde_json::to_string(&mr_result_org)
+            .map_err(|e| FocusError::SerializationError(e.to_string()))?,
     };
 
     if should_cache {

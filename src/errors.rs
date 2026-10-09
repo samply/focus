@@ -13,6 +13,8 @@ pub enum FocusError {
     MeasureEvaluationErrorBlaze(String),
     #[error("CQL query error")]
     CQLQueryError,
+    #[error("Error getting organization from FHIR: {0}")]
+    UnableToGetOrganization(reqwest::Error),
     #[error("Unable to retrieve tasks from Beam: {0}")]
     UnableToRetrieveTasksHttp(beam_lib::BeamError),
     #[error("Unable to answer task: {0}")]
