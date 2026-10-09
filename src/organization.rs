@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 
-use crate::{blaze::get_organization_directory_id, errors::FocusError, mr::MeasureReport};
+use crate::{
+    blaze::get_organization_directory_id, errors::FocusError, mr::MeasureReport, mr::Stratifier,
+};
 use tracing::trace;
 
 type OrganizationFhirId = String;
@@ -24,50 +26,7 @@ pub async fn replace_org_fhir_ids_with_org_directory_ids(
                         }
                     }
                     if is_custodian {
-                        for strata in stratifier.stratum.iter_mut() {
-                            for stratum in strata.iter_mut() {
-                                let text = &stratum.value.text[..];
-
-                                if text.contains("Organization") {
-                                    let fhir_id_maybe = text.split_once("Organization/");
-                                    let directory_id = if let Some((_, fhir_id)) = fhir_id_maybe {
-                                        trace!(
-                                            "Checking organization cache for FHIR ID {}",
-                                            &fhir_id
-                                        );
-                                        let cached = organization_cache.cache.get(fhir_id);
-                                        if let Some(directory_id) = cached {
-                                            trace!(
-                                                "Found in cache: FHIR ID: {}, Directory ID: {}",
-                                                fhir_id,
-                                                directory_id
-                                            );
-                                            directory_id
-                                        } else {
-                                            let org_id =
-                                                get_organization_directory_id(fhir_id.to_string())
-                                                    .await
-                                                    .unwrap_or("null".to_string());
-                                            // the result should still be returned, in case of "null", the default collection of the biobank is sent to the Negotiator
-                                            organization_cache.cache.insert(
-                                                fhir_id.to_string().clone(),
-                                                org_id.clone(),
-                                            );
-                                            trace!(
-                                                "Got from Blaze: FHIR ID: {}, Directory ID: {}",
-                                                fhir_id,
-                                                org_id
-                                            );
-                                            &(org_id.clone())
-                                        }
-                                    } else {
-                                        //Organization FHIR ID is in wrong format
-                                        &("null".to_string())
-                                    };
-                                    stratum.value.text = directory_id.clone().to_string();
-                                }
-                            }
-                        }
+                        process_strata(stratifier, organization_cache).await;
                     }
                 }
             }
@@ -80,50 +39,7 @@ pub async fn replace_org_fhir_ids_with_org_directory_ids(
                         }
                     }
                     if is_custodian {
-                        for strata in stratifier.stratum.iter_mut() {
-                            for stratum in strata.iter_mut() {
-                                let text = &stratum.value.text[..];
-
-                                if text.contains("Organization") {
-                                    let fhir_id_maybe = text.split_once("Organization/");
-                                    let directory_id = if let Some((_, fhir_id)) = fhir_id_maybe {
-                                        trace!(
-                                            "Checking organization cache for FHIR ID {}",
-                                            &fhir_id
-                                        );
-                                        let cached = organization_cache.cache.get(fhir_id);
-                                        if let Some(directory_id) = cached {
-                                            trace!(
-                                                "Found in cache: FHIR ID: {}, Directory ID: {}",
-                                                fhir_id,
-                                                directory_id
-                                            );
-                                            directory_id
-                                        } else {
-                                            let org_id =
-                                                get_organization_directory_id(fhir_id.to_string())
-                                                    .await
-                                                    .unwrap_or("null".to_string());
-                                            // the result should still be returned, in case of "null", the default collection of the biobank is sent to the Negotiator
-                                            organization_cache.cache.insert(
-                                                fhir_id.to_string().clone(),
-                                                org_id.clone(),
-                                            );
-                                            trace!(
-                                                "Got from Blaze: FHIR ID: {}, Directory ID: {}",
-                                                fhir_id,
-                                                org_id
-                                            );
-                                            &(org_id.clone())
-                                        }
-                                    } else {
-                                        //Organization FHIR ID is in wrong format
-                                        &("null".to_string())
-                                    };
-                                    stratum.value.text = directory_id.clone().to_string();
-                                }
-                            }
-                        }
+                        process_strata(stratifier, organization_cache).await;
                     }
                 }
             }
@@ -134,8 +50,44 @@ pub async fn replace_org_fhir_ids_with_org_directory_ids(
     Ok(result_mr)
 }
 
-#[cfg(test)]
-mod test {
+async fn process_strata(stratifier: &mut Stratifier, organization_cache: &mut OrganizationCache) {
+    for strata in stratifier.stratum.iter_mut() {
+        for stratum in strata.iter_mut() {
+            let text = &stratum.value.text[..];
 
-    use super::*;
+            if text.contains("Organization") {
+                let fhir_id_maybe = text.split_once("Organization/");
+                let directory_id = if let Some((_, fhir_id)) = fhir_id_maybe {
+                    trace!("Checking organization cache for FHIR ID {}", &fhir_id);
+                    let cached = organization_cache.cache.get(fhir_id);
+                    if let Some(directory_id) = cached {
+                        trace!(
+                            "Found in cache: FHIR ID: {}, Directory ID: {}",
+                            fhir_id,
+                            directory_id
+                        );
+                        directory_id
+                    } else {
+                        let org_id = get_organization_directory_id(fhir_id.to_string())
+                            .await
+                            .unwrap_or("null".to_string());
+                        // the result should still be returned, in case of "null", the default collection of the biobank is sent to the Negotiator
+                        organization_cache
+                            .cache
+                            .insert(fhir_id.to_string().clone(), org_id.clone());
+                        trace!(
+                            "Got from Blaze: FHIR ID: {}, Directory ID: {}",
+                            fhir_id,
+                            org_id
+                        );
+                        &(org_id.clone())
+                    }
+                } else {
+                    //Organization FHIR ID is in wrong format
+                    &("null".to_string())
+                };
+                stratum.value.text = directory_id.clone().to_string();
+            }
+        }
+    }
 }
