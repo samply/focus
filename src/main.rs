@@ -561,8 +561,6 @@ async fn run_eucaim_sql_query(
         let response_json: String = serde_json::to_string(&response)
             .map_err(|e| FocusError::SerializationError(e.to_string()))?;
 
-        dbg!(&response_json);
-
         if should_cache {
             query_result_cache
                 .lock()

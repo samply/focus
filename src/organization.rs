@@ -36,7 +36,6 @@ pub async fn replace_org_fhir_ids_with_org_directory_ids(
                                             &fhir_id
                                         );
                                         let cached = organization_cache.cache.get(fhir_id);
-                                        dbg!(&cached);
                                         if let Some(directory_id) = cached {
                                             trace!(
                                                 "Found in cache: FHIR ID: {}, Directory ID: {}",
@@ -93,7 +92,6 @@ pub async fn replace_org_fhir_ids_with_org_directory_ids(
                                             &fhir_id
                                         );
                                         let cached = organization_cache.cache.get(fhir_id);
-                                        dbg!(&cached);
                                         if let Some(directory_id) = cached {
                                             trace!(
                                                 "Found in cache: FHIR ID: {}, Directory ID: {}",
