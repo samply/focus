@@ -152,3 +152,37 @@ pub fn parse_blaze_query_payload_ast(ast_query: &str) -> Result<ast::Ast, FocusE
     let decoded = util::base64_decode(ast_query)?;
     Ok(serde_json::from_slice(&decoded)?)
 }
+
+pub async fn get_organization_directory_id(fhir_id: String) -> Result<String, FocusError> {
+    debug!("Getting organization with FHIR ID {}", &fhir_id);
+
+    let org_string: String;
+
+    let resp = CONFIG
+        .client
+        .get(format!(
+            "{}Organization/{}?_elements=identifier",
+            CONFIG.endpoint_url, &fhir_id
+        ))
+        .send()
+        .await
+        .map_err(FocusError::UnableToGetOrganization)?;
+
+    if resp.status().is_success() {
+        org_string = resp
+            .text()
+            .await
+            .map_err(FocusError::UnableToGetOrganization)?;
+    } else {
+        return Err(FocusError::ParsingError(
+            "Unable to get organization".to_string(),
+        ));
+    }
+
+    let org_json: Value = serde_json::from_str(&org_string)?;
+    let identifier = org_json["identifier"][0]["value"] // as per Simplifier profile there is only one
+        .clone()
+        .to_string()
+        .replace("\"", ""); // it is extracted with quotation marks
+    Ok(identifier)
+}
