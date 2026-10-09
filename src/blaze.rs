@@ -181,6 +181,8 @@ pub async fn get_organization_directory_id(fhir_id: String) -> Result<String, Fo
 
     let org_json: Value = serde_json::from_str(&org_string)?;
     let identifier = org_json["identifier"][0]["value"] // as per Simplifier profile there is only one
-    .clone().to_string().replace("\"", ""); // it is extracted with quotation marks
+        .clone()
+        .to_string()
+        .replace("\"", ""); // it is extracted with quotation marks
     Ok(identifier)
 }
