@@ -66,7 +66,7 @@ async fn process_strata(stratifier: &mut Stratifier, organization_cache: &mut Or
                             fhir_id,
                             directory_id
                         );
-                        directory_id
+                        directory_id.as_str()
                     } else {
                         let org_id = get_organization_directory_id(fhir_id.to_string())
                             .await
@@ -80,13 +80,13 @@ async fn process_strata(stratifier: &mut Stratifier, organization_cache: &mut Or
                             fhir_id,
                             org_id
                         );
-                        &(org_id.clone())
+                        &(org_id.to_owned())
                     }
                 } else {
                     //Organization FHIR ID is in wrong format
-                    &("null".to_string())
+                    "null"
                 };
-                stratum.value.text = directory_id.clone().to_string();
+                stratum.value.text = directory_id.to_string();
             }
         }
     }
