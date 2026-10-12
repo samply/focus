@@ -25,9 +25,15 @@ define Gender:
     if (Patient.gender is null) then 'unknown' else Patient.gender
 
 define Custodian:
+   Coalesce(
     First(from Specimen.extension E
     where E.url = 'https://fhir.bbmri.de/StructureDefinition/Custodian'
-    return (E.value as Reference).identifier.value)
+    return (E.value as Reference).identifier.value),
+    First(from Specimen.extension E
+    where E.url = 'https://fhir.bbmri.de/StructureDefinition/Custodian'
+    return (E.value as Reference).reference),
+    null
+)
 
 define function SampleType(specimen FHIR.Specimen):
     case FHIRHelpers.ToCode(specimen.type.coding.where(system = 'https://fhir.bbmri.de/CodeSystem/SampleMaterialType').first())
@@ -92,6 +98,9 @@ Coalesce(
     First(from specimen.extension E
     where E.url = 'https://fhir.bbmri.de/StructureDefinition/Custodian'
     return (E.value as Reference).identifier.value),
+    First(from specimen.extension E
+    where E.url = 'https://fhir.bbmri.de/StructureDefinition/Custodian'
+    return (E.value as Reference).reference),
     null
 )
 

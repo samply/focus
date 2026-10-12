@@ -373,8 +373,8 @@ fn obfuscate_stratifier(
     bbmri_rounding: bool,
 ) -> Result<(), FocusError> {
     for stratifier in val.iter_mut() {
-        for stratums in stratifier.stratum.iter_mut() {
-            for stratum in stratums.iter_mut() {
+        for strata in stratifier.stratum.iter_mut() {
+            for stratum in strata.iter_mut() {
                 obfuscate_population(
                     &mut (stratum).population,
                     delta,
