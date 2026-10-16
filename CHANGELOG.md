@@ -1,3 +1,14 @@
+# Samply.Focus v0.26.1 2026-10-16
+
+## Major
+
+* BBMRI: support Custodians given as an Organization reference, which are resolved to the Organization's directory ID
+
+## Minor
+
+* DKTK: faster analysis method combination stratifiers, which also fixes a query error
+
+
 # Samply.Focus v0.26.0 2026-10-08
 
 ## Major
