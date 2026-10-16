@@ -7,7 +7,7 @@ license = "Apache-2.0"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-base64 = "0.22.1"
+base64 = "0.23.1"
 reqwest = { version = "0.13", default-features = false, features = [
   "json",
   "default-tls",
