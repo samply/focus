@@ -4,18 +4,18 @@ mod beam;
 mod blaze;
 mod config;
 mod cql;
-mod errors;
-mod graceful_shutdown;
-mod logger;
-
 mod db;
+mod errors;
 mod eucaim_api;
 mod eucaim_beacon;
 mod eucaim_sql;
 mod exporter;
 mod flavours;
+mod graceful_shutdown;
 mod intermediate_rep;
+mod logger;
 mod mr;
+mod organization;
 mod task_processing;
 mod transformed;
 mod util;
@@ -27,6 +27,7 @@ use beam_lib::{TaskRequest, TaskResult};
 use futures_util::future::BoxFuture;
 use futures_util::FutureExt;
 use laplace_rs::ObfCache;
+use organization::OrganizationCache;
 use tokio::sync::Mutex;
 
 use crate::blaze::parse_blaze_query_payload_ast;
@@ -250,10 +251,21 @@ async fn main_loop() -> ExitCode {
     let obf_cache = Arc::new(Mutex::new(ObfCache {
         cache: Default::default(),
     }));
+    let organization_cache = Arc::new(Mutex::new(OrganizationCache {
+        cache: Default::default(),
+    }));
     task_processing::process_tasks(move |task| {
         let obf_cache = obf_cache.clone();
+        let organization_cache = organization_cache.clone();
         let query_result_cache = query_result_cache.clone();
-        process_task(task, obf_cache, query_result_cache, db_pool.clone()).boxed_local()
+        process_task(
+            task,
+            obf_cache,
+            organization_cache,
+            query_result_cache,
+            db_pool.clone(),
+        )
+        .boxed_local()
     })
     .await;
     ExitCode::FAILURE
@@ -262,6 +274,7 @@ async fn main_loop() -> ExitCode {
 async fn process_task(
     task: &BeamTask,
     obf_cache: Arc<Mutex<ObfCache>>,
+    organization_cache: Arc<Mutex<OrganizationCache>>,
     query_result_cache: Arc<Mutex<QueryResultCache>>,
     db_pool: Option<DbPool>,
 ) -> Result<BeamResult, FocusError> {
@@ -327,6 +340,7 @@ async fn process_task(
                 task,
                 &query,
                 obf_cache,
+                organization_cache,
                 query_result_cache,
                 metadata.project,
                 metadata.transform,
@@ -363,6 +377,7 @@ async fn process_task(
                     task,
                     &query,
                     obf_cache,
+                    organization_cache,
                     query_result_cache,
                     metadata.project, //so far no deviation from project name for this type of endpoint
                     metadata.transform,
@@ -546,8 +561,6 @@ async fn run_eucaim_sql_query(
         let response_json: String = serde_json::to_string(&response)
             .map_err(|e| FocusError::SerializationError(e.to_string()))?;
 
-        dbg!(&response_json);
-
         if should_cache {
             query_result_cache
                 .lock()
@@ -620,6 +633,7 @@ async fn run_cql_query(
     task: &BeamTask,
     query: &CqlQuery,
     obf_cache: Arc<Mutex<ObfCache>>,
+    organization_cache: Arc<Mutex<OrganizationCache>>,
     query_result_cache: Arc<Mutex<QueryResultCache>>,
     cql_flavour: String,
     transform: Transform,
@@ -685,14 +699,30 @@ async fn run_cql_query(
         false => cql_result,
     };
 
+    // Organization FHIR IDs need to be replaced with Organization directory IDs before transformation because transformation does not have to be turned on for every project using blaze
+    let result_mr: mr::MeasureReport = serde_json::from_str(&cql_result_new)?;
+
+    let mr_result_org = organization::replace_org_fhir_ids_with_org_directory_ids(
+        result_mr,
+        organization_cache.lock().await.deref_mut(),
+    )
+    .await?;
+
+    trace!(
+        "MeasureReport with org FHIR IDs replaced with org Directory IDs: {}",
+        serde_json::to_string(&mr_result_org).unwrap_or(
+            "Measure report in a wrong format after Organization ID replacement".to_string()
+        )
+    );
+
     let result_string = match transform {
         Transform::Lens => {
-            let result_mr: mr::MeasureReport = serde_json::from_str(&cql_result_new)?;
-            let result_json = mr::transform_lens(result_mr)?;
+            let result_json = mr::transform_lens(mr_result_org)?;
             serde_json::to_string(&result_json)
                 .map_err(|e| FocusError::SerializationError(e.to_string()))?
         }
-        Transform::None => cql_result_new,
+        Transform::None => serde_json::to_string(&mr_result_org)
+            .map_err(|e| FocusError::SerializationError(e.to_string()))?,
     };
 
     if should_cache {
