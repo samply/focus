@@ -52,7 +52,7 @@ clap = { version = "4", default-features = false, features = [
 ] }
 
 # Query via SQL
-sqlx = { version = "0.8.2", features = [
+sqlx = { version = "0.9.0", features = [
   "runtime-tokio",
   "postgres",
   "macros",
