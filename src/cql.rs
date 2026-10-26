@@ -658,7 +658,34 @@ mod test {
 
     const TNM_T_2: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"key":"TNM-T","operand":"OR","children":[{"key":"TNM-T","type":"EQUALS","system":"","value":"2"}]}]}]},"id":"3cc4f25a-e086-4a09-afa1-b07ae77d7144"}"#;
 
+    const ANALYSIS_METHOD_WGS: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"key":"analysis_method","operand":"OR","children":[{"key":"analysis_method","type":"EQUALS","system":"http://dktk.dkfz.de/fhir/onco/core/CodeSystem/AnalysemethodeCS","value":"wgs"}]}]}]},"id":"9d1a8fd6-4b1e-4a2f-9d3e-6c1f0b7a5e21"}"#;
+
+    const VARIANT_TYPE_MISSENSE: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"key":"observationMolecularMarkerVariantType","operand":"OR","children":[{"key":"observationMolecularMarkerVariantType","type":"EQUALS","system":"http://dktk.dkfz.de/fhir/onco/core/CodeSystem/VariantenTypCS","value":"nonsynonymous-snv"}]}]}]},"id":"7c2e5a90-3f4b-4d1a-8e77-2b9c6d0f1a34"}"#;
+
+    const DNA_CHANGE: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"key":"observationMolecularMarkerDNAchange","operand":"OR","children":[{"key":"observationMolecularMarkerDNAchange","type":"EQUALS","system":"","value":"c.2147C>T"}]}]}]},"id":"1f5b8c72-9d3e-4a06-b2c8-5e7f4a1d9b60"}"#;
+
     const SAMPLE_KIND_FFPE: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"key":"sample_kind","operand":"OR","children":[{"key":"Gewebe FFPE","operand":"AND","children":[{"operand":"OR","children":[{"key":"sample_kind","type":"EQUALS","system":"","value":"tumor-tissue-ffpe"},{"key":"histology","type":"EQUALS","system":"","value":"tumor-tissue-ffpe"},{"key":"sample_kind","type":"EQUALS","system":"","value":"tissue-ffpe"},{"key":"sample_kind","type":"EQUALS","system":"","value":"normal-tissue-ffpe"},{"key":"sample_kind","type":"EQUALS","system":"","value":"other-tissue-ffpe"}]}]}]}]}]},"id":"bd5112af-e712-4091-9c94-892c4e667a29"}"#;
+
+    const MOLECULAR_MARKER_TP53: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"key":"observationMolecularMarkerName","operand":"OR","children":[{"key":"observationMolecularMarkerName","type":"EQUALS","system":"","value":"TP53"}]}]}]},"id":"5a7a2b1e-0d3c-4c9e-9a1f-6f2f2a5c8e11"}"#;
+
+    #[test]
+    fn test_dktk_molecular_marker_name_matches_variant_notation() {
+        // Some sites report a gene as "TP53||c.524G>A||p.R175H||Exon 5". Those
+        // records have to be found by searching for the gene alone, while a search
+        // for TP53 must not match a different gene like TP53BP1.
+        let generated_cql = generate_cql(
+            serde_json::from_str(MOLECULAR_MARKER_TP53).unwrap(),
+            Flavour::Dktk,
+        )
+        .unwrap();
+
+        pretty_assertions::assert_eq!(
+            generated_cql.contains(
+                "value.coding contains Code 'TP53' from molecularMarker\nor exists O.component.where(code.coding contains Code '48018-6' from loinc).value.coding.where(StartsWith(code, 'TP53|'))"
+            ),
+            true
+        );
+    }
 
     #[test]
     fn test_dktk() {
@@ -693,6 +720,29 @@ mod test {
         pretty_assertions::assert_eq!(
             generate_cql(serde_json::from_str(TNM_T_2).unwrap(), Flavour::Dktk).unwrap(),
             include_str!("../resources/test/result_tnm_t_2.cql").to_string()
+        );
+
+        pretty_assertions::assert_eq!(
+            generate_cql(
+                serde_json::from_str(ANALYSIS_METHOD_WGS).unwrap(),
+                Flavour::Dktk
+            )
+            .unwrap(),
+            include_str!("../resources/test/result_analysis_method_wgs.cql").to_string()
+        );
+
+        pretty_assertions::assert_eq!(
+            generate_cql(
+                serde_json::from_str(VARIANT_TYPE_MISSENSE).unwrap(),
+                Flavour::Dktk
+            )
+            .unwrap(),
+            include_str!("../resources/test/result_variant_type_missense.cql").to_string()
+        );
+
+        pretty_assertions::assert_eq!(
+            generate_cql(serde_json::from_str(DNA_CHANGE).unwrap(), Flavour::Dktk).unwrap(),
+            include_str!("../resources/test/result_dna_change.cql").to_string()
         );
 
         pretty_assertions::assert_eq!(
@@ -751,6 +801,10 @@ mod test {
 
     const MIABIS_SAMPLE_EQUALS_WHOLE_BLOOD: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"operand":"OR","children":[{"key":"sample_kind","type":"EQUALS","system":"","value":"whole-blood"}]}]}]},"id":"miabis-s1"}"#;
 
+    const MIABIS_DATE_OF_DIAGNOSIS: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"operand":"OR","children":[{"key":"date_of_diagnosis","type":"BETWEEN","system":"","value":{"min":"2020-01-01","max":"2021-01-01"}}]}]}]},"id":"miabis-dd1"}"#;
+
+    const MIABIS_DIAGNOSIS_AGE_DONOR: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"operand":"OR","children":[{"key":"diagnosis_age_donor","type":"BETWEEN","system":"","value":{"min":30,"max":70}}]}]}]},"id":"miabis-da1"}"#;
+
     const MIABIS_SAMPLE_IN: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"operand":"OR","children":[{"key":"sample_kind","type":"IN","system":"","value":["blood-plasma","tissue-ffpe"]}]}]}]},"id":"miabis-s2"}"#;
 
     const MIABIS_SAMPLE_LIQUID_OTHER: &str = r#"{"ast":{"operand":"OR","children":[{"operand":"AND","children":[{"operand":"OR","children":[{"key":"sample_kind","type":"IN","system":"","value":["liquid-other"]}]}]}]},"id":"miabis-s3"}"#;
@@ -790,9 +844,53 @@ mod test {
             Flavour::Miabis,
         )
         .unwrap();
-        assert!(cql.contains("'C61'"));
+        assert!(cql.contains(
+            "(exists from [Observation] O where (O.value as CodeableConcept).coding.where(system = 'http://hl7.org/fhir/sid/icd-10').code contains 'C61')"
+        ));
+        assert!(cql.contains("(exists[Condition: Code 'C61' from icd10])"));
         assert!(cql.contains("http://hl7.org/fhir/sid/icd-10"));
         assert!(!cql.contains("http://fhir.de/CodeSystem/dimdi/icd-10-gm"));
+    }
+
+    #[test]
+    fn test_miabis_diagnosis_stratifier_reads_observation() {
+        let cql = generate_cql(
+            serde_json::from_str(MIABIS_DIAGNOSIS).unwrap(),
+            Flavour::Miabis,
+        )
+        .unwrap();
+        assert!(cql.contains("define Diagnosis:\n    if InInitialPopulation then [Observation]"));
+        assert!(cql.contains(
+            "define function DiagnosisCode(observation FHIR.Observation):\n    (observation.value as CodeableConcept)"
+        ));
+    }
+
+    #[test]
+    fn test_miabis_date_of_diagnosis() {
+        let cql = generate_cql(
+            serde_json::from_str(MIABIS_DATE_OF_DIAGNOSIS).unwrap(),
+            Flavour::Miabis,
+        )
+        .unwrap();
+        assert!(
+            cql.contains("(exists from [Observation] O where FHIRHelpers.ToDateTime(O.effective)")
+        );
+        assert!(cql.contains("(exists from [Condition] C where FHIRHelpers.ToDateTime(C.onset)"));
+    }
+
+    #[test]
+    fn test_miabis_diagnosis_age_donor() {
+        let cql = generate_cql(
+            serde_json::from_str(MIABIS_DIAGNOSIS_AGE_DONOR).unwrap(),
+            Flavour::Miabis,
+        )
+        .unwrap();
+        assert!(cql.contains(
+            "(exists from [Observation] O where AgeInYearsAt(FHIRHelpers.ToDateTime(O.effective))"
+        ));
+        assert!(cql.contains(
+            "(exists from [Condition] C where AgeInYearsAt(FHIRHelpers.ToDateTime(C.onset))"
+        ));
     }
 
     #[test]

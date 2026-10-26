@@ -3,7 +3,6 @@ use crate::mr;
 use base64::engine::general_purpose;
 use base64::Engine as _;
 use laplace_rs::{get_from_cache_or_privatize, Bin, ObfCache, ObfuscateBelow10Mode};
-use rand::rng;
 use serde_json::Value;
 use std::collections::HashMap;
 use tracing::warn;
@@ -245,6 +244,58 @@ pub fn obfuscate_counts_mr(
                     bbmri_obfuscation,
                 )?;
             }
+            "analysis_methods" => {
+                obfuscate_population(
+                    &mut g.population,
+                    delta_histo,
+                    epsilon,
+                    1,
+                    obf_cache,
+                    obfuscate_zero,
+                    obf_10.clone(),
+                    rounding_step,
+                    None,
+                    bbmri_obfuscation,
+                )?;
+                obfuscate_stratifier(
+                    &mut g.stratifier,
+                    delta_histo,
+                    epsilon,
+                    2,
+                    obf_cache,
+                    obfuscate_zero,
+                    obf_10.clone(),
+                    rounding_step,
+                    None,
+                    bbmri_obfuscation,
+                )?;
+            }
+            "analysis_method_wes_rnaseq" | "analysis_method_wgs_rnaseq" => {
+                obfuscate_population(
+                    &mut g.population,
+                    delta_patient,
+                    epsilon,
+                    1,
+                    obf_cache,
+                    obfuscate_zero,
+                    obf_10.clone(),
+                    rounding_step,
+                    None,
+                    bbmri_obfuscation,
+                )?;
+                obfuscate_stratifier(
+                    &mut g.stratifier,
+                    delta_patient,
+                    epsilon,
+                    2,
+                    obf_cache,
+                    obfuscate_zero,
+                    obf_10.clone(),
+                    rounding_step,
+                    None,
+                    bbmri_obfuscation,
+                )?;
+            }
             strat => {
                 warn!("Focus is not aware of {strat} type of stratifier, therefore it will not obfuscate the values.");
                 return Err(FocusError::CQLTemperedWithError(
@@ -272,7 +323,7 @@ fn obfuscate_population(
     domain_limit: Option<f64>,
     bbmri_rounding: bool,
 ) -> Result<(), FocusError> {
-    let mut rng = rng();
+    let mut rng = rand::rng();
     for pop in val {
         let obfuscated = get_from_cache_or_privatize(
             pop.count,
@@ -322,8 +373,8 @@ fn obfuscate_stratifier(
     bbmri_rounding: bool,
 ) -> Result<(), FocusError> {
     for stratifier in val.iter_mut() {
-        for stratums in stratifier.stratum.iter_mut() {
-            for stratum in stratums.iter_mut() {
+        for strata in stratifier.stratum.iter_mut() {
+            for stratum in strata.iter_mut() {
                 obfuscate_population(
                     &mut (stratum).population,
                     delta,

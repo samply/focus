@@ -1,0 +1,75 @@
+library Retrieve
+using FHIR version '4.0.0'
+include FHIRHelpers version '4.0.0'
+
+codesystem loinc: 'http://loinc.org'
+codesystem analysemethodecs: 'http://dktk.dkfz.de/fhir/onco/core/CodeSystem/AnalysemethodeCS'
+
+
+context Patient
+
+define Gender:
+if (Patient.gender is null) then 'unknown' else Patient.gender
+
+define PrimaryDiagnosis:
+First(
+from [Condition] C
+where C.extension.where(url='http://hl7.org/fhir/StructureDefinition/condition-related').empty())
+
+define AgeClass:
+if (PrimaryDiagnosis.onset is null) then 'unknown' else ToString((AgeInYearsAt(FHIRHelpers.ToDateTime(PrimaryDiagnosis.onset)) div 10) * 10)
+
+define PatientDeceased:
+First (from [Observation: Code '75186-7' from loinc] O return O.value.coding.where(system = 'http://dktk.dkfz.de/fhir/onco/core/CodeSystem/VitalstatusCS').code.first())
+
+define Deceased:
+if (PatientDeceased is null) then 'unbekannt' else PatientDeceased
+
+define Diagnosis:
+if InInitialPopulation then [Condition] else {} as List<Condition>
+
+define function DiagnosisCode(condition FHIR.Condition):
+condition.code.coding.where(system = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm').code.first()
+
+define function SampleType(specimen FHIR.Specimen):
+specimen.type.coding.where(system = 'https://fhir.bbmri.de/CodeSystem/SampleMaterialType').code.first()
+
+define Specimen:
+if InInitialPopulation then [Specimen] S  else {} as List<Specimen>
+
+define Procedure:
+if InInitialPopulation then [Procedure] else {} as List <Procedure>
+
+define function ProcedureType(procedure FHIR.Procedure):
+procedure.category.coding.where(system = 'http://dktk.dkfz.de/fhir/onco/core/CodeSystem/SYSTTherapieartCS').code.first()
+
+define MedicationStatement:
+if InInitialPopulation then [MedicationStatement] else {} as List <MedicationStatement>
+
+define GeneticVariantCount:
+if InInitialPopulation then [Observation: Code '69548-6' from loinc] else {} as List <Observation>
+
+define function GeneticVariantCode(observation FHIR.Observation):
+observation.component.where(code.coding contains Code '48018-6' from loinc).value.coding.code.first()
+
+define AnalysisMethod:
+if InInitialPopulation then [Observation: Code '55233-1' from loinc] else {} as List <Observation>
+
+define function AnalysisMethodCode(observation FHIR.Observation):
+observation.value.coding.where(system = 'http://dktk.dkfz.de/fhir/onco/core/CodeSystem/AnalysemethodeCS').code.first()
+
+define AnalysisMethodWesRnaseq:
+InInitialPopulation and exists ([Observation: Code '55233-1' from loinc] O where O.value.coding.where(system = 'http://dktk.dkfz.de/fhir/onco/core/CodeSystem/AnalysemethodeCS').code contains 'wes') and exists ([Observation: Code '55233-1' from loinc] O where O.value.coding.where(system = 'http://dktk.dkfz.de/fhir/onco/core/CodeSystem/AnalysemethodeCS').code contains 'rnaseq')
+
+define AnalysisMethodWesRnaseqCode:
+'wes+rnaseq'
+
+define AnalysisMethodWgsRnaseq:
+InInitialPopulation and exists ([Observation: Code '55233-1' from loinc] O where O.value.coding.where(system = 'http://dktk.dkfz.de/fhir/onco/core/CodeSystem/AnalysemethodeCS').code contains 'wgs') and exists ([Observation: Code '55233-1' from loinc] O where O.value.coding.where(system = 'http://dktk.dkfz.de/fhir/onco/core/CodeSystem/AnalysemethodeCS').code contains 'rnaseq')
+
+define AnalysisMethodWgsRnaseqCode:
+'wgs+rnaseq'
+
+define InInitialPopulation:
+((((((exists from [Observation: Code '55233-1' from loinc] O
+where O.value.coding.code contains 'wgs'))))))

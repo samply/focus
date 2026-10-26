@@ -148,6 +148,10 @@ mod test {
         include_str!("../resources/test/measure_report_dktk.json");
     const STRATIFIER_GROUPS_DKTK: &str =
         include_str!("../resources/test/stratifier_groups_dktk.json");
+    const EXAMPLE_MEASURE_REPORT_BBMRI_NEW: &str =
+        include_str!("../resources/test/measure_report_bbmri_new.json");
+    const STRATIFIER_GROUPS_BBMRI_NEW: &str =
+        include_str!("../resources/test/stratifier_bbmri_new.json");
 
     #[test]
     fn test_extract_facets_bbmri() {
@@ -160,6 +164,19 @@ mod test {
         let stratifiers_json = serde_json::to_string(&stratifiers).expect("Should be JSON");
 
         pretty_assertions::assert_eq!(STRATIFIER_GROUPS_BBMRI, stratifiers_json);
+    }
+
+    #[test]
+    fn test_extract_facets_bbmri_new() {
+        let measure_report: MeasureReport =
+            serde_json::from_str(&EXAMPLE_MEASURE_REPORT_BBMRI_NEW).expect("Can't be deserialized");
+
+        let stratifiers =
+            transform_lens(measure_report).expect("what, no proper stratifier groups");
+
+        let stratifiers_json = serde_json::to_string(&stratifiers).expect("Should be JSON");
+
+        pretty_assertions::assert_eq!(STRATIFIER_GROUPS_BBMRI_NEW, stratifiers_json);
     }
 
     #[test]

@@ -57,6 +57,14 @@ pub static CODE_LISTS: LazyLock<HashMap<&'static str, &'static str>> = LazyLock:
             "http://dktk.dkfz.de/fhir/onco/core/CodeSystem/VitalstatusCS",
         ),
         (
+            "analysemethodecs",
+            "http://dktk.dkfz.de/fhir/onco/core/CodeSystem/AnalysemethodeCS",
+        ),
+        (
+            "variantentypcs",
+            "http://dktk.dkfz.de/fhir/onco/core/CodeSystem/VariantenTypCS",
+        ),
+        (
             "jnucs",
             "http://dktk.dkfz.de/fhir/onco/core/CodeSystem/JNUCS",
         ),
@@ -102,9 +110,12 @@ pub static OBSERVATION_LOINC_CODES: LazyLock<HashMap<&'static str, &'static str>
             ("lymphNodeRecurrence", "LA4370-8"),
             ("distantMetastases", "LA4226-2"),
             ("vitalStatus", "75186-7"),
+            ("analysis_method", "55233-1"),
             ("observationMolecularMarkerName", "48018-6"),
+            ("observationMolecularMarkerVariantType", "48019-4"),
+            ("observationMolecularMarkerVariantCode", "69548-6"),
             ("observationMolecularMarkerAminoacidchange", "48005-3"),
-            ("observationMolecularMarkerDNAchange", "81290-9"),
+            ("observationMolecularMarkerDNAchange", "48004-6"),
             ("observationMolecularMarkerSeqRefNCBI", "81248-7"),
             ("observationMolecularMarkerEnsemblID", "81249-5"),
         ])
@@ -127,6 +138,11 @@ pub static CRITERION_CODE_LISTS: LazyLock<HashMap<&'static str, Vec<&'static str
                 "observationMolecularMarkerName",
                 vec!["loinc", "molecularMarker"],
             ),
+            (
+                "observationMolecularMarkerVariantType",
+                vec!["loinc", "variantentypcs"],
+            ),
+            ("observationMolecularMarkerVariantCode", vec!["loinc"]),
             ("observationMolecularMarkerAminoacidchange", vec!["loinc"]),
             ("observationMolecularMarkerDNAchange", vec!["loinc"]),
             ("observationMolecularMarkerSeqRefNCBI", vec!["loinc"]),
@@ -152,6 +168,7 @@ pub static CRITERION_CODE_LISTS: LazyLock<HashMap<&'static str, Vec<&'static str
                 vec!["loinc", "verlauftumorstatusfernmetastasencs"],
             ),
             ("vitalStatus", vec!["loinc", "vitalstatuscs"]),
+            ("analysis_method", vec!["loinc", "analysemethodecs"]),
             ("TNM-T", vec!["loinc", "TNMTCS"]),
             ("TNM-N", vec!["loinc", "TNMNCS"]),
             ("TNM-M", vec!["loinc", "TNMMCS"]),
@@ -267,6 +284,10 @@ pub static CQL_SNIPPETS: LazyLock<HashMap<(&'static str, CriterionRole), &'stati
             observation,
         ),
         (
+            ("analysis_method", CriterionRole::Query),
+            observation,
+        ),
+        (
             ("metastases_present", CriterionRole::Query),
             "exists from [Observation: Code '21907-1' from {{A1}}] O\nwhere O.value.coding.code contains '{{C}}'",
         ),
@@ -275,8 +296,22 @@ pub static CQL_SNIPPETS: LazyLock<HashMap<(&'static str, CriterionRole), &'stati
             "exists from [Observation: Code '21907-1' from {{A1}}] O\nwhere O.bodySite.coding.code contains '{{C}}'",
         ),
         (
+            // Some sites report a gene as "GENE||c.35G>A||p.G12D||Exon 2" instead of
+            // putting the variant into the DNA change and amino acid change
+            // components. Those records are found by the gene alone, hence the
+            // second condition.
             ("observationMolecularMarkerName", CriterionRole::Query),
+            "exists from [Observation: Code '69548-6' from {{A1}}] O\nwhere O.component.where(code.coding contains Code '{{K}}' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}\nor exists O.component.where(code.coding contains Code '{{K}}' from {{A1}}).value.coding.where(StartsWith(code, '{{C}}|'))",
+        ),
+        (
+            ("observationMolecularMarkerVariantType", CriterionRole::Query),
             "exists from [Observation: Code '69548-6' from {{A1}}] O\nwhere O.component.where(code.coding contains Code '{{K}}' from {{A1}}).value.coding contains Code '{{C}}' from {{A2}}",
+        ),
+        (
+            // The variant code sits directly in the observation's value, not in one
+            // of its components.
+            ("observationMolecularMarkerVariantCode", CriterionRole::Query),
+            observation,
         ),
         (
             ("observationMolecularMarkerAminoacidchange", CriterionRole::Query),

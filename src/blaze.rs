@@ -35,9 +35,9 @@ pub async fn check_availability() -> bool {
         .client
         .get(format!(
             "{}health",
-            (CONFIG.endpoint_url.to_string().split("fhir"))
-                .next()
+            (CONFIG.endpoint_url.to_string().rsplit_once("fhir"))
                 .expect("Missing \"fhir\" in Blaze url base")
+                .0
         ))
         .send()
         .await
@@ -151,4 +151,40 @@ pub async fn run_cql_query(library: &Value, measure: &Value) -> Result<String, F
 pub fn parse_blaze_query_payload_ast(ast_query: &str) -> Result<ast::Ast, FocusError> {
     let decoded = util::base64_decode(ast_query)?;
     Ok(serde_json::from_slice(&decoded)?)
+}
+
+pub async fn get_organization_directory_id(fhir_id: String) -> Result<String, FocusError> {
+    debug!("Getting organization with FHIR ID {}", &fhir_id);
+
+    let org_string: String;
+
+    let resp = CONFIG
+        .client
+        .get(format!(
+            "{}Organization/{}?_elements=identifier",
+            CONFIG.endpoint_url, &fhir_id
+        ))
+        .send()
+        .await
+        .map_err(FocusError::UnableToGetOrganization)?;
+
+    if resp.status().is_success() {
+        org_string = resp
+            .text()
+            .await
+            .map_err(FocusError::UnableToGetOrganization)?;
+    } else {
+        return Err(FocusError::ParsingError(
+            "Unable to get organization".to_string(),
+        ));
+    }
+
+    let org_json: Value = serde_json::from_str(&org_string)?;
+    let identifier = org_json["identifier"][0]["value"] // as per Simplifier profile there is only one
+        .clone()
+        .as_str()
+        .map(ToOwned::to_owned)
+        .ok_or_else(|| FocusError::ParsingError("Organization ID not a string".to_string()))?;
+
+    Ok(identifier)
 }

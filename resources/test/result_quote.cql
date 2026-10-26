@@ -11,15 +11,29 @@ codesystem icd10gmnew: 'http://fhir.de/CodeSystem/bfarm/icd-10-gm'
 context Patient
 
 define AgeClass:
-if (Patient.birthDate is null) then 'unknown' else ToString((AgeInYears() div 10) * 10)
+    if (Patient.birthDate is null) then 'unknown' else ToString((AgeInYears() div 10) * 10)
+
+define PrimaryDiagnosis:
+    First(
+    from [Condition] C
+    where C.extension.where(url='http://hl7.org/fhir/StructureDefinition/condition-related').empty())
+
+define AgeAtDiagnosis:
+    if (PrimaryDiagnosis.onset is null) then 'unknown' else ToString((AgeInYearsAt(FHIRHelpers.ToDateTime(PrimaryDiagnosis.onset)) div 10) * 10)
 
 define Gender:
-if (Patient.gender is null) then 'unknown' else Patient.gender
+    if (Patient.gender is null) then 'unknown' else Patient.gender
 
 define Custodian:
+   Coalesce(
     First(from Specimen.extension E
     where E.url = 'https://fhir.bbmri.de/StructureDefinition/Custodian'
-    return (E.value as Reference).identifier.value)
+    return (E.value as Reference).identifier.value),
+    First(from Specimen.extension E
+    where E.url = 'https://fhir.bbmri.de/StructureDefinition/Custodian'
+    return (E.value as Reference).reference),
+    null
+)
 
 define function SampleType(specimen FHIR.Specimen):
     case FHIRHelpers.ToCode(specimen.type.coding.where(system = 'https://fhir.bbmri.de/CodeSystem/SampleMaterialType').first())
@@ -77,6 +91,17 @@ Coalesce(
   condition.code.coding.where(system = 'http://hl7.org/fhir/sid/icd-10').code.first(),
   condition.code.coding.where(system = 'http://fhir.de/CodeSystem/dimdi/icd-10-gm').code.first(),
   condition.code.coding.where(system = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm').code.first()
+)
+
+define function Collection (specimen FHIR.Specimen):
+Coalesce(
+    First(from specimen.extension E
+    where E.url = 'https://fhir.bbmri.de/StructureDefinition/Custodian'
+    return (E.value as Reference).identifier.value),
+    First(from specimen.extension E
+    where E.url = 'https://fhir.bbmri.de/StructureDefinition/Custodian'
+    return (E.value as Reference).reference),
+    null
 )
 
 define InInitialPopulation:

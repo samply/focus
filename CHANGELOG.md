@@ -1,3 +1,69 @@
+# Samply.Focus v0.26.1 2026-10-16
+
+## Major
+
+* BBMRI: support Custodians given as an Organization reference, which are resolved to the Organization's directory ID
+
+## Minor
+
+* DKTK: faster analysis method combination stratifiers, which also fixes a query error
+
+
+# Samply.Focus v0.26.0 2026-10-08
+
+## Major
+
+* DKTK: WES + RNA-Seq and WGS + RNA-Seq analysis method combinations
+
+## Minor
+
+* BBMRI: rename the Custodian stratifier in the specimen group to "Custodian-specimen"
+* MIABIS: query diagnoses on Observation resources
+
+
+# Samply.Focus v0.25.1 2026-09-22
+
+## Major
+
+* Fix bug with blaze URL when domain contains "fhir"
+
+
+# Samply.Focus v0.25.0 2026-09-21
+
+## Major
+
+* Age at the time of sampling stratifier
+* Custodian stratifier in the specimen group
+
+## Minor
+
+* Return molecular marker variant code
+* Better gene name matching
+
+
+# Samply.Focus v0.24.4 2026-08-24
+
+## Minor
+
+* DKTK: add support for MASTER Analysemethode
+* DKTK: add Variantentyp query criterion and fix DNA Change query criterion
+
+
+# Samply.Focus v0.24.3 2026-08-17
+
+## Minor
+
+* Make Organoid queries more robust
+
+
+# Samply.Focus v0.24.2 2026-07-20
+
+## Minor
+
+* Make Organoid Public Dashboard query work in postgresql 15
+* Bump laplace-rs to v0.7.1, rand to 0.10 and reqwest to 0.13
+
+
 # Samply.Focus v0.24.1 2026-06-24
 
 ## Minor
@@ -5,11 +71,13 @@
 * log SQL query errors
 * change age_at_study_enrollment type to numeric::int in patient selection
 
+
 # Samply.Focus v0.24.0 2026-05-29
 
 ## Major changes
 
 * BBMRI: stop checking diagnosis in Specimen
+
 
 # Samply.Focus v0.23.0 2026-04-28
 
@@ -20,6 +88,7 @@
 * MIABIS CQL
 * added CQL flavour parameter which can differ from the project name
 * custom workaround logic for MIABIS CQL
+
 
 # Samply.Focus v0.22.0 2026-03-13
 

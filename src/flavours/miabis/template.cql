@@ -9,6 +9,14 @@ context Patient
 define AgeClass:
 if (Patient.birthDate is null) then 'unknown' else ToString((AgeInYears() div 10) * 10)
 
+define PrimaryDiagnosis:
+    First(
+    from [Condition] C
+    where C.extension.where(url='http://hl7.org/fhir/StructureDefinition/condition-related').empty())
+
+define AgeAtDiagnosis:
+    if (PrimaryDiagnosis.onset is null) then 'unknown' else ToString((AgeInYearsAt(FHIRHelpers.ToDateTime(PrimaryDiagnosis.onset)) div 10) * 10)
+
 define Gender:
 if (Patient.gender is null) then 'unknown' else Patient.gender
 
@@ -45,13 +53,13 @@ define Specimen:
     if InInitialPopulation then [Specimen] S {{filter_criteria}} else {} as List<Specimen>
 
 define Diagnosis:
-    if InInitialPopulation then [Condition] else {} as List<Condition>
+    if InInitialPopulation then [Observation] else {} as List<Observation>
 
-define function DiagnosisCode(condition FHIR.Condition, specimen FHIR.Specimen):
-    condition.code.coding.where(system = 'http://hl7.org/fhir/sid/icd-10').code.first()
+define function DiagnosisCode(observation FHIR.Observation, specimen FHIR.Specimen):
+    (observation.value as CodeableConcept).coding.where(system = 'http://hl7.org/fhir/sid/icd-10').code.first()
 
-define function DiagnosisCode(condition FHIR.Condition):
-    condition.code.coding.where(system = 'http://hl7.org/fhir/sid/icd-10').code.first()
+define function DiagnosisCode(observation FHIR.Observation):
+    (observation.value as CodeableConcept).coding.where(system = 'http://hl7.org/fhir/sid/icd-10').code.first()
 
 define InInitialPopulation:
 {{retrieval_criteria}}

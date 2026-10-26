@@ -62,6 +62,15 @@
           },
           {
             "code": {
+              "text": "age_at_diagnosis"
+            },
+            "criteria": {
+              "expression": "AgeAtDiagnosis",
+              "language": "text/cql"
+            }
+          },
+          {
+            "code": {
               "text": "Custodian"
             },
             "criteria": {
@@ -78,7 +87,7 @@
         "extension": [
           {
             "url": "http://hl7.org/fhir/us/cqfmeasures/StructureDefinition/cqfm-populationBasis",
-            "valueCode": "Condition"
+            "valueCode": "Observation"
           }
         ],
         "population": [

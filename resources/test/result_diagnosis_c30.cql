@@ -52,5 +52,23 @@ if InInitialPopulation then [Observation: Code '69548-6' from loinc] else {} as 
 define function GeneticVariantCode(observation FHIR.Observation):
 observation.component.where(code.coding contains Code '48018-6' from loinc).value.coding.code.first()
 
+define AnalysisMethod:
+if InInitialPopulation then [Observation: Code '55233-1' from loinc] else {} as List <Observation>
+
+define function AnalysisMethodCode(observation FHIR.Observation):
+observation.value.coding.where(system = 'http://dktk.dkfz.de/fhir/onco/core/CodeSystem/AnalysemethodeCS').code.first()
+
+define AnalysisMethodWesRnaseq:
+InInitialPopulation and exists ([Observation: Code '55233-1' from loinc] O where O.value.coding.where(system = 'http://dktk.dkfz.de/fhir/onco/core/CodeSystem/AnalysemethodeCS').code contains 'wes') and exists ([Observation: Code '55233-1' from loinc] O where O.value.coding.where(system = 'http://dktk.dkfz.de/fhir/onco/core/CodeSystem/AnalysemethodeCS').code contains 'rnaseq')
+
+define AnalysisMethodWesRnaseqCode:
+'wes+rnaseq'
+
+define AnalysisMethodWgsRnaseq:
+InInitialPopulation and exists ([Observation: Code '55233-1' from loinc] O where O.value.coding.where(system = 'http://dktk.dkfz.de/fhir/onco/core/CodeSystem/AnalysemethodeCS').code contains 'wgs') and exists ([Observation: Code '55233-1' from loinc] O where O.value.coding.where(system = 'http://dktk.dkfz.de/fhir/onco/core/CodeSystem/AnalysemethodeCS').code contains 'rnaseq')
+
+define AnalysisMethodWgsRnaseqCode:
+'wgs+rnaseq'
+
 define InInitialPopulation:
 (((((((exists [Condition: Code 'C30' from icd10]))) or (((exists [Condition: Code 'C30.1' from icd10]))) or (((exists [Condition: Code 'C30.0' from icd10])))))))
