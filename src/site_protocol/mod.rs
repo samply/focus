@@ -14,7 +14,6 @@ use tracing::warn;
 use crate::beam::beam_result;
 use crate::blaze;
 use crate::config::{EndpointType, Obfuscate, CONFIG};
-use crate::errors::FocusError;
 use crate::{BeamResult, BeamTask};
 
 #[derive(Debug)]
@@ -24,12 +23,6 @@ pub enum Error {
     /// Something broke while running it. Only logged, as it might contain
     /// data from the store.
     Failed(String),
-}
-
-impl From<FocusError> for Error {
-    fn from(e: FocusError) -> Self {
-        Error::Failed(e.to_string())
-    }
 }
 
 pub async fn run(
@@ -77,7 +70,9 @@ async fn handle(
     let query: ast::Query =
         serde_json::from_str(body).map_err(|e| Error::Rejected(format!("invalid query: {e}")))?;
     let (library, measure) = cql::generate(&query.expression, &mapping)?;
-    let report = blaze::run_cql_query(&library, &measure).await?;
+    let report = blaze::run_cql_query(&library, &measure)
+        .await
+        .map_err(|e| Error::Failed(e.to_string()))?;
     let mut response = cql::read_report(&report)?;
     if CONFIG.obfuscate == Obfuscate::Yes && !CONFIG.unobfuscated.iter().any(|p| p == project) {
         obfuscate(&mut response, &mapping, &mut *obf_cache.lock().await)?;
