@@ -60,7 +60,7 @@ pub fn load(project: &str) -> Result<Mapping, String> {
         "dktk" => include_str!("mappings/dktk.yaml"),
         _ => return Err(format!("unknown project \"{project}\"")),
     };
-    let mapping: Mapping = serde_yaml_ng::from_str(yaml).map_err(|e| e.to_string())?;
+    let mapping: Mapping = serde_saphyr::from_str(yaml).map_err(|e| e.to_string())?;
     let resource_types = mapping.counts.values().map(|c| &c.resource_type);
     let resource_types =
         resource_types.chain(mapping.stratifiers.values().map(|s| &s.resource_type));
