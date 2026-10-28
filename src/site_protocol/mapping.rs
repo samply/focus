@@ -9,6 +9,10 @@ pub struct Mapping {
     pub scopes: BTreeMap<String, Scope>,
     pub counts: BTreeMap<String, Count>,
     pub stratifiers: BTreeMap<String, Stratifier>,
+    /// How much one patient can change a count of this resource type, for
+    /// obfuscation. Patient is always 1.
+    #[serde(default)]
+    pub sensitivity: BTreeMap<String, f64>,
 }
 
 #[derive(Deserialize, Debug)]
@@ -56,7 +60,22 @@ pub fn load(project: &str) -> Result<Mapping, String> {
         "dktk" => include_str!("mappings/dktk.yaml"),
         _ => return Err(format!("unknown project \"{project}\"")),
     };
-    serde_yaml_ng::from_str(yaml).map_err(|e| e.to_string())
+    let mapping: Mapping = serde_yaml_ng::from_str(yaml).map_err(|e| e.to_string())?;
+    let resource_types = mapping.counts.values().map(|c| &c.resource_type);
+    let resource_types =
+        resource_types.chain(mapping.stratifiers.values().map(|s| &s.resource_type));
+    for resource_type in resource_types {
+        if resource_type != "Patient" && !mapping.sensitivity.contains_key(resource_type) {
+            return Err(format!("no sensitivity for {resource_type}"));
+        }
+    }
+    Ok(mapping)
+}
+
+impl Mapping {
+    pub fn sensitivity(&self, resource_type: &str) -> f64 {
+        self.sensitivity.get(resource_type).copied().unwrap_or(1.)
+    }
 }
 
 #[cfg(test)]

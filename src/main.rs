@@ -309,7 +309,7 @@ async fn process_task(
         return run_exporter_query(task, &mut body, task_type).await;
     }
     if let Some(version) = metadata.site_protocol {
-        return Ok(site_protocol::run(task, &metadata.project, version).await);
+        return Ok(site_protocol::run(task, &metadata.project, version, obf_cache).await);
     }
 
     match CONFIG.endpoint_type {

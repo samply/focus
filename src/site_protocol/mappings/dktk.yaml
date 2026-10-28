@@ -76,3 +76,7 @@ stratifiers:
   sample_kind:
     resource_type: Specimen
     cql: "{{this}}.type.coding.code.first()"
+
+sensitivity:
+  Condition: 3
+  Specimen: 20

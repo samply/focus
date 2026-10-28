@@ -395,8 +395,8 @@ pub fn generate(e: &Expression, mapping: &Mapping) -> Result<(Value, Value), Err
 
 #[derive(Serialize, Default)]
 pub struct Response {
-    counts: BTreeMap<String, u64>,
-    stratifiers: BTreeMap<String, BTreeMap<String, u64>>,
+    pub counts: BTreeMap<String, u64>,
+    pub stratifiers: BTreeMap<String, BTreeMap<String, u64>>,
 }
 
 /// Read the counts out of a MeasureReport. Groups with a stratifier only
