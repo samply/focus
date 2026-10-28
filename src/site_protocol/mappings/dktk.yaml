@@ -1,0 +1,84 @@
+# What can be queried at DKTK sites over the site protocol, and which counts
+# are sent back.
+#
+# Placeholders in cql: {{this}} is the thing being queried (the scope's
+# resource, the Patient for unscoped fields, the population member for
+# stratifiers), {{value}} the selected values as a list, {{min}} and {{max}}
+# the bounds of a date or range.
+
+fields:
+  gender:
+    type: values
+    cql: "{{this}}.gender in {{value}}"
+  vitalStatus:
+    type: values
+    cql: |
+      exists([Observation] O
+        where O.code.coding.code contains '75186-7'
+          and exists(((O.value as CodeableConcept).coding) C where C.code in {{value}}))
+
+scopes:
+  diagnosis:
+    resourceType: Condition
+    temporalDate: "FHIRHelpers.ToDateTime({{this}}.onset as FHIR.dateTime)"
+    fields:
+      # C34 also matches its subcodes C34.0, C34.1, ...
+      diagnosis:
+        type: values
+        cql: |
+          exists({{this}}.code.coding C
+            where C.system = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm'
+              and exists(({{value}}) V where C.code = V or StartsWith(C.code, V + '.')))
+      year_of_diagnosis:
+        type: range
+        cql: "(year from FHIRHelpers.ToDateTime({{this}}.onset as FHIR.dateTime)) between {{min}} and {{max}}"
+      age_at_diagnosis:
+        type: range
+        cql: "AgeInYearsAt(FHIRHelpers.ToDateTime({{this}}.onset as FHIR.dateTime)) between {{min}} and {{max}}"
+
+  tnm:
+    resourceType: Observation
+    # Clinical and pathological TNM
+    retrieve: "([Observation] O where O.code.coding.code contains '21908-9' or O.code.coding.code contains '21902-2')"
+    fields:
+      TNM-T:
+        type: values
+        cql: |
+          exists({{this}}.component C
+            where (C.code.coding.code contains '21905-5' or C.code.coding.code contains '21899-0')
+              and exists(((C.value as CodeableConcept).coding) V where V.code in {{value}}))
+
+  specimen:
+    resourceType: Specimen
+    temporalDate: "FHIRHelpers.ToDateTime({{this}}.collection.collected as FHIR.dateTime)"
+    fields:
+      sample_kind:
+        type: values
+        cql: "exists({{this}}.type.coding C where C.code in {{value}})"
+
+populations:
+  patients:
+    resourceType: Patient
+  diagnoses:
+    resourceType: Condition
+  specimen:
+    resourceType: Specimen
+
+stratifiers:
+  gender:
+    population: patients
+    cql: "{{this}}.gender"
+  age:
+    population: patients
+    buckets:
+      - { key: "0-19", cql: "AgeInYears() < 20" }
+      - { key: "20-39", cql: "AgeInYears() between 20 and 39" }
+      - { key: "40-59", cql: "AgeInYears() between 40 and 59" }
+      - { key: "60-79", cql: "AgeInYears() between 60 and 79" }
+      - { key: "80+", cql: "AgeInYears() >= 80" }
+  diagnosis:
+    population: diagnoses
+    cql: "{{this}}.code.coding.where(system = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm').code.first()"
+  sample_kind:
+    population: specimen
+    cql: "{{this}}.type.coding.code.first()"
