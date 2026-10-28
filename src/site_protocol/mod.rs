@@ -70,6 +70,6 @@ async fn handle(body: &str, project: &str, version: u32) -> Result<String, Error
         serde_json::from_str(body).map_err(|e| Error::Rejected(format!("invalid query: {e}")))?;
     let (library, measure) = cql::generate(&query.expression, &mapping)?;
     let report = blaze::run_cql_query(&library, &measure).await?;
-    let response = cql::read_report(&report, &mapping)?;
+    let response = cql::read_report(&report)?;
     serde_json::to_string(&response).map_err(|e| Error::Failed(e.to_string()))
 }

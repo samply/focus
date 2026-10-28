@@ -1,11 +1,3 @@
-# What can be queried at DKTK sites over the site protocol, and which counts
-# are sent back.
-#
-# Placeholders in cql: {{this}} is the thing being queried (the scope's
-# resource, the Patient for unscoped fields, the population member for
-# stratifiers), {{value}} the selected values as a list, {{min}} and {{max}}
-# the bounds of a date or range.
-
 fields:
   gender:
     type: values
@@ -19,8 +11,8 @@ fields:
 
 scopes:
   diagnosis:
-    resourceType: Condition
-    temporalDate: "FHIRHelpers.ToDateTime({{this}}.onset as FHIR.dateTime)"
+    resource_type: Condition
+    temporal_date: "FHIRHelpers.ToDateTime({{this}}.onset as FHIR.dateTime)"
     fields:
       # C34 also matches its subcodes C34.0, C34.1, ...
       diagnosis:
@@ -37,9 +29,9 @@ scopes:
         cql: "AgeInYearsAt(FHIRHelpers.ToDateTime({{this}}.onset as FHIR.dateTime)) between {{min}} and {{max}}"
 
   tnm:
-    resourceType: Observation
+    resource_type: Observation
     # Clinical and pathological TNM
-    retrieve: "([Observation] O where O.code.coding.code contains '21908-9' or O.code.coding.code contains '21902-2')"
+    filter: "{{this}}.code.coding.code contains '21908-9' or {{this}}.code.coding.code contains '21902-2'"
     fields:
       TNM-T:
         type: values
@@ -49,36 +41,38 @@ scopes:
               and exists(((C.value as CodeableConcept).coding) V where V.code in {{value}}))
 
   specimen:
-    resourceType: Specimen
-    temporalDate: "FHIRHelpers.ToDateTime({{this}}.collection.collected as FHIR.dateTime)"
+    resource_type: Specimen
+    temporal_date: "FHIRHelpers.ToDateTime({{this}}.collection.collected as FHIR.dateTime)"
     fields:
       sample_kind:
         type: values
         cql: "exists({{this}}.type.coding C where C.code in {{value}})"
 
-populations:
+counts:
   patients:
-    resourceType: Patient
+    resource_type: Patient
   diagnoses:
-    resourceType: Condition
+    resource_type: Condition
   specimen:
-    resourceType: Specimen
+    resource_type: Specimen
 
 stratifiers:
   gender:
-    population: patients
+    resource_type: Patient
     cql: "{{this}}.gender"
   age:
-    population: patients
-    buckets:
-      - { key: "0-19", cql: "AgeInYears() < 20" }
-      - { key: "20-39", cql: "AgeInYears() between 20 and 39" }
-      - { key: "40-59", cql: "AgeInYears() between 40 and 59" }
-      - { key: "60-79", cql: "AgeInYears() between 60 and 79" }
-      - { key: "80+", cql: "AgeInYears() >= 80" }
+    resource_type: Patient
+    cql: |
+      case
+        when AgeInYears() < 20 then '0-19'
+        when AgeInYears() < 40 then '20-39'
+        when AgeInYears() < 60 then '40-59'
+        when AgeInYears() < 80 then '60-79'
+        else '80+'
+      end
   diagnosis:
-    population: diagnoses
+    resource_type: Condition
     cql: "{{this}}.code.coding.where(system = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm').code.first()"
   sample_kind:
-    population: specimen
+    resource_type: Specimen
     cql: "{{this}}.type.coding.code.first()"
