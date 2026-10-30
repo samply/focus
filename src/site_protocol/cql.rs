@@ -52,7 +52,8 @@ fn predicate(
                 .collect::<Result<Vec<_>, _>>()?;
             let op = match predicate {
                 Predicate::And { .. } => " and ",
-                _ => " or ",
+                Predicate::Or { .. } => " or ",
+                _ => unreachable!(),
             };
             return Ok(parts.join(op));
         }
@@ -218,7 +219,8 @@ fn expression(e: &Expression, mapping: &Mapping) -> Result<String, Error> {
                 .collect::<Result<Vec<_>, Error>>()?;
             let op = match e {
                 Expression::And { .. } => "\n  and ",
-                _ => "\n  or ",
+                Expression::Or { .. } => "\n  or ",
+                _ => unreachable!(),
             };
             parts.join(op)
         }
