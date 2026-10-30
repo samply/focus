@@ -1,4 +1,5 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
+use std::sync::LazyLock;
 
 use serde::Deserialize;
 
@@ -55,12 +56,26 @@ pub struct Stratifier {
     pub cql: String,
 }
 
-pub fn load(project: &str) -> Result<Mapping, String> {
-    let yaml = match project {
-        "dktk" => include_str!("mappings/dktk.yaml"),
-        _ => return Err(format!("unknown project \"{project}\"")),
-    };
+static MAPPINGS: LazyLock<HashMap<&'static str, Mapping>> = LazyLock::new(|| {
+    [("dktk", include_str!("mappings/dktk.yaml"))]
+        .into_iter()
+        .map(|(project, yaml)| {
+            let mapping = parse(yaml).unwrap_or_else(|e| panic!("mapping \"{project}\": {e}"));
+            (project, mapping)
+        })
+        .collect()
+});
+
+pub fn get(project: &str) -> Result<&'static Mapping, String> {
+    MAPPINGS
+        .get(project)
+        .ok_or_else(|| format!("unknown project \"{project}\""))
+}
+
+fn parse(yaml: &str) -> Result<Mapping, String> {
     let mapping: Mapping = serde_saphyr::from_str(yaml).map_err(|e| e.to_string())?;
+    // Check that all resource types used by counts and stratifiers have a
+    // sensitivity. Patient defaults to 1 but can be overridden in the mapping.
     let resource_types = mapping.counts.values().map(|c| &c.resource_type);
     let resource_types =
         resource_types.chain(mapping.stratifiers.values().map(|s| &s.resource_type));
@@ -82,8 +97,6 @@ impl Mapping {
 mod test {
     #[test]
     fn mappings_load() {
-        for project in ["dktk"] {
-            super::load(project).unwrap();
-        }
+        std::sync::LazyLock::force(&super::MAPPINGS);
     }
 }

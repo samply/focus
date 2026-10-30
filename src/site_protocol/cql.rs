@@ -437,7 +437,7 @@ mod test {
 
     fn cql(query: &str) -> Result<String, Error> {
         let query: Query = serde_json::from_str(query).unwrap();
-        let (library, _) = generate(&query.expression, &mapping::load("dktk").unwrap())?;
+        let (library, _) = generate(&query.expression, mapping::get("dktk").unwrap())?;
         let data = library["content"][0]["data"].as_str().unwrap();
         Ok(String::from_utf8(BASE64.decode(data).unwrap()).unwrap())
     }

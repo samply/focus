@@ -66,16 +66,16 @@ async fn handle(
         ));
     }
 
-    let mapping = mapping::load(project).map_err(Error::Rejected)?;
+    let mapping = mapping::get(project).map_err(Error::Rejected)?;
     let query: ast::Query =
         serde_json::from_str(body).map_err(|e| Error::Rejected(format!("invalid query: {e}")))?;
-    let (library, measure) = cql::generate(&query.expression, &mapping)?;
+    let (library, measure) = cql::generate(&query.expression, mapping)?;
     let report = blaze::run_cql_query(&library, &measure)
         .await
         .map_err(|e| Error::Failed(e.to_string()))?;
     let mut response = cql::read_report(&report)?;
     if CONFIG.obfuscate == Obfuscate::Yes && !CONFIG.unobfuscated.iter().any(|p| p == project) {
-        obfuscate(&mut response, &mapping, &mut *obf_cache.lock().await)?;
+        obfuscate(&mut response, mapping, &mut *obf_cache.lock().await)?;
     }
     serde_json::to_string(&response).map_err(|e| Error::Failed(e.to_string()))
 }
