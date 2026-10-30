@@ -1,0 +1,82 @@
+fields:
+  gender:
+    type: values
+    cql: "{{this}}.gender in {{value}}"
+  vitalStatus:
+    type: values
+    cql: |
+      exists([Observation] O
+        where O.code.coding.code contains '75186-7'
+          and exists(((O.value as CodeableConcept).coding) C where C.code in {{value}}))
+
+scopes:
+  diagnosis:
+    resource_type: Condition
+    temporal_date: "FHIRHelpers.ToDateTime({{this}}.onset as FHIR.dateTime)"
+    fields:
+      # C34 also matches its subcodes C34.0, C34.1, ...
+      diagnosis:
+        type: values
+        cql: |
+          exists({{this}}.code.coding C
+            where C.system = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm'
+              and exists(({{value}}) V where C.code = V or StartsWith(C.code, V + '.')))
+      year_of_diagnosis:
+        type: range
+        cql: "(year from FHIRHelpers.ToDateTime({{this}}.onset as FHIR.dateTime)) between {{min}} and {{max}}"
+      age_at_diagnosis:
+        type: range
+        cql: "AgeInYearsAt(FHIRHelpers.ToDateTime({{this}}.onset as FHIR.dateTime)) between {{min}} and {{max}}"
+
+  tnm:
+    resource_type: Observation
+    # Clinical and pathological TNM
+    filter: "{{this}}.code.coding.code contains '21908-9' or {{this}}.code.coding.code contains '21902-2'"
+    fields:
+      TNM-T:
+        type: values
+        cql: |
+          exists({{this}}.component C
+            where (C.code.coding.code contains '21905-5' or C.code.coding.code contains '21899-0')
+              and exists(((C.value as CodeableConcept).coding) V where V.code in {{value}}))
+
+  specimen:
+    resource_type: Specimen
+    temporal_date: "FHIRHelpers.ToDateTime({{this}}.collection.collected as FHIR.dateTime)"
+    fields:
+      sample_kind:
+        type: values
+        cql: "exists({{this}}.type.coding C where C.code in {{value}})"
+
+counts:
+  patients:
+    resource_type: Patient
+  diagnoses:
+    resource_type: Condition
+  specimen:
+    resource_type: Specimen
+
+stratifiers:
+  gender:
+    resource_type: Patient
+    cql: "{{this}}.gender"
+  age:
+    resource_type: Patient
+    cql: |
+      case
+        when AgeInYears() < 20 then '0-19'
+        when AgeInYears() < 40 then '20-39'
+        when AgeInYears() < 60 then '40-59'
+        when AgeInYears() < 80 then '60-79'
+        else '80+'
+      end
+  diagnosis:
+    resource_type: Condition
+    cql: "{{this}}.code.coding.where(system = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm').code.first()"
+  sample_kind:
+    resource_type: Specimen
+    cql: "{{this}}.type.coding.code.first()"
+
+sensitivity:
+  Condition: 3
+  Specimen: 20
