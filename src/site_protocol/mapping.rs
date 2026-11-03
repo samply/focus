@@ -57,13 +57,16 @@ pub struct Stratifier {
 }
 
 static MAPPINGS: LazyLock<HashMap<&'static str, Mapping>> = LazyLock::new(|| {
-    [("dktk", include_str!("mappings/dktk.yaml"))]
-        .into_iter()
-        .map(|(project, yaml)| {
-            let mapping = parse(yaml).unwrap_or_else(|e| panic!("mapping \"{project}\": {e}"));
-            (project, mapping)
-        })
-        .collect()
+    [
+        ("dhki", include_str!("mappings/dhki.yaml")),
+        ("dktk", include_str!("mappings/dktk.yaml")),
+    ]
+    .into_iter()
+    .map(|(project, yaml)| {
+        let mapping = parse(yaml).unwrap_or_else(|e| panic!("mapping \"{project}\": {e}"));
+        (project, mapping)
+    })
+    .collect()
 });
 
 pub fn get(project: &str) -> Result<&'static Mapping, String> {

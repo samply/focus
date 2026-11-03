@@ -12,7 +12,7 @@ ARG FEATURE
 COPY /artifacts/binaries-$TARGETARCH$FEATURE/$COMPONENT /app/$COMPONENT
 RUN chmod +x /app/*
 
-FROM gcr.io/distroless/cc-debian12
+FROM gcr.io/distroless/cc-debian13
 ARG COMPONENT
 COPY --from=chmodder /app/$COMPONENT /usr/local/bin/focus
 ENTRYPOINT [ "/usr/local/bin/focus" ]
