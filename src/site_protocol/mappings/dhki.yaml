@@ -65,11 +65,13 @@ scopes:
       age:
         type: range
         cql: "AgeInYearsAt(Coalesce({{this}}.recordedDate, {{this}}.onset as FHIR.dateTime)) between {{min}} and {{max}}"
+      # C16 also matches C16.1, which also matches the German extension C16.11
       localization:
         type: values
         cql: |-
           exists({{this}}.bodySite B where exists(B.coding X
-            where X.system.value = 'urn:oid:2.16.840.1.113883.6.43.1' and X.code.value in {{value}}))
+            where X.system.value = 'urn:oid:2.16.840.1.113883.6.43.1'
+              and exists(({{value}}) V where StartsWith(X.code.value, V))))
       # The loader writes the side as German words rather than oBDS codes
       side:
         type: values
