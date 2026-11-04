@@ -52,11 +52,13 @@ scopes:
     resource_type: Condition
     temporal_date: "Coalesce({{this}}.recordedDate, {{this}}.onset as FHIR.dateTime)"
     fields:
+      # C34 also matches its subcodes C34.0, C34.1, ...
       code:
         type: values
         cql: |-
           exists({{this}}.code.coding X
-            where X.system.value = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm' and X.code.value in {{value}})
+            where X.system.value = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm'
+              and exists(({{value}}) V where X.code.value = V or StartsWith(X.code.value, V + '.')))
       date:
         type: date
         cql: "Coalesce({{this}}.recordedDate, {{this}}.onset as FHIR.dateTime) between {{min}} and {{max}}"
