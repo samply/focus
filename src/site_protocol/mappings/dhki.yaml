@@ -42,9 +42,10 @@ fields:
               and exists(P.code.coding X
                 where X.system.value = 'http://localhost:42000/fhir/policySet/DhkiConsentPolicyCodeSystem-1.0.0'
                   and X.code.value = 'dhki-consent-policies-' + ToString(N)))))
+  # The loader has written the clinics' "ü" as "Ã¼", UTF-8 read as Latin-1
   department:
     type: values
-    cql: "exists([Encounter] E where exists(E.identifier I where I.value.value in {{value}}))"
+    cql: "exists([Encounter] E where exists(E.identifier I where ReplaceMatches(I.value.value, 'Ã¼', 'ü') in {{value}}))"
 
 scopes:
   diagnosis:
@@ -210,7 +211,7 @@ stratifiers:
   department:
     resource_type: Encounter
     filter: "exists({{this}}.identifier I where StartsWith(I.value.value, 'UMM/'))"
-    cql: "First({{this}}.identifier).value.value"
+    cql: "ReplaceMatches(First({{this}}.identifier).value.value, 'Ã¼', 'ü')"
 
 sensitivity:
   Condition: 3
