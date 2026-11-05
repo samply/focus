@@ -177,9 +177,18 @@ stratifiers:
     cql: |-
       ToString(Min({AgeInYearsAt(Min([Condition] C
         return FHIRHelpers.ToDateTime(Coalesce(C.recordedDate, C.onset as FHIR.dateTime)))) div 10 * 10, 90}))
+  # One stratum per patient: the 3-char ICD-10 of the tumour diagnosis. The
+  # Onkostar Primaerdiagnose wins, since the KDS forwards the same diagnoses
+  # again and counting conditions would multiply the counts; without one, the
+  # smallest malignant diagnosis, then any coded diagnosis of the patient.
   diagnosis:
-    resource_type: Condition
-    cql: "Substring(First({{this}}.code.coding.where(system = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm')).code.value, 0, 3)"
+    resource_type: Patient
+    cql: |-
+      Substring(Coalesce(
+        Min([Condition] C where exists (C.meta.profile P where P.value = 'http://dktk.dkfz.de/fhir/StructureDefinition/onco-core-Condition-Primaerdiagnose') return (First(C.code.coding.where(system = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm'))).code.value),
+        Min([Condition] C where exists (C.code.coding X where X.system.value = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm' and StartsWith(X.code.value, 'C')) return (First(C.code.coding.where(system = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm' and StartsWith(code, 'C')))).code.value),
+        Min([Condition] C return (First(C.code.coding.where(system = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm'))).code.value)
+      ), 0, 3)
   # The first therapy type that applies, in this order
   therapy_type:
     resource_type: Patient
@@ -212,6 +221,11 @@ stratifiers:
     resource_type: Specimen
     filter: "not ({{this}}.type.coding.code.value contains 'Bronchoscopy')"
     cql: "First({{this}}.type.coding.where(system = 'https://fhir.bbmri.de/CodeSystem/SampleMaterialType')).code.value"
+  # The LabCollector analyte deposited in the sample
+  specimen_subtype:
+    resource_type: Specimen
+    filter: "not ({{this}}.type.coding.code.value contains 'Bronchoscopy')"
+    cql: "{{this}}.type.text.first()"
   # Cases per clinic: only the loader's department encounters, not the DIC's
   department:
     resource_type: Encounter
