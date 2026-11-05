@@ -173,6 +173,7 @@ stratifiers:
   # Decade of the age at the first diagnosis, as "0", "10", ... "90" (90 and older)
   age_at_diagnosis:
     resource_type: Patient
+    filter: "{{this}}.birthDate is not null and exists ([Condition] C where Coalesce(C.recordedDate, C.onset as FHIR.dateTime) is not null)"
     cql: |-
       ToString(Min({AgeInYearsAt(Min([Condition] C
         return FHIRHelpers.ToDateTime(Coalesce(C.recordedDate, C.onset as FHIR.dateTime)))) div 10 * 10, 90}))
