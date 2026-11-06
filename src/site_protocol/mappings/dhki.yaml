@@ -104,14 +104,15 @@ scopes:
     temporal_date: "Coalesce({{this}}.performed as FHIR.dateTime, ({{this}}.performed as FHIR.Period).start)"
     fields:
       # An OPS code also matches the codes below it: 5-45 matches 5-455, which
-      # matches 5-455.41. The code may also be an oBDS therapy type (OP, CH, …)
-      # of the MII oncology module.
+      # matches 5-455.41. The data writes the letters of OPS codes in upper
+      # case (6-001.H), BfArM in lower case (6-001.h). The code may also be an
+      # oBDS therapy type (OP, CH, …) of the MII oncology module.
       code:
         type: values
         cql: |-
           exists({{this}}.code.coding X
             where (X.system.value = 'http://fhir.de/CodeSystem/bfarm/ops'
-                and exists(({{value}}) V where StartsWith(X.code.value, V)))
+                and exists(({{value}}) V where StartsWith(Upper(X.code.value), Upper(V))))
               or (X.system.value = 'https://www.medizininformatik-initiative.de/fhir/ext/modul-onko/CodeSystem/mii-cs-onko-therapie-typ'
                 and X.code.value in {{value}}))
       date:
