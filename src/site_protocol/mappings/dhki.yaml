@@ -195,33 +195,19 @@ stratifiers:
         Min([Condition] C where exists (C.code.coding X where X.system.value = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm' and StartsWith(X.code.value, 'C')) return (First(C.code.coding.where(system = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm' and StartsWith(code, 'C')))).code.value),
         Min([Condition] C return (First(C.code.coding.where(system = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm'))).code.value)
       ), 0, 3)
-  # The first therapy type that applies, in this order
-  therapy_type:
-    resource_type: Patient
+  # Procedures by OPS code, cut to the seven characters that tell a drug apart
+  # (6-001.h), or else by oBDS therapy type. The explorer sorts them into its
+  # procedure categories.
+  procedure_code:
+    resource_type: Procedure
+    filter: |-
+      exists({{this}}.code.coding X
+        where X.system.value in {'http://fhir.de/CodeSystem/bfarm/ops',
+          'https://www.medizininformatik-initiative.de/fhir/ext/modul-onko/CodeSystem/mii-cs-onko-therapie-typ'})
     cql: |-
-      case
-        when exists([Procedure] P where exists(P.code.coding X
-            where X.system = 'http://fhir.de/CodeSystem/bfarm/ops' and StartsWith(X.code, '8-52')))
-          then 'radiotherapy'
-        when exists([Procedure] P where exists(P.code.coding X
-            where (X.system = 'http://fhir.de/CodeSystem/bfarm/ops' and Substring(X.code, 0, 5) in {'8-541', '8-542', '8-543', '8-544'})
-              or (X.system = 'https://www.medizininformatik-initiative.de/fhir/ext/modul-onko/CodeSystem/mii-cs-onko-therapie-typ' and X.code = 'CH')))
-          then 'chemo'
-        when exists([Procedure] P where exists(P.code.coding X
-            where (X.system = 'http://fhir.de/CodeSystem/bfarm/ops' and StartsWith(X.code, '8-547'))
-              or (X.system = 'https://www.medizininformatik-initiative.de/fhir/ext/modul-onko/CodeSystem/mii-cs-onko-therapie-typ' and X.code = 'IM')))
-          then 'immunotherapy'
-        when exists([Procedure] P where exists(P.code.coding X
-            where X.system = 'http://fhir.de/CodeSystem/bfarm/ops' and StartsWith(X.code, '5-')))
-          then 'surgery'
-        when exists([Procedure] P where exists(P.code.coding X
-            where X.system = 'http://fhir.de/CodeSystem/bfarm/ops' and StartsWith(X.code, '3-')))
-          then 'imaging'
-        when exists([Procedure] P where exists(P.code.coding X
-            where X.system = 'http://fhir.de/CodeSystem/bfarm/ops' and StartsWith(X.code, '1-')))
-          then 'diagnostic'
-        else null
-      end
+      Coalesce(
+        Substring(First({{this}}.code.coding.where(system = 'http://fhir.de/CodeSystem/bfarm/ops')).code.value, 0, 7),
+        First({{this}}.code.coding.where(system = 'https://www.medizininformatik-initiative.de/fhir/ext/modul-onko/CodeSystem/mii-cs-onko-therapie-typ')).code.value)
   specimen_type:
     resource_type: Specimen
     cql: "First({{this}}.type.coding.where(system = 'https://fhir.bbmri.de/CodeSystem/SampleMaterialType')).code.value"
@@ -237,5 +223,6 @@ stratifiers:
 
 sensitivity:
   Condition: 3
+  Procedure: 1.7
   Specimen: 20
   Encounter: 5
