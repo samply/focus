@@ -103,11 +103,17 @@ scopes:
     resource_type: Procedure
     temporal_date: "Coalesce({{this}}.performed as FHIR.dateTime, ({{this}}.performed as FHIR.Period).start)"
     fields:
+      # An OPS code also matches the codes below it: 5-45 matches 5-455, which
+      # matches 5-455.41. The code may also be an oBDS therapy type (OP, CH, …)
+      # of the MII oncology module.
       code:
         type: values
         cql: |-
           exists({{this}}.code.coding X
-            where X.system.value = 'http://fhir.de/CodeSystem/bfarm/ops' and X.code.value in {{value}})
+            where (X.system.value = 'http://fhir.de/CodeSystem/bfarm/ops'
+                and exists(({{value}}) V where StartsWith(X.code.value, V)))
+              or (X.system.value = 'https://www.medizininformatik-initiative.de/fhir/ext/modul-onko/CodeSystem/mii-cs-onko-therapie-typ'
+                and X.code.value in {{value}}))
       date:
         type: date
         cql: "Coalesce({{this}}.performed as FHIR.dateTime, ({{this}}.performed as FHIR.Period).start) between {{min}} and {{max}}"
@@ -173,44 +179,42 @@ stratifiers:
   # Decade of the age at the first diagnosis, as "0", "10", ... "90" (90 and older)
   age_at_diagnosis:
     resource_type: Patient
+    filter: "{{this}}.birthDate is not null and exists ([Condition] C where Coalesce(C.recordedDate, C.onset as FHIR.dateTime) is not null)"
     cql: |-
       ToString(Min({AgeInYearsAt(Min([Condition] C
         return FHIRHelpers.ToDateTime(Coalesce(C.recordedDate, C.onset as FHIR.dateTime)))) div 10 * 10, 90}))
+  # One stratum per patient: the 3-char ICD-10 of the tumour diagnosis. The
+  # Onkostar Primaerdiagnose wins, since the KDS forwards the same diagnoses
+  # again and counting conditions would multiply the counts; without one, the
+  # smallest malignant diagnosis, then any coded diagnosis of the patient.
   diagnosis:
-    resource_type: Condition
-    cql: "Substring(First({{this}}.code.coding.where(system = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm')).code.value, 0, 3)"
-  # The first therapy type that applies, in this order
-  therapy_type:
     resource_type: Patient
     cql: |-
-      case
-        when exists([Procedure] P where exists(P.code.coding X
-            where X.system = 'http://fhir.de/CodeSystem/bfarm/ops' and StartsWith(X.code, '8-52')))
-          then 'radiotherapy'
-        when exists([Procedure] P where exists(P.code.coding X
-            where (X.system = 'http://fhir.de/CodeSystem/bfarm/ops' and Substring(X.code, 0, 5) in {'8-541', '8-542', '8-543', '8-544'})
-              or (X.system = 'https://www.medizininformatik-initiative.de/fhir/ext/modul-onko/CodeSystem/mii-cs-onko-therapie-typ' and X.code = 'CH')))
-          then 'chemo'
-        when exists([Procedure] P where exists(P.code.coding X
-            where (X.system = 'http://fhir.de/CodeSystem/bfarm/ops' and StartsWith(X.code, '8-547'))
-              or (X.system = 'https://www.medizininformatik-initiative.de/fhir/ext/modul-onko/CodeSystem/mii-cs-onko-therapie-typ' and X.code = 'IM')))
-          then 'immunotherapy'
-        when exists([Procedure] P where exists(P.code.coding X
-            where X.system = 'http://fhir.de/CodeSystem/bfarm/ops' and StartsWith(X.code, '5-')))
-          then 'surgery'
-        when exists([Procedure] P where exists(P.code.coding X
-            where X.system = 'http://fhir.de/CodeSystem/bfarm/ops' and StartsWith(X.code, '3-')))
-          then 'imaging'
-        when exists([Procedure] P where exists(P.code.coding X
-            where X.system = 'http://fhir.de/CodeSystem/bfarm/ops' and StartsWith(X.code, '1-')))
-          then 'diagnostic'
-        else null
-      end
-  # Bronchoscopy samples are left out, as in the old explorer
+      Substring(Coalesce(
+        Min([Condition] C where exists (C.meta.profile P where P.value = 'http://dktk.dkfz.de/fhir/StructureDefinition/onco-core-Condition-Primaerdiagnose') return (First(C.code.coding.where(system = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm'))).code.value),
+        Min([Condition] C where exists (C.code.coding X where X.system.value = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm' and StartsWith(X.code.value, 'C')) return (First(C.code.coding.where(system = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm' and StartsWith(code, 'C')))).code.value),
+        Min([Condition] C return (First(C.code.coding.where(system = 'http://fhir.de/CodeSystem/bfarm/icd-10-gm'))).code.value)
+      ), 0, 3)
+  # Procedures by OPS code, cut to the seven characters that tell a drug apart
+  # (6-001.h), or else by oBDS therapy type. The explorer sorts them into its
+  # procedure categories.
+  procedure_code:
+    resource_type: Procedure
+    filter: |-
+      exists({{this}}.code.coding X
+        where X.system.value in {'http://fhir.de/CodeSystem/bfarm/ops',
+          'https://www.medizininformatik-initiative.de/fhir/ext/modul-onko/CodeSystem/mii-cs-onko-therapie-typ'})
+    cql: |-
+      Coalesce(
+        Substring(First({{this}}.code.coding.where(system = 'http://fhir.de/CodeSystem/bfarm/ops')).code.value, 0, 7),
+        First({{this}}.code.coding.where(system = 'https://www.medizininformatik-initiative.de/fhir/ext/modul-onko/CodeSystem/mii-cs-onko-therapie-typ')).code.value)
   specimen_type:
     resource_type: Specimen
-    filter: "not ({{this}}.type.coding.code.value contains 'Bronchoscopy')"
     cql: "First({{this}}.type.coding.where(system = 'https://fhir.bbmri.de/CodeSystem/SampleMaterialType')).code.value"
+  # The LabCollector analyte deposited in the sample
+  specimen_subtype:
+    resource_type: Specimen
+    cql: "{{this}}.type.text.first()"
   # Cases per clinic: only the loader's department encounters, not the DIC's
   department:
     resource_type: Encounter
@@ -219,5 +223,6 @@ stratifiers:
 
 sensitivity:
   Condition: 3
+  Procedure: 1.7
   Specimen: 20
   Encounter: 5
