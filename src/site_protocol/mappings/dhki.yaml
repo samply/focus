@@ -216,15 +216,12 @@ stratifiers:
           then 'diagnostic'
         else null
       end
-  # Bronchoscopy samples are left out, as in the old explorer
   specimen_type:
     resource_type: Specimen
-    filter: "not ({{this}}.type.coding.code.value contains 'Bronchoscopy')"
     cql: "First({{this}}.type.coding.where(system = 'https://fhir.bbmri.de/CodeSystem/SampleMaterialType')).code.value"
   # The LabCollector analyte deposited in the sample
   specimen_subtype:
     resource_type: Specimen
-    filter: "not ({{this}}.type.coding.code.value contains 'Bronchoscopy')"
     cql: "{{this}}.type.text.first()"
   # Cases per clinic: only the loader's department encounters, not the DIC's
   department:
