@@ -83,20 +83,20 @@ scopes:
                 when 'LINKS' then 'L' when 'RECHTS' then 'R' when 'BEIDSEITIG' then 'B'
                 when 'MITTELLINIE' then 'M' when 'TRIFFT NICHT ZU' then 'T' when 'UNBEKANNT' then 'U'
                 else X.code.value end) in {{value}}))
-      # Histology and response are Observations pointing at the diagnosis through focus
+      # Histology and response are Observations pointing at the diagnosis through focus. The
+      # code-filtered retrieves let blaze answer from its index; an unfiltered
+      # retrieve scans the patient's whole observation compartment per condition.
       morphology:
         type: values
         cql: |-
-          exists([Observation] O
-            where O.code.coding.code.value contains '59847-4'
-              and O.focus.reference.value contains ('Condition/' + {{this}}.id)
+          exists([Observation: Code '59847-4' from loinc] O
+            where O.focus.reference.value contains ('Condition/' + {{this}}.id)
               and exists(((O.value as FHIR.CodeableConcept).coding) X where X.code.value in {{value}}))
       response:
         type: values
         cql: |-
-          exists([Observation] O
-            where O.code.coding.code.value contains '396432002'
-              and O.focus.reference.value contains ('Condition/' + {{this}}.id)
+          exists([Observation: Code '396432002' from snomed] O
+            where O.focus.reference.value contains ('Condition/' + {{this}}.id)
               and exists(((O.value as FHIR.CodeableConcept).coding) X where X.code.value in {{value}}))
 
   procedure:
@@ -227,3 +227,8 @@ sensitivity:
   Procedure: 1.7
   Specimen: 20
   Encounter: 5
+
+# Code systems referenced by the filtered retrieves in the fields above.
+code_systems:
+  loinc: "http://loinc.org"
+  snomed: "http://snomed.info/sct"

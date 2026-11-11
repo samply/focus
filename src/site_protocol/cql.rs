@@ -368,7 +368,12 @@ pub fn generate(e: &Expression, mapping: &Mapping) -> Result<(Value, Value), Err
         groups.push(group(key, &s.resource_type, members, Some(&value)));
     }
     let cql = format!(
-        "library SiteProtocol version '1.0.0'\nusing FHIR version '4.0.0'\ninclude FHIRHelpers version '4.0.0'\n\ncontext Patient\n\n{}\n",
+        "library SiteProtocol version '1.0.0'\nusing FHIR version '4.0.0'\ninclude FHIRHelpers version '4.0.0'\n\n{}context Patient\n\n{}\n",
+        mapping
+            .code_systems
+            .iter()
+            .map(|(name, url)| format!("codesystem \"{}\": '{}'\n", name, url))
+            .collect::<String>(),
         defines.join("\n\n")
     );
 
