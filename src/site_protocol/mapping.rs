@@ -14,6 +14,10 @@ pub struct Mapping {
     /// obfuscation. Patient is always 1.
     #[serde(default)]
     pub sensitivity: BTreeMap<String, f64>,
+    /// Code systems the mapping's CQL refers to in filtered retrieves, by the
+    /// name the retrieves use.
+    #[serde(default)]
+    pub code_systems: BTreeMap<String, String>,
 }
 
 #[derive(Deserialize, Debug)]
