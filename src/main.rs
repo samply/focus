@@ -16,6 +16,7 @@ mod intermediate_rep;
 mod logger;
 mod mr;
 mod organization;
+mod site_protocol;
 mod task_processing;
 mod transformed;
 mod util;
@@ -68,6 +69,7 @@ struct Metadata {
     task_type: Option<exporter::TaskType>,
     #[serde(default)]
     transform: Transform,
+    site_protocol: Option<u32>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -286,6 +288,7 @@ async fn process_task(
         project: "default_obfuscation".to_string(),
         task_type: None,
         transform: Transform::None,
+        site_protocol: None,
     });
 
     debug!("{:?}", &metadata);
@@ -304,6 +307,9 @@ async fn process_task(
         };
         let mut body = task.body.clone();
         return run_exporter_query(task, &mut body, task_type).await;
+    }
+    if let Some(version) = metadata.site_protocol {
+        return Ok(site_protocol::run(task, &metadata.project, version, obf_cache).await);
     }
 
     match CONFIG.endpoint_type {
@@ -961,6 +967,7 @@ mod test {
             project: "default_obfuscation".to_string(),
             task_type: None,
             transform: Transform::None,
+            site_protocol: None,
         });
 
         assert_eq!(metadata.task_type, None);

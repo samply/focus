@@ -470,7 +470,7 @@ pub fn process(
     Ok(())
 }
 
-fn escape(value: &str) -> String {
+pub fn escape(value: &str) -> String {
     value
         .replace("\\", "\\\\")
         .replace("\"", "\\\"")
