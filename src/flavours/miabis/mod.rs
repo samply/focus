@@ -35,11 +35,11 @@ pub static CQL_SNIPPETS: LazyLock<HashMap<(&'static str, CriterionRole), &'stati
             ),
             (
                 ("date_of_diagnosis", CriterionRole::Query),
-                "((exists from [Observation] O where FHIRHelpers.ToDateTime(O.effective) between {{D1}} and {{D2}}) or (exists from [Condition] C where FHIRHelpers.ToDateTime(C.onset) between {{D1}} and {{D2}}))",
+                "((exists from [Observation] O where FHIRHelpers.ToDateTime(O.effective as FHIR.dateTime) between {{D1}} and {{D2}}) or (exists from [Condition] C where FHIRHelpers.ToDateTime(C.onset) between {{D1}} and {{D2}}))",
             ),
             (
                 ("diagnosis_age_donor", CriterionRole::Query),
-                "((exists from [Observation] O where AgeInYearsAt(FHIRHelpers.ToDateTime(O.effective)) between Ceiling({{D1}}) and Ceiling({{D2}})) or (exists from [Condition] C where AgeInYearsAt(FHIRHelpers.ToDateTime(C.onset)) between Ceiling({{D1}}) and Ceiling({{D2}})))",
+                "((exists from [Observation] O where AgeInYearsAt(FHIRHelpers.ToDateTime(O.effective as FHIR.dateTime)) between Ceiling({{D1}}) and Ceiling({{D2}})) or (exists from [Condition] C where AgeInYearsAt(FHIRHelpers.ToDateTime(C.onset)) between Ceiling({{D1}}) and Ceiling({{D2}})))",
             ),
             (
                 ("donor_age", CriterionRole::Query),

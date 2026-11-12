@@ -873,7 +873,7 @@ mod test {
         )
         .unwrap();
         assert!(
-            cql.contains("(exists from [Observation] O where FHIRHelpers.ToDateTime(O.effective)")
+            cql.contains("(exists from [Observation] O where FHIRHelpers.ToDateTime(O.effective as FHIR.dateTime)")
         );
         assert!(cql.contains("(exists from [Condition] C where FHIRHelpers.ToDateTime(C.onset)"));
     }
@@ -886,7 +886,7 @@ mod test {
         )
         .unwrap();
         assert!(cql.contains(
-            "(exists from [Observation] O where AgeInYearsAt(FHIRHelpers.ToDateTime(O.effective))"
+            "(exists from [Observation] O where AgeInYearsAt(FHIRHelpers.ToDateTime(O.effective as FHIR.dateTime))"
         ));
         assert!(cql.contains(
             "(exists from [Condition] C where AgeInYearsAt(FHIRHelpers.ToDateTime(C.onset))"
