@@ -30,7 +30,7 @@ pub static CRITERION_SNIPPET: Lazy<HashMap<&str, &str>> = Lazy::new(|| {
 });
 
 //TODO coordinate with providers writing their own mediators to do this elegantly
-pub static CRITERION: Lazy<HashMap<&str, &str>> = Lazy::new(|| { 
+pub static CRITERION: Lazy<HashMap<&str, &str>> = Lazy::new(|| {
     let mut map: HashMap<&'static str, &'static str> = HashMap::new();
     map.insert("SNOMEDCT248153007", "COM1001366");
     map.insert("SNOMEDCT248152002", "COM1000177");
@@ -50,33 +50,33 @@ pub static CRITERION: Lazy<HashMap<&str, &str>> = Lazy::new(|| {
     map.insert("SNOMEDCT39607008", "BP1000113");
     map.insert("SNOMEDCT12921003", "BP1000092");
     map.insert("SNOMEDCT41216001", "BP1000021");
-    map.insert("EUCAIM_Hyper-Ontology_V1.0.BP1000173", "BP1000173");    
-    map.insert("EUCAIM_Hyper-Ontology_V1.0.BP1000067", "BP1000067");    
-    map.insert("EUCAIM_Hyper-Ontology_V1.0.BP1000145", "BP1000145");    
-    map.insert("EUCAIM_Hyper-Ontology_V1.0.BP1000171", "BP1000171");    
-    map.insert("EUCAIM_Hyper-Ontology_V1.0.BP1000120", "BP1000120");    
-    map.insert("EUCAIM_Hyper-Ontology_V1.0.BP1000075", "BP1000075");    
-    map.insert("EUCAIM_Hyper-Ontology_V1.0.BP1000105", "BP1000105");    
-    map.insert("EUCAIM_Hyper-Ontology_V1.0.BP1000121", "BP1000121");    
-    map.insert("EUCAIM_Hyper-Ontology_V1.0.BP1000077", "BP1000077");    
+    map.insert("EUCAIM_Hyper-Ontology_V1.0.BP1000173", "BP1000173");
+    map.insert("EUCAIM_Hyper-Ontology_V1.0.BP1000067", "BP1000067");
+    map.insert("EUCAIM_Hyper-Ontology_V1.0.BP1000145", "BP1000145");
+    map.insert("EUCAIM_Hyper-Ontology_V1.0.BP1000171", "BP1000171");
+    map.insert("EUCAIM_Hyper-Ontology_V1.0.BP1000120", "BP1000120");
+    map.insert("EUCAIM_Hyper-Ontology_V1.0.BP1000075", "BP1000075");
+    map.insert("EUCAIM_Hyper-Ontology_V1.0.BP1000105", "BP1000105");
+    map.insert("EUCAIM_Hyper-Ontology_V1.0.BP1000121", "BP1000121");
+    map.insert("EUCAIM_Hyper-Ontology_V1.0.BP1000077", "BP1000077");
     map.insert("C200140", "IMG1000044"); // Siemens
     map.insert("birnlex_3066", "IMG1000044"); // Siemens
     map.insert("birnlex_12833", "IMG1000047"); // GE
     map.insert("birnlex_3065", "IMG1000046"); // Philips
     map.insert("birnlex_3067", "IMG1000045"); // Toshiba
-    map.insert("EUCAIM_Hyper-Ontology_V1.0.IMG1000052", "IMG1000052"); 
-    map.insert("EUCAIM_Hyper-Ontology_V1.0.IMG1000051", "IMG1000051"); 
-    map.insert("EUCAIM_Hyper-Ontology_V1.0.IMG1000050", "IMG1000050"); 
-    map.insert("EUCAIM_Hyper-Ontology_V1.0.IMG1000055", "IMG1000055"); 
-    map.insert("EUCAIM_Hyper-Ontology_V1.0.IMG1000049", "IMG1000049"); 
-    map.insert("EUCAIM_Hyper-Ontology_V1.0.IMG1000060", "IMG1000060"); 
-    map.insert("EUCAIM_Hyper-Ontology_V1.0.IMG1000057", "IMG1000057"); 
-    map.insert("EUCAIM_Hyper-Ontology_V1.0.IMG1000048", "IMG1000048"); 
-    map.insert("EUCAIM_Hyper-Ontology_V1.0.IMG1000053", "IMG1000053"); 
-    map.insert("EUCAIM_Hyper-Ontology_V1.0.IMG1000056", "IMG1000056"); 
-    map.insert("EUCAIM_Hyper-Ontology_V1.0.IMG1000058", "IMG1000058"); 
-    map.insert("EUCAIM_Hyper-Ontology_V1.0.IMG1000059", "IMG1000059"); 
-    map.insert("EUCAIM_Hyper-Ontology_V1.0.IMG1000054", "IMG1000054"); 
+    map.insert("EUCAIM_Hyper-Ontology_V1.0.IMG1000052", "IMG1000052");
+    map.insert("EUCAIM_Hyper-Ontology_V1.0.IMG1000051", "IMG1000051");
+    map.insert("EUCAIM_Hyper-Ontology_V1.0.IMG1000050", "IMG1000050");
+    map.insert("EUCAIM_Hyper-Ontology_V1.0.IMG1000055", "IMG1000055");
+    map.insert("EUCAIM_Hyper-Ontology_V1.0.IMG1000049", "IMG1000049");
+    map.insert("EUCAIM_Hyper-Ontology_V1.0.IMG1000060", "IMG1000060");
+    map.insert("EUCAIM_Hyper-Ontology_V1.0.IMG1000057", "IMG1000057");
+    map.insert("EUCAIM_Hyper-Ontology_V1.0.IMG1000048", "IMG1000048");
+    map.insert("EUCAIM_Hyper-Ontology_V1.0.IMG1000053", "IMG1000053");
+    map.insert("EUCAIM_Hyper-Ontology_V1.0.IMG1000056", "IMG1000056");
+    map.insert("EUCAIM_Hyper-Ontology_V1.0.IMG1000058", "IMG1000058");
+    map.insert("EUCAIM_Hyper-Ontology_V1.0.IMG1000059", "IMG1000059");
+    map.insert("EUCAIM_Hyper-Ontology_V1.0.IMG1000054", "IMG1000054");
     map
 });
 
@@ -112,7 +112,8 @@ pub fn build_eucaim_sql_query(ast: ast::Ast) -> Result<String, FocusError> {
                                 return Err(FocusError::EucaimQueryGenerationError);
                             }
                             let greatgrandchildren = operation.children;
-                            if greatgrandchildren.len() > 1 { //TODO put them in a list, use IN
+                            if greatgrandchildren.len() > 1 {
+                                //TODO put them in a list, use IN
                                 error!("Too many children! OR operator between criteria of the same type not supported.");
                                 return Err(FocusError::EucaimQueryGenerationError);
                             }
