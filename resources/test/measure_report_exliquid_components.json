@@ -1,0 +1,93 @@
+{
+  "resourceType": "MeasureReport",
+  "group": [
+    {
+      "code": {
+        "coding": [
+          {
+            "system": "https://dktk.dkfz.de/fhir/CodeSystem/exliquid-measure-group",
+            "code": "patient"
+          }
+        ]
+      },
+      "population": [{ "count": 12 }],
+      "stratifier": [
+        {
+          "code": [
+            {
+              "coding": [
+                {
+                  "system": "https://dktk.dkfz.de/fhir/CodeSystem/exliquid-stratifier",
+                  "code": "diagnosis"
+                }
+              ]
+            }
+          ],
+          "stratum": [{ "value": { "text": "C34.1" }, "population": [{ "count": 3 }] }]
+        }
+      ]
+    },
+    {
+      "code": {
+        "coding": [
+          {
+            "system": "https://dktk.dkfz.de/fhir/CodeSystem/exliquid-measure-group",
+            "code": "specimen"
+          }
+        ]
+      },
+      "population": [{ "count": 30 }],
+      "stratifier": [
+        {
+          "code": [
+            {
+              "coding": [
+                {
+                  "system": "https://dktk.dkfz.de/fhir/CodeSystem/exliquid-stratifier",
+                  "code": "sample-diagnosis"
+                }
+              ]
+            },
+            {
+              "coding": [
+                {
+                  "system": "https://dktk.dkfz.de/fhir/CodeSystem/exliquid-stratifier",
+                  "code": "sample-type"
+                }
+              ]
+            }
+          ],
+          "stratum": [
+            {
+              "component": [
+                {
+                  "code": {
+                    "coding": [
+                      {
+                        "system": "https://dktk.dkfz.de/fhir/CodeSystem/exliquid-stratifier",
+                        "code": "sample-diagnosis"
+                      }
+                    ]
+                  },
+                  "value": { "text": "C61" }
+                },
+                {
+                  "code": {
+                    "coding": [
+                      {
+                        "system": "https://dktk.dkfz.de/fhir/CodeSystem/exliquid-stratifier",
+                        "code": "sample-type"
+                      }
+                    ]
+                  },
+                  "value": { "text": "buffy-coat" }
+                }
+              ],
+              "population": [{ "count": 2 }]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
