@@ -708,11 +708,16 @@ async fn run_cql_query(
     // Organization FHIR IDs need to be replaced with Organization directory IDs before transformation because transformation does not have to be turned on for every project using blaze
     let result_mr: mr::MeasureReport = serde_json::from_str(&cql_result_new)?;
 
-    let mr_result_org = organization::replace_org_fhir_ids_with_org_directory_ids(
-        result_mr,
-        organization_cache.lock().await.deref_mut(),
-    )
-    .await?;
+    let mr_result_org = match cql_flavour.as_str() {
+        "bbmri" | "miabis" => {
+            organization::replace_org_fhir_ids_with_org_directory_ids(
+                result_mr,
+                organization_cache.lock().await.deref_mut(),
+            )
+            .await?
+        }
+        _ => result_mr,
+    };
 
     trace!(
         "MeasureReport with org FHIR IDs replaced with org Directory IDs: {}",
