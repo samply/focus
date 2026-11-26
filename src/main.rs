@@ -740,8 +740,7 @@ async fn run_cql_query(
             serde_json::to_string(&result_json)
                 .map_err(|e| FocusError::SerializationError(e.to_string()))?
         }
-        Transform::None => serde_json::to_string(&mr_result_org)
-            .map_err(|e| FocusError::SerializationError(e.to_string()))?,
+        Transform::None => mr_result_org,
     };
 
     if should_cache {
