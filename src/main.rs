@@ -733,24 +733,10 @@ async fn run_cql_query(
         _ => cql_result_new,
     };
 
-    let result_mr: mr::MeasureReport = serde_json::from_str(&mr_result_org)?;
-
-    let mr_result_org = organization::replace_org_fhir_ids_with_org_directory_ids(
-        result_mr,
-        organization_cache.lock().await.deref_mut(),
-    )
-    .await?;
-
-    trace!(
-        "MeasureReport with org FHIR IDs replaced with org Directory IDs: {}",
-        serde_json::to_string(&mr_result_org).unwrap_or(
-            "Measure report in a wrong format after Organization ID replacement".to_string()
-        )
-    );
-
     let result_string = match transform {
         Transform::Lens => {
-            let result_json = mr::transform_lens(mr_result_org)?;
+            let result_mr: mr::MeasureReport = serde_json::from_str(&mr_result_org)?;
+            let result_json = mr::transform_lens(result_mr)?;
             serde_json::to_string(&result_json)
                 .map_err(|e| FocusError::SerializationError(e.to_string()))?
         }
