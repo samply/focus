@@ -706,18 +706,40 @@ async fn run_cql_query(
     };
 
     // Organization FHIR IDs need to be replaced with Organization directory IDs before transformation because transformation does not have to be turned on for every project using blaze
-    let result_mr: mr::MeasureReport = serde_json::from_str(&cql_result_new)?;
+    // FHIR organization IDs are only replaced in BBMRI project (bbmri and miabis CQL flavours)
 
     let mr_result_org = match cql_flavour.as_str() {
         "bbmri" | "miabis" => {
-            organization::replace_org_fhir_ids_with_org_directory_ids(
+            // Organization FHIR IDs need to be replaced with Organization directory IDs before transformation because transformation does not have to be turned on for every project using blaze
+            let result_mr: mr::MeasureReport = serde_json::from_str(&cql_result_new)?;
+
+            let mr_result_org = organization::replace_org_fhir_ids_with_org_directory_ids(
                 result_mr,
                 organization_cache.lock().await.deref_mut(),
             )
-            .await?
+            .await?;
+
+            let mr_org_string = serde_json::to_string(&mr_result_org).unwrap_or(
+                "Measure report in a wrong format after Organization ID replacement".to_string(),
+            );
+
+            trace!(
+                "MeasureReport with org FHIR IDs replaced with org Directory IDs: {}",
+                mr_org_string
+            );
+
+            mr_org_string.to_string()
         }
-        _ => result_mr,
+        _ => cql_result_new,
     };
+
+    let result_mr: mr::MeasureReport = serde_json::from_str(&mr_result_org)?;
+
+    let mr_result_org = organization::replace_org_fhir_ids_with_org_directory_ids(
+        result_mr,
+        organization_cache.lock().await.deref_mut(),
+    )
+    .await?;
 
     trace!(
         "MeasureReport with org FHIR IDs replaced with org Directory IDs: {}",
